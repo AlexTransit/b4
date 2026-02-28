@@ -40,12 +40,9 @@ func BuildFakeSNIPacketV4(original []byte, cfg *config.SetConfig) []byte {
 		off = 10000
 	}
 
-	if cfg.Faking.TTL > 0 {
-		fake[8] = cfg.Faking.TTL
-	}
-
 	switch cfg.Faking.Strategy {
 	case "ttl":
+		fake[8] = cfg.Faking.TTL
 	case "pastseq":
 		off := uint32(cfg.Faking.SeqOffset)
 		if off == 0 {
