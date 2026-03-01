@@ -21,6 +21,7 @@ export type StrategyFamily =
 
 export type DiscoveryPhase =
   | "baseline"
+  | "cached"
   | "strategy_detection"
   | "optimization"
   | "dns_detection"
@@ -57,6 +58,8 @@ export interface DiscoverySuite {
   total_checks: number;
   completed_checks: number;
   current_phase?: DiscoveryPhase;
+  current_domain?: string;
+  domains?: { domain: string; check_url: string }[];
   domain_discovery_results?: Record<string, DiscoveryResult>;
 }
 
@@ -65,5 +68,6 @@ export interface DiscoveryResponse {
   estimated_tests: number;
   message: string;
   domain: string;
+  domains?: string[];
   check_url: string;
 }

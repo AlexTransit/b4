@@ -13,16 +13,27 @@ var (
 	suitesMu     sync.RWMutex
 )
 
-func NewCheckSuite(url string) *CheckSuite {
-	domain, checkURL := parseDiscoveryInput(url)
+func NewCheckSuite(domainInputs []DomainInput) *CheckSuite {
+	if len(domainInputs) == 0 {
+		return &CheckSuite{
+			Id:        uuid.New().String(),
+			Status:    CheckStatusFailed,
+			StartTime: time.Now(),
+			cancel:    make(chan struct{}),
+			Domains:   domainInputs,
+		}
+	}
+
+	primary := domainInputs[0]
 
 	return &CheckSuite{
 		Id:        uuid.New().String(),
 		Status:    CheckStatusPending,
 		StartTime: time.Now(),
 		cancel:    make(chan struct{}),
-		CheckURL:  checkURL,
-		Domain:    domain,
+		CheckURL:  primary.CheckURL,
+		Domain:    primary.Domain,
+		Domains:   domainInputs,
 	}
 }
 

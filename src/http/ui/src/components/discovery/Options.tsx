@@ -8,6 +8,7 @@ import {
   Paper,
   ToggleButtonGroup,
   ToggleButton,
+  Button,
 } from "@mui/material";
 import { FilterIcon, ExpandIcon, CollapseIcon } from "@b4.icons";
 import {
@@ -24,6 +25,7 @@ export type TLSVersion = "auto" | "tls12" | "tls13";
 
 export interface DiscoveryOptions {
   skipDNS: boolean;
+  skipCache: boolean;
   payloadFiles: string[];
   validationTries: number;
   tlsVersion: TLSVersion;
@@ -32,6 +34,7 @@ export interface DiscoveryOptions {
 interface DiscoveryOptionsPanelProps {
   options: DiscoveryOptions;
   onChange: (options: DiscoveryOptions) => void;
+  onClearCache?: () => void;
   captures: Capture[];
   disabled?: boolean;
 }
@@ -39,6 +42,7 @@ interface DiscoveryOptionsPanelProps {
 export const DiscoveryOptionsPanel = ({
   options,
   onChange,
+  onClearCache,
   captures,
   disabled = false,
 }: DiscoveryOptionsPanelProps) => {
@@ -53,6 +57,7 @@ export const DiscoveryOptionsPanel = ({
   const tlsCaptures = captures.filter((c) => c.protocol === "tls");
   const hasOptions =
     options.skipDNS ||
+    options.skipCache ||
     options.payloadFiles.length > 0 ||
     options.validationTries > 1 ||
     options.tlsVersion !== "auto";
@@ -121,6 +126,38 @@ export const DiscoveryOptionsPanel = ({
               onChange={(checked) => onChange({ ...options, skipDNS: checked })}
               disabled={disabled}
             />
+
+            {/* Cache Controls */}
+            <Box>
+              <B4Switch
+                label="Skip Cached Strategies"
+                checked={options.skipCache}
+                onChange={(checked) =>
+                  onChange({ ...options, skipCache: checked })
+                }
+                disabled={disabled}
+              />
+              <Stack
+                direction="row"
+                alignItems="center"
+                spacing={1}
+                sx={{ mt: 0.5 }}
+              >
+                <Typography variant="caption" color="text.secondary">
+                  Previously successful configurations are tested first.
+                </Typography>
+                {onClearCache && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={onClearCache}
+                    disabled={disabled}
+                  >
+                    Clear Cache
+                  </Button>
+                )}
+              </Stack>
+            </Box>
 
             {/* TLS Version */}
             <Box>
@@ -251,6 +288,7 @@ export const DiscoveryOptionsPanel = ({
 function getOptionsSummary(options: DiscoveryOptions): string {
   const parts: string[] = [];
   if (options.skipDNS) parts.push("Skip DNS");
+  if (options.skipCache) parts.push("Skip Cache");
   if (options.tlsVersion === "tls12") parts.push("TLS 1.2");
   if (options.tlsVersion === "tls13") parts.push("TLS 1.3");
   if (options.validationTries > 1)

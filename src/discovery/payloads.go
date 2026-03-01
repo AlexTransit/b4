@@ -54,7 +54,7 @@ func (ds *DiscoverySuite) detectWorkingPayloads(presets []ConfigPreset) {
 
 	var basePreset *ConfigPreset
 	for i := range presets {
-		if presets[i].Name == "proven-combo" {
+		if presets[i].Name == "combo-pastseq" {
 			basePreset = &presets[i]
 			break
 		}
@@ -89,7 +89,7 @@ func (ds *DiscoverySuite) detectWorkingPayloads(presets []ConfigPreset) {
 		return
 	}
 
-	if _, exists := ds.domainResult.Results["proven-combo"]; !exists {
+	if _, exists := ds.domainResults[ds.Domain].Results["combo-pastseq"]; !exists {
 		result1 := ds.testPreset(*basePreset)
 		ds.storeResult(*basePreset, result1)
 
@@ -106,30 +106,25 @@ func (ds *DiscoverySuite) detectWorkingPayloads(presets []ConfigPreset) {
 		}
 	}
 
-	var payload2Preset *ConfigPreset
-	for i := range presets {
-		if presets[i].Name == "proven-combo-alt" {
-			payload2Preset = &presets[i]
-			break
-		}
-	}
+	// Test alternate payload using same base preset with FakePayloadDefault2
+	payload2Preset := *basePreset
+	payload2Preset.Name = "combo-pastseq-alt"
+	payload2Preset.Config.Faking.SNIType = config.FakePayloadDefault2
 
-	if payload2Preset != nil {
-		if _, exists := ds.domainResult.Results["proven-combo-alt"]; !exists {
-			result2 := ds.testPreset(*payload2Preset)
-			ds.storeResult(*payload2Preset, result2)
+	if _, exists := ds.domainResults[ds.Domain].Results["combo-pastseq-alt"]; !exists {
+		result2 := ds.testPreset(payload2Preset)
+		ds.storeResult(payload2Preset, result2)
 
-			ds.workingPayloads = append(ds.workingPayloads, PayloadTestResult{
-				Payload: config.FakePayloadDefault2,
-				Works:   result2.Status == CheckStatusComplete,
-				Speed:   result2.Speed,
-			})
+		ds.workingPayloads = append(ds.workingPayloads, PayloadTestResult{
+			Payload: config.FakePayloadDefault2,
+			Works:   result2.Status == CheckStatusComplete,
+			Speed:   result2.Speed,
+		})
 
-			if result2.Status == CheckStatusComplete {
-				log.DiscoveryLogf("    Payload 2 (duckduckgo): SUCCESS (%.2f KB/s)", result2.Speed/1024)
-			} else {
-				log.DiscoveryLogf("    Payload 2 (duckduckgo): FAILED")
-			}
+		if result2.Status == CheckStatusComplete {
+			log.DiscoveryLogf("    Payload 2 (duckduckgo): SUCCESS (%.2f KB/s)", result2.Speed/1024)
+		} else {
+			log.DiscoveryLogf("    Payload 2 (duckduckgo): FAILED")
 		}
 	}
 
@@ -188,14 +183,16 @@ func (ds *DiscoverySuite) getPayloadName(payloadType int) string {
 
 func (ds *DiscoverySuite) testPresetWithPayload(preset ConfigPreset, payloadType int) CheckResult {
 	modifiedPreset := preset
-	modifiedPreset.Config.Faking.SNIType = payloadType
 
 	if payloadType >= config.FakePayloadCapture {
+		modifiedPreset.Config.Faking.SNIType = config.FakePayloadCapture
 		idx := payloadType - config.FakePayloadCapture
 		if idx < len(ds.customPayloads) {
 			modifiedPreset.Config.Faking.PayloadFile = ds.customPayloads[idx].Filepath
 			modifiedPreset.Config.Faking.PayloadData = ds.customPayloads[idx].Data
 		}
+	} else {
+		modifiedPreset.Config.Faking.SNIType = payloadType
 	}
 
 	return ds.testPresetInternal(modifiedPreset)
@@ -238,6 +235,14 @@ func (ds *DiscoverySuite) testPresetWithBestPayload(preset ConfigPreset) CheckRe
 
 	if hasWorkingPayload {
 		return ds.testPresetWithPayload(preset, ds.bestPayload)
+	}
+
+	for i := range ds.customPayloads {
+		result := ds.testPresetWithPayload(preset, config.FakePayloadCapture+i)
+		if result.Status == CheckStatusComplete {
+			ds.updatePayloadKnowledge(config.FakePayloadCapture+i, result.Speed)
+			return result
+		}
 	}
 
 	result1 := ds.testPresetWithPayload(preset, config.FakePayloadDefault1)

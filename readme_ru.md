@@ -420,6 +420,7 @@ sudo ./out/b4 --verbose debug
 - [youtubeUnblock](https://github.com/Waujito/youtubeUnblock) - обход DPI на C
 - [GoodbyeDPI](https://github.com/ValdikSS/GoodbyeDPI) - обход DPI для Windows
 - [zapret](https://github.com/bol-van/zapret) - продвинутые техники обхода DPI
+- [dpi-detector](https://github.com/Runnin4ik/dpi-detector) - техники обнаружения DPI/ТСПУ
 
 ## Лицензия
 

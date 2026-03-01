@@ -19,6 +19,7 @@ func (api *API) RegisterDiscoveryApi() {
 	api.mux.HandleFunc("/api/discovery/cancel/{id}", api.handleCancelCheck)
 	api.mux.HandleFunc("/api/discovery/add", api.handleAddPresetAsSet)
 	api.mux.HandleFunc("/api/discovery/similar", api.handleFindSimilarSets)
+	api.mux.HandleFunc("/api/discovery/cache/clear", api.handleClearDiscoveryCache)
 }
 
 func (api *API) handleCheckStatus(w http.ResponseWriter, r *http.Request) {
@@ -82,8 +83,21 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.CheckURL == "" {
-		http.Error(w, "Check URL is required", http.StatusBadRequest)
+	// Normalize input: support both single and multi URL
+	var urls []string
+	if len(req.CheckURLs) > 0 {
+		for _, u := range req.CheckURLs {
+			u = strings.TrimSpace(u)
+			if u != "" {
+				urls = append(urls, u)
+			}
+		}
+	} else if req.CheckURL != "" {
+		urls = []string{req.CheckURL}
+	}
+
+	if len(urls) == 0 {
+		http.Error(w, "check_url or check_urls is required", http.StatusBadRequest)
 		return
 	}
 
@@ -93,21 +107,27 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		validationTries = 1
 	}
 
-	suite := discovery.NewDiscoverySuite(req.CheckURL, globalPool, req.SkipDNS, req.PayloadFiles, validationTries, req.TLSVersion)
+	suite := discovery.NewDiscoverySuite(urls, globalPool, req.SkipDNS, req.SkipCache, req.PayloadFiles, validationTries, req.TLSVersion)
 
 	phase1Count := len(discovery.GetPhase1Presets())
 
 	go func() {
 		suite.RunDiscovery()
-		log.Infof("Discovery complete for %s", suite.Domain)
+		log.Infof("Discovery complete for %d domains", len(suite.Domains))
 	}()
+
+	var domainNames []string
+	for _, di := range suite.Domains {
+		domainNames = append(domainNames, di.Domain)
+	}
 
 	response := DiscoveryResponse{
 		Id:             suite.Id,
 		Domain:         suite.Domain,
+		Domains:        domainNames,
 		CheckURL:       suite.CheckURL,
-		EstimatedTests: phase1Count + 15,
-		Message:        fmt.Sprintf("Discovery started for %s", suite.Domain),
+		EstimatedTests: (phase1Count + 15) * len(suite.Domains),
+		Message:        fmt.Sprintf("Discovery started for %d domains", len(urls)),
 	}
 
 	setJsonHeader(w)
@@ -257,4 +277,27 @@ func extractDomainName(domain string) string {
 		return strings.ToLower(parts[0])
 	}
 	return ""
+}
+
+func (api *API) handleClearDiscoveryCache(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	cache := discovery.LoadDiscoveryCache(api.cfg.ConfigPath)
+	cache.Entries = nil
+	if err := cache.Save(api.cfg.ConfigPath); err != nil {
+		log.Errorf("Failed to clear discovery cache: %v", err)
+		http.Error(w, "Failed to clear discovery cache", http.StatusInternalServerError)
+		return
+	}
+
+	log.Infof("Discovery cache cleared")
+
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Discovery cache cleared",
+	})
 }

@@ -26,6 +26,7 @@ const (
 	PhaseOptimize    DiscoveryPhase = "optimization"
 	PhaseCombination DiscoveryPhase = "combination"
 	PhaseDNS         DiscoveryPhase = "dns_detection"
+	PhaseCached      DiscoveryPhase = "cached"
 )
 
 type StrategyFamily string
@@ -66,6 +67,11 @@ type CheckResult struct {
 	Set         *config.SetConfig `json:"set"`
 }
 
+type DomainInput struct {
+	Domain   string `json:"domain"`
+	CheckURL string `json:"check_url"`
+}
+
 type CheckSuite struct {
 	Id                     string                            `json:"id"`
 	Status                 CheckStatus                       `json:"status"`
@@ -78,9 +84,11 @@ type CheckSuite struct {
 	DomainDiscoveryResults map[string]*DomainDiscoveryResult `json:"domain_discovery_results,omitempty"`
 	CheckURL               string                            `json:"check_url"`
 	Domain                 string                            `json:"domain"`
+	Domains                []DomainInput                     `json:"domains,omitempty"`
+	CurrentDomain          string                            `json:"current_domain,omitempty"`
 	CurrentPhase           DiscoveryPhase                    `json:"current_phase,omitempty"`
 	mu                     sync.RWMutex                      `json:"-"`
-	cancel                 chan struct{}                     `json:"-"`
+	cancel                 chan struct{}                      `json:"-"`
 }
 
 type DomainPresetResult struct {
@@ -146,9 +154,9 @@ type DiscoverySuite struct {
 	networkBaseline float64
 	optimalTTL      uint8
 
-	pool         *nfq.Pool
-	cfg          *config.Config
-	domainResult *DomainDiscoveryResult
+	pool          *nfq.Pool
+	cfg           *config.Config
+	domainResults map[string]*DomainDiscoveryResult
 
 	workingPayloads []PayloadTestResult
 	bestPayload     int
@@ -156,10 +164,13 @@ type DiscoverySuite struct {
 
 	customPayloads []CustomPayload
 
-	dnsResult       *DNSDiscoveryResult
+	dnsResults      map[string]*DNSDiscoveryResult
 	skipDNS         bool
+	skipCache       bool
 	validationTries int
 	tlsVersion      string // "auto", "tls12", "tls13"
+
+	discoveryCache *DiscoveryCache
 }
 
 type CustomPayload struct {

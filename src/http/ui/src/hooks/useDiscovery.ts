@@ -55,21 +55,39 @@ export function useDiscovery() {
 
   const startDiscovery = useCallback(
     async (
-      url: string,
+      urls: string[],
       skipDNS: boolean = false,
+      skipCache: boolean = false,
       payloadFiles: string[] = [],
       validationTries: number = 1,
-      tlsVersion: string = "auto"
+      tlsVersion: string = "auto",
     ): Promise<ApiResponse<void>> => {
       setError(null);
       setSuite(null);
       setDiscoveryRunning(true);
       try {
-        url = url.trim();
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
-          url = `https://${url}`;
+        const normalized = urls
+          .map((u) => u.trim())
+          .filter((u) => u.length > 0)
+          .map((u) =>
+            u.startsWith("http://") || u.startsWith("https://")
+              ? u
+              : `https://${u}`,
+          );
+        if (normalized.length === 0) {
+          setDiscoveryRunning(false);
+          setSuiteId(null);
+          localStorage.removeItem("discovery_suiteId");
+          return { success: false, error: "No URLs provided" };
         }
-        const res = await discoveryApi.start(url, skipDNS, payloadFiles, validationTries, tlsVersion);
+        const res = await discoveryApi.start(
+          normalized,
+          skipDNS,
+          skipCache,
+          payloadFiles,
+          validationTries,
+          tlsVersion,
+        );
         setSuiteId(res.id);
         return { success: true };
       } catch (e) {
@@ -80,7 +98,7 @@ export function useDiscovery() {
         return { success: false, error: String(e) };
       }
     },
-    []
+    [],
   );
 
   const cancelDiscovery = useCallback(async (): Promise<void> => {
@@ -113,8 +131,20 @@ export function useDiscovery() {
         return { success: false, error: String(e) };
       }
     },
-    []
+    [],
   );
+
+  const clearCache = useCallback(async (): Promise<ApiResponse<void>> => {
+    try {
+      await discoveryApi.clearCache();
+      return { success: true };
+    } catch (e) {
+      if (e instanceof ApiError) {
+        return { success: false, error: JSON.stringify(e.body ?? e.message) };
+      }
+      return { success: false, error: String(e) };
+    }
+  }, []);
 
   return {
     discoveryRunning,
@@ -125,6 +155,7 @@ export function useDiscovery() {
     cancelDiscovery,
     resetDiscovery,
     addPresetAsSet,
+    clearCache,
   };
 }
 

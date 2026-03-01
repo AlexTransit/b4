@@ -31,6 +31,7 @@ import {
   DiscoveryIcon,
   LogsIcon,
   MenuIcon,
+  SecurityIcon,
   SetsIcon,
 } from "@b4.icons";
 import { colors, theme } from "@design";
@@ -42,6 +43,7 @@ import { useWebSocket } from "./context/B4WsProvider";
 
 import { ConnectionsPage } from "@b4.connections";
 import { DashboardPage } from "@b4.dashboard";
+import { DetectorPage } from "@b4.detector";
 import { DiscoveryPage } from "@b4.discovery";
 import { LogsPage } from "@b4.logs";
 import { SetsPage } from "@b4.sets";
@@ -60,6 +62,7 @@ const navItems: NavItem[] = [
   { path: "/dashboard", label: "Dashboard", icon: <DashboardIcon /> },
   { path: "/sets", label: "Sets", icon: <SetsIcon /> },
   { path: "/discovery", label: "Discovery", icon: <DiscoveryIcon /> },
+  { path: "/detector", label: "DPI Detector", icon: <SecurityIcon /> },
   { path: "/connections", label: "Connections", icon: <ConnectionIcon /> },
   { path: "/logs", label: "Logs", icon: <LogsIcon /> },
   { path: "/settings", label: "Settings", icon: <CoreIcon /> },
@@ -78,6 +81,7 @@ export default function App() {
     if (path.startsWith("/connections")) return "Connections";
     if (path.startsWith("/test")) return "DPI Bypass Test";
     if (path.startsWith("/logs")) return "Log Viewer";
+    if (path.startsWith("/detector")) return "DPI Detector";
     if (path.startsWith("/settings")) return "Settings";
     return "B4";
   };
@@ -195,6 +199,7 @@ export default function App() {
               <Route path="/sets/*" element={<SetsPage />} />
               <Route path="/connections" element={<ConnectionsPage />} />
               <Route path="/discovery" element={<DiscoveryPage />} />
+              <Route path="/detector" element={<DetectorPage />} />
               <Route path="/logs" element={<LogsPage />} />
               <Route path="/settings/*" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />

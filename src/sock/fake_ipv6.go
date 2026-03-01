@@ -45,7 +45,6 @@ func BuildFakeSNIPacketV6(original []byte, cfg *config.SetConfig) []byte {
 
 	switch cfg.Faking.Strategy {
 	case "ttl":
-		// IPv6 uses hop limit (byte 7) instead of TTL
 		fake[7] = cfg.Faking.TTL
 	case "pastseq":
 		off := uint32(cfg.Faking.SeqOffset)
