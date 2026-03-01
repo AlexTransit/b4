@@ -320,6 +320,10 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 		return log.Errorf("Invalid configuration: %v", err)
 	}
 
+	// Ensure capture payload data is loaded from files (PayloadData is json:"-"
+	// so it's never included in JSON — must be loaded from PayloadFile on disk)
+	newCfg.LoadCapturePayloads()
+
 	if globalPool != nil {
 		err := globalPool.UpdateConfig(newCfg)
 		if err != nil {

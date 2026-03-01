@@ -1017,6 +1017,12 @@ func (ds *DiscoverySuite) buildTestConfig(preset ConfigPreset) *config.Config {
 	mainSet.Faking = preset.Config.Faking
 	mainSet.DNS = ds.cfg.MainSet.DNS
 
+	// Apply the same defaults that handleAddPresetAsSet applies when the user
+	// adds the discovered config. This ensures the config tested during discovery
+	// is identical to what gets applied, preventing discrepancies (e.g. TTL=0
+	// during testing becoming TTL=7 after adding due to ApplySetDefaults).
+	config.ApplySetDefaults(&mainSet)
+
 	if mainSet.TCP.Win.Mode == "" {
 		mainSet.TCP.Win.Mode = config.ConfigOff
 	}
