@@ -37,6 +37,14 @@ var migrationRegistry = map[int]MigrationFunc{
 	18: migrateV18to19, // Add TLS certificate/key to web server config
 	19: migrateV19to20, // Add vendor lookup option to devices config
 	20: migrateV20to21, // Add SOCKS5 proxy server config
+	21: migrateV21to22, // Add NAT masquerade config
+}
+
+func migrateV21to22(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v21->v22: Adding NAT masquerade config")
+	c.System.Tables.Masquerade = DefaultConfig.System.Tables.Masquerade
+	c.System.Tables.MasqueradeInterface = DefaultConfig.System.Tables.MasqueradeInterface
+	return nil
 }
 
 func migrateV20to21(c *Config, _ map[string]interface{}) error {

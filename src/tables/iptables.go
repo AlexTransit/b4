@@ -378,6 +378,18 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		)
 	}
 
+	if cfg.System.Tables.Masquerade {
+		for _, ipt := range ipts {
+			masqSpec := []string{"-j", "MASQUERADE"}
+			if iface := cfg.System.Tables.MasqueradeInterface; iface != "" {
+				masqSpec = []string{"-o", iface, "-j", "MASQUERADE"}
+			}
+			rules = append(rules,
+				Rule{manager: manager, IPT: ipt, Table: "nat", Chain: "POSTROUTING", Action: "A", Spec: masqSpec},
+			)
+		}
+	}
+
 	sysctls := []SysctlSetting{
 		{Name: "net.netfilter.nf_conntrack_checksum", Desired: "0", Revert: "1"},
 		{Name: "net.netfilter.nf_conntrack_tcp_be_liberal", Desired: "1", Revert: "0"},
@@ -529,6 +541,22 @@ func (ipt *IPTablesManager) clearB4JumpRules() {
 			_, err := run(iptBin, "-w", "-t", "mangle", "-D", "OUTPUT", "-j", "B4")
 			if err != nil {
 				break
+			}
+		}
+
+		// Clean nat POSTROUTING masquerade rules
+		for {
+			_, err := run(iptBin, "-w", "-t", "nat", "-D", "POSTROUTING", "-j", "MASQUERADE")
+			if err != nil {
+				break
+			}
+		}
+		if iface := ipt.cfg.System.Tables.MasqueradeInterface; iface != "" {
+			for {
+				_, err := run(iptBin, "-w", "-t", "nat", "-D", "POSTROUTING", "-o", iface, "-j", "MASQUERADE")
+				if err != nil {
+					break
+				}
 			}
 		}
 	}

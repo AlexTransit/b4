@@ -378,6 +378,13 @@ func (a *API) PerformSoftRestart(newCfg *config.Config, oldCfg *config.Config) b
 		shouldUpdate = true
 	}
 
+	if oldCfg.System.Tables.Masquerade != newCfg.System.Tables.Masquerade {
+		shouldUpdate = true
+	}
+	if oldCfg.System.Tables.MasqueradeInterface != newCfg.System.Tables.MasqueradeInterface {
+		shouldUpdate = true
+	}
+
 	if shouldUpdate {
 		log.Infof("Core settings changed, performing soft system restart")
 		if oldPorts != newPorts {

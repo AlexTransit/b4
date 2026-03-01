@@ -197,7 +197,9 @@ export interface WebServerConfig {
 }
 export interface TableConfig {
   monitor_interval: number;
-  skip_setup: false;
+  skip_setup: boolean;
+  masquerade: boolean;
+  masquerade_interface: string;
 }
 
 export interface GeoConfig {

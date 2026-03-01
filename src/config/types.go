@@ -163,8 +163,10 @@ type Socks5Config struct {
 }
 
 type TablesConfig struct {
-	MonitorInterval int  `json:"monitor_interval" bson:"monitor_interval"`
-	SkipSetup       bool `json:"skip_setup" bson:"skip_setup"`
+	MonitorInterval     int    `json:"monitor_interval" bson:"monitor_interval"`
+	SkipSetup           bool   `json:"skip_setup" bson:"skip_setup"`
+	Masquerade          bool   `json:"masquerade" bson:"masquerade"`
+	MasqueradeInterface string `json:"masquerade_interface" bson:"masquerade_interface"`
 }
 
 type WebServerConfig struct {

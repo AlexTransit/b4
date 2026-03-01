@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	nftTableName = "b4_mangle"
-	nftChainName = "b4_chain"
+	nftTableName    = "b4_mangle"
+	nftChainName    = "b4_chain"
+	nftNatTableName = "b4_nat"
+	nftNatChainName = "b4_masq"
 )
 
 type NFTablesManager struct {
@@ -266,6 +268,10 @@ func (n *NFTablesManager) Apply() error {
 	setSysctlOrProc("net.netfilter.nf_conntrack_checksum", "0")
 	setSysctlOrProc("net.netfilter.nf_conntrack_tcp_be_liberal", "1")
 
+	if err := n.ApplyMasquerade(); err != nil {
+		return err
+	}
+
 	if log.Level(log.CurLevel.Load()) >= log.LevelTrace {
 		out, _ := n.runNft("list", "table", "inet", nftTableName)
 		log.Tracef("Current nftables rules:\n%s", out)
@@ -281,6 +287,8 @@ func (n *NFTablesManager) Clear() error {
 
 	log.Tracef("NFTABLES: clearing rules")
 
+	n.ClearMasquerade()
+
 	if n.tableExists() {
 		if _, err := n.runNft("flush", "table", "inet", nftTableName); err != nil {
 			log.Errorf("Failed to flush nftables table: %v", err)
@@ -292,4 +300,64 @@ func (n *NFTablesManager) Clear() error {
 	}
 
 	return nil
+}
+
+func (n *NFTablesManager) natTableExists() bool {
+	out, err := n.runNft("list", "tables")
+	if err != nil {
+		return false
+	}
+	return strings.Contains(out, nftNatTableName)
+}
+
+func (n *NFTablesManager) ApplyMasquerade() error {
+	if !n.cfg.System.Tables.Masquerade {
+		return nil
+	}
+
+	log.Tracef("NFTABLES: adding masquerade rules")
+
+	if !n.natTableExists() {
+		if _, err := n.runNft("add", "table", "ip", nftNatTableName); err != nil {
+			return fmt.Errorf("failed to create nftables nat table: %w", err)
+		}
+	}
+
+	chainCmd := []string{"add", "chain", "ip", nftNatTableName, nftNatChainName,
+		"{ type nat hook postrouting priority srcnat ; policy accept ; }"}
+	if _, err := n.runNft(chainCmd...); err != nil {
+		return fmt.Errorf("failed to create nat postrouting chain: %w", err)
+	}
+
+	ruleArgs := []string{"add", "rule", "ip", nftNatTableName, nftNatChainName}
+	if iface := n.cfg.System.Tables.MasqueradeInterface; iface != "" {
+		ruleArgs = append(ruleArgs, "oifname", fmt.Sprintf("%q", iface))
+	}
+	ruleArgs = append(ruleArgs, "masquerade")
+
+	if _, err := n.runNft(ruleArgs...); err != nil {
+		return fmt.Errorf("failed to add masquerade rule: %w", err)
+	}
+
+	iface := n.cfg.System.Tables.MasqueradeInterface
+	if iface == "" {
+		iface = "all"
+	}
+	log.Infof("NFTABLES: masquerade enabled (interface: %s)", iface)
+	return nil
+}
+
+func (n *NFTablesManager) ClearMasquerade() {
+	if !n.natTableExists() {
+		return
+	}
+
+	log.Tracef("NFTABLES: clearing masquerade rules")
+	if _, err := n.runNft("flush", "table", "ip", nftNatTableName); err != nil {
+		log.Errorf("Failed to flush nftables nat table: %v", err)
+	}
+	time.Sleep(30 * time.Millisecond)
+	if _, err := n.runNft("delete", "table", "ip", nftNatTableName); err != nil {
+		log.Errorf("Failed to delete nftables nat table: %v", err)
+	}
 }

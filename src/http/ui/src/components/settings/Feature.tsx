@@ -75,6 +75,54 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
             )
           }
         />
+        <B4Switch
+          label="NAT Masquerade"
+          checked={config.system.tables.masquerade}
+          onChange={(checked: boolean) =>
+            onChange("system.tables.masquerade", checked)
+          }
+          description="Enable NAT masquerade for container/gateway setups"
+        />
+        {config.system.tables.masquerade && (
+          <B4FormGroup label="Masquerade Interface" columns={1}>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                Select output interface for masquerade (empty = all interfaces)
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {(config.available_ifaces ?? []).map((iface) => {
+                  const isSelected =
+                    config.system.tables.masquerade_interface === iface;
+                  return (
+                    <B4Badge
+                      key={iface}
+                      label={iface}
+                      onClick={() =>
+                        onChange(
+                          "system.tables.masquerade_interface",
+                          isSelected ? "" : iface
+                        )
+                      }
+                      variant={isSelected ? "filled" : "outlined"}
+                      color={isSelected ? "primary" : "primary"}
+                    />
+                  );
+                })}
+              </Box>
+              {(config.available_ifaces ?? []).length === 0 && (
+                <B4Alert severity="warning" sx={{ mt: 2 }}>
+                  No interfaces detected
+                </B4Alert>
+              )}
+              {!config.system.tables.masquerade_interface && (
+                <B4Alert severity="info" sx={{ mt: 2 }}>
+                  Masquerade will apply to all output interfaces if none is
+                  selected.
+                </B4Alert>
+              )}
+            </Box>
+          </B4FormGroup>
+        )}
         <B4FormGroup label="Network Interfaces" columns={1}>
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>

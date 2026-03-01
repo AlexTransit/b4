@@ -136,6 +136,14 @@ func (m *Monitor) checkIPTablesRules() bool {
 			log.Tracef("Monitor: OUTPUT->B4 jump rule missing")
 			return false
 		}
+
+		if m.cfg.System.Tables.Masquerade {
+			out, _ := run(ipt, "-w", "-t", "nat", "-S", "POSTROUTING")
+			if !strings.Contains(out, "MASQUERADE") {
+				log.Tracef("Monitor: POSTROUTING MASQUERADE rule missing")
+				return false
+			}
+		}
 	}
 
 	return true
@@ -195,6 +203,18 @@ func (m *Monitor) checkNFTablesRules() bool {
 	if !strings.Contains(out, "accept") || !strings.Contains(out, nftChainName) {
 		log.Tracef("Monitor: output mark accept rule missing")
 		return false
+	}
+
+	if m.cfg.System.Tables.Masquerade {
+		if !nft.natTableExists() {
+			log.Tracef("Monitor: nftables nat table missing")
+			return false
+		}
+		natOut, _ := nft.runNft("list", "table", "ip", nftNatTableName)
+		if !strings.Contains(natOut, "masquerade") {
+			log.Tracef("Monitor: masquerade rule missing")
+			return false
+		}
 	}
 
 	return true
