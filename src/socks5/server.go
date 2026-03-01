@@ -49,6 +49,7 @@ const (
 	maxConnections = 1024
 	handshakeTime  = 30 * time.Second
 	dialTimeout    = 10 * time.Second
+	bufferSize     = 32 * 1024
 )
 
 // Server is a SOCKS5 proxy server.
@@ -64,23 +65,22 @@ type Server struct {
 	activeConns atomic.Int64
 	connSem     chan struct{} // semaphore for connection limiting
 
-	udpAssocs   map[string]*udpAssoc
-	udpAssocsMu sync.Mutex
-}
-
-type udpAssoc struct {
-	clientAddr *net.UDPAddr
-	lastActive time.Time
-	cancel     context.CancelFunc
+	// Buffer pool for better performance
+	bufferPool sync.Pool
 }
 
 // NewServer creates a new SOCKS5 server.
 func NewServer(cfg *config.Socks5Config, fullCfg *config.Config) *Server {
 	return &Server{
-		cfg:       cfg,
-		fullCfg:   fullCfg,
-		connSem:   make(chan struct{}, maxConnections),
-		udpAssocs: make(map[string]*udpAssoc),
+		cfg:     cfg,
+		fullCfg: fullCfg,
+		connSem: make(chan struct{}, maxConnections),
+		bufferPool: sync.Pool{
+			New: func() interface{} {
+				buf := make([]byte, bufferSize)
+				return &buf
+			},
+		},
 	}
 }
 
@@ -116,7 +116,6 @@ func (s *Server) Start() error {
 
 	go s.acceptLoop()
 	go s.udpReadLoop()
-	go s.cleanupLoop()
 
 	return nil
 }
@@ -138,13 +137,6 @@ func (s *Server) Stop() error {
 			firstErr = err
 		}
 	}
-
-	s.udpAssocsMu.Lock()
-	for _, a := range s.udpAssocs {
-		a.cancel()
-	}
-	s.udpAssocs = make(map[string]*udpAssoc)
-	s.udpAssocsMu.Unlock()
 
 	return firstErr
 }
@@ -184,7 +176,11 @@ func (s *Server) acceptLoop() {
 }
 
 func (s *Server) handleConn(conn net.Conn) {
-	conn.SetDeadline(time.Now().Add(handshakeTime))
+	// Set deadline for handshake only
+	if err := conn.SetDeadline(time.Now().Add(handshakeTime)); err != nil {
+		log.Tracef("SOCKS5 failed to set deadline: %v", err)
+		return
+	}
 
 	if err := s.authenticate(conn); err != nil {
 		log.Tracef("SOCKS5 auth failed from %s: %v", conn.RemoteAddr(), err)
@@ -320,6 +316,7 @@ func (s *Server) handleRequest(conn net.Conn) error {
 // --- TCP CONNECT ---
 
 func (s *Server) handleConnect(conn net.Conn, dest string) error {
+	// Dial with timeout
 	remote, err := net.DialTimeout("tcp", dest, dialTimeout)
 	if err != nil {
 		log.Tracef("SOCKS5 connect to %s failed: %v", dest, err)
@@ -328,11 +325,15 @@ func (s *Server) handleConnect(conn net.Conn, dest string) error {
 	}
 	defer remote.Close()
 
+	// Send success reply
 	if err := sendReply(conn, repSuccess, remote.LocalAddr()); err != nil {
 		return fmt.Errorf("send reply: %w", err)
 	}
 
-	log.Tracef("SOCKS5 TCP relay: %s <-> %s", conn.RemoteAddr(), dest)
+	// Clear handshake deadline for data relay
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		return fmt.Errorf("clear deadline: %w", err)
+	}
 
 	// Extract client info and destination
 	clientAddr := conn.RemoteAddr().String()
@@ -372,7 +373,7 @@ func (s *Server) handleConnect(conn net.Conn, dest string) error {
 	}
 
 	// Also log in human-readable format
-	log.Infof("[SOCKS5-TCP] Client: %s -> Destination: %s (Set: %s)", clientAddr, dest, setName)
+	log.Tracef("SOCKS5 TCP relay: %s <-> %s (Set: %s)", clientAddr, dest, setName)
 
 	// Record connection in metrics for UI display
 	m := getMetricsCollector()
@@ -381,34 +382,42 @@ func (s *Server) handleConnect(conn net.Conn, dest string) error {
 		m.RecordConnection("P-TCP", domain, clientAddr, dest, matched, "", setName)
 	}
 
-	// Clear handshake deadline for data relay
-	conn.SetDeadline(time.Time{})
-
-	return relay(conn, remote)
+	// Start relay
+	return s.relay(conn, remote)
 }
 
 // relay copies data bidirectionally until one side closes.
-func relay(a, b net.Conn) error {
-	errc := make(chan error, 2)
+func (s *Server) relay(a, b net.Conn) error {
+	errCh := make(chan error, 2)
+
 	cp := func(dst, src net.Conn) {
-		_, err := io.Copy(dst, src)
+		bufPtr := s.bufferPool.Get().(*[]byte)
+		defer s.bufferPool.Put(bufPtr)
+
+		_, err := io.CopyBuffer(dst, src, *bufPtr)
+
 		// Signal the other direction to stop by closing the write half
 		if tc, ok := dst.(*net.TCPConn); ok {
 			tc.CloseWrite()
 		}
-		errc <- err
+		errCh <- err
 	}
+
 	go cp(b, a)
 	go cp(a, b)
 
 	// Wait for both directions
-	err1 := <-errc
-	err2 := <-errc
+	err1 := <-errCh
+	err2 := <-errCh
 
-	if err1 != nil {
+	// Return first non-EOF error
+	if err1 != nil && !errors.Is(err1, io.EOF) {
 		return err1
 	}
-	return err2
+	if err2 != nil && !errors.Is(err2, io.EOF) {
+		return err2
+	}
+	return nil
 }
 
 // --- Address parsing ---
