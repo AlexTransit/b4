@@ -26,7 +26,7 @@ import {
 import { colors } from "@design";
 import { B4SetConfig } from "@models/config";
 import { DiscoveryAddDialog } from "./AddDialog";
-import { B4Alert, B4Badge, B4Section, B4TextField } from "@b4.elements";
+import { B4Alert, B4Badge, B4Section, B4TextField, B4ChipList, B4PlusButton } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { DiscoveryLogPanel } from "./LogPanel";
 import { useDiscovery } from "@hooks/useDiscovery";
@@ -118,7 +118,8 @@ export const DiscoveryRunner = () => {
     localStorage.setItem("b4_discovery_tls_version", options.tlsVersion);
   }, [options.tlsVersion]);
 
-  const [checkUrls, setCheckUrls] = useState("");
+  const [checkUrls, setCheckUrls] = useState<string[]>([]);
+  const [urlInput, setUrlInput] = useState("");
 
   const [addingPreset, setAddingPreset] = useState(false);
   const [addDialog, setAddDialog] = useState<{
@@ -162,25 +163,64 @@ export const DiscoveryRunner = () => {
     });
   };
 
-  const parseUrls = useCallback(
-    (text: string) =>
-      text
-        .split("\n")
+  const extractDomain = (url: string): string => {
+    try {
+      const withProto = url.includes("://") ? url : `https://${url}`;
+      return new URL(withProto).hostname;
+    } catch {
+      return url.split("/")[0];
+    }
+  };
+
+  const addUrls = useCallback(
+    (raw: string) => {
+      const parts = raw
+        .split(/[\n,]+/)
         .map((l) => l.trim())
-        .filter((l) => l.length > 0),
+        .filter((l) => l.length > 0);
+      if (parts.length === 0) return;
+      setCheckUrls((prev) => {
+        const existing = new Set(prev);
+        const next = [...prev];
+        for (const url of parts) {
+          if (!existing.has(url)) {
+            existing.add(url);
+            next.push(url);
+          }
+        }
+        return next;
+      });
+      setUrlInput("");
+    },
     []
   );
 
-  const handleDomainKeyDown = useCallback(
+  const handleUrlKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
-      if (e.key !== "Enter" || e.shiftKey) return;
-      const urls = parseUrls(checkUrls);
-      if (urls.length === 0) return;
-      e.preventDefault();
-      void startDiscovery(urls, options.skipDNS, options.skipCache, options.payloadFiles, options.validationTries, options.tlsVersion);
+      if (e.key === "Enter" || e.key === "Tab" || e.key === ",") {
+        if (urlInput.trim()) {
+          e.preventDefault();
+          addUrls(urlInput);
+        }
+      }
     },
-    [checkUrls, options, startDiscovery, parseUrls]
+    [urlInput, addUrls]
   );
+
+  const handleUrlPaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const text = e.clipboardData.getData("text");
+      if (text.includes("\n") || text.includes(",")) {
+        e.preventDefault();
+        addUrls(text);
+      }
+    },
+    [addUrls]
+  );
+
+  const removeUrl = useCallback((url: string) => {
+    setCheckUrls((prev) => prev.filter((u) => u !== url));
+  }, []);
 
   const handleAddNew = async (name: string, domain: string) => {
     if (!addDialog.setConfig) return;
@@ -260,20 +300,22 @@ export const DiscoveryRunner = () => {
           configurations and measure their performance.
         </B4Alert>
 
-        {/* Header with actions */}
-        <Box sx={{ display: "flex", gap: 2, alignItems: "flex-start" }}>
+        {/* URL input with chips */}
+        <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
           <B4TextField
-            label="Domains or URLs to test"
-            value={checkUrls}
-            onChange={(e) => setCheckUrls(e.target.value)}
-            onKeyDown={handleDomainKeyDown}
+            label="Add domain or URL"
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={handleUrlKeyDown}
+            onPaste={handleUrlPaste}
             inputRef={domainInputRef}
-            placeholder={"youtube.com\ntwitter.com\nhttps://discord.com/some/path"}
+            placeholder="youtube.com, https://discord.com/path"
             disabled={running || !!isReconnecting}
-            multiline
-            minRows={2}
-            maxRows={6}
-            helperText="One domain or URL per line. Press Shift+Enter for new line, Enter to start."
+            helperText="Press Enter to add. Paste multiple URLs separated by commas or newlines."
+          />
+          <B4PlusButton
+            onClick={() => addUrls(urlInput)}
+            disabled={!urlInput.trim() || running || !!isReconnecting}
           />
           <Box sx={{ flexShrink: 0 }}>
             {!running && !suite && (
@@ -281,9 +323,8 @@ export const DiscoveryRunner = () => {
                 startIcon={<StartIcon />}
                 variant="contained"
                 onClick={() => {
-                  const urls = parseUrls(checkUrls);
                   void startDiscovery(
-                    urls,
+                    checkUrls,
                     options.skipDNS,
                     options.skipCache,
                     options.payloadFiles,
@@ -291,7 +332,7 @@ export const DiscoveryRunner = () => {
                     options.tlsVersion
                   );
                 }}
-                disabled={parseUrls(checkUrls).length === 0}
+                disabled={checkUrls.length === 0}
                 sx={{
                   whiteSpace: "nowrap",
                 }}
@@ -328,6 +369,16 @@ export const DiscoveryRunner = () => {
             )}
           </Box>
         </Box>
+        {!running && !suite && (
+          <B4ChipList
+            items={checkUrls}
+            getKey={(url) => url}
+            getLabel={(url) => extractDomain(url)}
+            onDelete={removeUrl}
+            emptyMessage="No URLs added yet"
+            showEmpty
+          />
+        )}
         <DiscoveryOptionsPanel
           options={options}
           onChange={setOptions}
