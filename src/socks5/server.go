@@ -383,11 +383,15 @@ func buildMatcher(cfg *config.Config) *sni.SuffixSet {
 
 func (s *Server) UpdateConfig(newCfg *config.Config) {
 	newMatcher := buildMatcher(newCfg)
+	old := s.getMatcher()
+
 	if newMatcher != nil {
-		if old := s.getMatcher(); old != nil {
+		if old != nil {
 			newMatcher.TransferLearnedIPs(old)
 		}
 		s.matcher.Store(newMatcher)
+	} else if old != nil {
+		s.matcher.Store((*sni.SuffixSet)(nil))
 	}
 	log.Infof("SOCKS5 matcher refreshed from config update")
 }

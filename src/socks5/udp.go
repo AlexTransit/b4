@@ -19,12 +19,17 @@ func (s *Server) handleUDPAssociate(conn net.Conn, clientDest string) error {
 	log.Infof("SOCKS5 UDP ASSOCIATE from %s, client dest: %s", conn.RemoteAddr(), clientDest)
 
 	// Parse client destination for validation (RFC 1928)
-	var clientIP net.IP
+	// Default to TCP connection's remote IP for security - even if client sends
+	// 0.0.0.0:0, restrict UDP packets to the same IP as the TCP control connection.
+	tcpRemote := conn.RemoteAddr().(*net.TCPAddr)
+	clientIP := tcpRemote.IP
 	var clientPort int
 	if clientDest != "" {
 		host, portStr, err := net.SplitHostPort(clientDest)
 		if err == nil {
-			clientIP = net.ParseIP(host)
+			if ip := net.ParseIP(host); ip != nil && !ip.IsUnspecified() {
+				clientIP = ip
+			}
 			if p, err := strconv.Atoi(portStr); err == nil {
 				clientPort = p
 			}
@@ -116,8 +121,8 @@ func (s *Server) udpRelay(bindLn *net.UDPConn, tcpConn net.Conn, expectedClientI
 		log.Debugf("SOCKS5 UDP received %d bytes from %s", n, srcAddr)
 
 		// Validate client address (RFC 1928)
-		// If client specified 0.0.0.0:0, accept from any address
-		srcEqual := (expectedClientIP == nil || expectedClientIP.IsUnspecified() || expectedClientIP.Equal(srcAddr.IP)) &&
+		// expectedClientIP defaults to TCP remote IP, so it's always set
+		srcEqual := expectedClientIP.Equal(srcAddr.IP) &&
 			(expectedClientPort == 0 || expectedClientPort == srcAddr.Port)
 
 		if !srcEqual {
