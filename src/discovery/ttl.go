@@ -16,7 +16,7 @@ func (ds *DiscoverySuite) getOptimalTTL() uint8 {
 	base.Faking.Strategy = "ttl"
 	base.Faking.SeqOffset = 10000
 	base.Faking.SNISeqLength = 1
-	base.Faking.SNIType = ds.bestPayload
+	ds.applyBestPayload(&base.Faking)
 	base.Fragmentation.Strategy = "combo"
 	base.Fragmentation.SNIPosition = 1
 

@@ -110,7 +110,9 @@ export const DetectorRunner = () => {
     resetDetector,
   } = useDetector();
 
-  const [selectedTests, setSelectedTests] = useState<Record<DetectorTestType, boolean>>({
+  const [selectedTests, setSelectedTests] = useState<
+    Record<DetectorTestType, boolean>
+  >({
     dns: true,
     domains: true,
     tcp: true,
@@ -119,11 +121,16 @@ export const DetectorRunner = () => {
   const isReconnecting = suiteId && running && !suite;
 
   const progress = suite
-    ? Math.min((suite.completed_checks / Math.max(suite.total_checks, 1)) * 100, 100)
+    ? Math.min(
+        (suite.completed_checks / Math.max(suite.total_checks, 1)) * 100,
+        100,
+      )
     : 0;
 
   const handleStart = useCallback(() => {
-    const tests = (Object.entries(selectedTests) as [DetectorTestType, boolean][])
+    const tests = (
+      Object.entries(selectedTests) as [DetectorTestType, boolean][]
+    )
       .filter(([, v]) => v)
       .map(([k]) => k);
     if (tests.length > 0) {
@@ -143,8 +150,16 @@ export const DetectorRunner = () => {
         <B4Alert icon={<SecurityIcon />}>
           <strong>DPI Detector:</strong> Runs diagnostic tests to detect TSPU
           (Technical System for Countering Threats) and ISP-level internet
-          blocking. Tests DNS integrity, domain accessibility via TLS/HTTP,
-          and TCP connection drops at characteristic byte thresholds.
+          blocking. Tests DNS integrity, domain accessibility via TLS/HTTP, and
+          TCP connection drops at characteristic byte thresholds. Inspired by{" "}
+          <a
+            href="https://github.com/Runnin4ik/dpi-detector"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Runnin4ik/dpi-detector
+          </a>{" "}
+          project.
         </B4Alert>
 
         {/* Test selection */}
@@ -164,7 +179,9 @@ export const DetectorRunner = () => {
                     ? colors.accent.primary
                     : "transparent",
                   border: `1px solid ${
-                    selectedTests[test] ? colors.border.medium : colors.border.light
+                    selectedTests[test]
+                      ? colors.border.medium
+                      : colors.border.light
                   }`,
                 }}
               >
@@ -239,7 +256,9 @@ export const DetectorRunner = () => {
         {/* Progress */}
         {running && suite && (
           <Box>
-            <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}
+            >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="body2" color="text.secondary">
                   {suite.current_test && (
@@ -284,7 +303,8 @@ export const DetectorRunner = () => {
         >
           {suite.dns_result.doh_blocked && (
             <B4Alert severity="error">
-              All DNS-over-HTTPS servers are blocked. Your ISP is filtering encrypted DNS.
+              All DNS-over-HTTPS servers are blocked. Your ISP is filtering
+              encrypted DNS.
             </B4Alert>
           )}
           {suite.dns_result.udp_blocked && (
@@ -292,12 +312,14 @@ export const DetectorRunner = () => {
               All UDP DNS servers (port 53) are blocked.
             </B4Alert>
           )}
-          {suite.dns_result.stub_ips && suite.dns_result.stub_ips.length > 0 && (
-            <B4Alert severity="warning" icon={<WarningIcon />}>
-              Stub/sinkhole IPs detected: {suite.dns_result.stub_ips.join(", ")}.
-              Multiple blocked domains resolve to these IPs.
-            </B4Alert>
-          )}
+          {suite.dns_result.stub_ips &&
+            suite.dns_result.stub_ips.length > 0 && (
+              <B4Alert severity="warning" icon={<WarningIcon />}>
+                Stub/sinkhole IPs detected:{" "}
+                {suite.dns_result.stub_ips.join(", ")}. Multiple blocked domains
+                resolve to these IPs.
+              </B4Alert>
+            )}
           {suite.dns_result.domains && suite.dns_result.domains.length > 0 && (
             <DNSTable domains={suite.dns_result.domains} />
           )}
@@ -312,9 +334,10 @@ export const DetectorRunner = () => {
           summary={suite.domains_result.summary}
           ok={suite.domains_result.blocked_count === 0}
         >
-          {suite.domains_result.domains && suite.domains_result.domains.length > 0 && (
-            <DomainsTable domains={suite.domains_result.domains} />
-          )}
+          {suite.domains_result.domains &&
+            suite.domains_result.domains.length > 0 && (
+              <DomainsTable domains={suite.domains_result.domains} />
+            )}
         </ResultSection>
       )}
 
@@ -474,25 +497,13 @@ function DomainsTable({ domains }: { domains: DomainCheckResult[] }) {
                 {d.ip || "-"}
               </StyledCell>
               <StyledCell>
-                {d.tls13 ? (
-                  <StatusChip status={d.tls13.status} />
-                ) : (
-                  "-"
-                )}
+                {d.tls13 ? <StatusChip status={d.tls13.status} /> : "-"}
               </StyledCell>
               <StyledCell>
-                {d.tls12 ? (
-                  <StatusChip status={d.tls12.status} />
-                ) : (
-                  "-"
-                )}
+                {d.tls12 ? <StatusChip status={d.tls12.status} /> : "-"}
               </StyledCell>
               <StyledCell>
-                {d.http ? (
-                  <StatusChip status={d.http.status} />
-                ) : (
-                  "-"
-                )}
+                {d.http ? <StatusChip status={d.http.status} /> : "-"}
               </StyledCell>
               <StyledCell>
                 <StatusChip status={d.overall} />
@@ -553,7 +564,10 @@ function TCPTable({ targets }: { targets: TCPTargetResult[] }) {
 }
 
 // Styled table cells
-function StyledHeaderCell({ children, ...props }: { children: React.ReactNode } & Record<string, unknown>) {
+function StyledHeaderCell({
+  children,
+  ...props
+}: { children: React.ReactNode } & Record<string, unknown>) {
   return (
     <TableCell
       sx={{

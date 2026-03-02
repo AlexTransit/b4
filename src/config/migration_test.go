@@ -3,16 +3,17 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
 func TestLoadWithMigration(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	t.Run("empty path returns nil", func(t *testing.T) {
+	t.Run("empty path with no default config returns nil", func(t *testing.T) {
 		cfg := NewConfig()
 		if err := cfg.LoadWithMigration(""); err != nil {
-			t.Errorf("expected nil for empty path: %v", err)
+			t.Errorf("expected nil for empty path with no discoverable config: %v", err)
 		}
 	})
 
@@ -69,6 +70,16 @@ func TestLoadWithMigration(t *testing.T) {
 			t.Errorf("version should remain %d", CurrentConfigVersion)
 		}
 	})
+}
+
+func TestDiscoverConfigPath(t *testing.T) {
+	path := discoverConfigPath()
+	if path == "" {
+		t.Fatal("expected a non-empty path")
+	}
+	if !strings.HasPrefix(path, "/etc/b4/") && !strings.HasPrefix(path, "/opt/etc/b4/") {
+		t.Errorf("unexpected path: %s", path)
+	}
 }
 
 func TestApplyMigrations(t *testing.T) {

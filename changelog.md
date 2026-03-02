@@ -1,6 +1,6 @@
 # B4 - Bye Bye Big Bro
 
-## [1.39.0] - 2026-03-01
+## [1.39.1] - 2026-03-02
 
 - ADDED: **MSS Clamping** — forces smaller packet sizes at the firewall level so that blocked content (like YouTube on smart TVs) can load correctly. Enable it per set for specific IPs, or globally on the main set for all traffic. Configure in `TCP > General > MSS Clamping`. Changes apply instantly without restarting.
 - ADDED: **DPI Detector** — a new page in the sidebar that checks whether your ISP is tampering with your internet traffic. It runs three quick tests: DNS spoofing, blocked website detection, and connection dropping. Helps you see what your ISP is actually doing before and after enabling B4.
@@ -8,13 +8,15 @@
 - FIXED: **Custom payloads ignored during Discovery** — selecting custom payloads no longer silently falls back to built-in ones like duckduckgo. Your custom payloads are now properly used in the discovered configuration.
 - FIXED: **Discovery results not working after adding** — configurations that passed during Discovery could fail when actually applied. The tested config now matches exactly what gets saved.
 - FIXED: **TTL detection not working** — the optimal TTL search was not actually changing the fake packet's TTL, making all attempts look the same. Now correctly finds the minimum working TTL for your network.
-- FIXED: **Custom capture payloads lost when adding from Discovery** — configurations using captured payload files (e.g., from the `Capture feature`) would silently lose the payload data after being added, causing the bypass to fail.
+- FIXED: **Custom capture payloads lost when adding from Discovery** — configurations using captured payload files (e.g., from the `Capture feature`) would lose the payload reference after being added, causing the bypass to fail. The payload type also didn't show correctly in the set editor until manually reselected. Both are now fixed.
 - ADDED: **Discovery Cache** — Discovery now remembers which bypass strategies worked before. When you run Discovery for a new domain, it tries previously successful configurations first, so you often get a working result quicker.
 - ADDED: **Multi-Domain Discovery** — you can now test multiple domains in a single Discovery run. Add domains or full URLs one by one (they appear as chips for easy management) and B4 will find the best bypass configuration for each one.
 - IMPROVED: **Smarter Discovery** — reworked strategy testing to use real-world technique combinations instead of testing individual tricks in isolation. If Discovery says a strategy works, it should actually work when you add it.
 - IMPROVED: **Smarter TTL in Discovery** — `Discovery` finds the optimal Fake TTL for Combo configurations automatically by scanning through preset TTL values, and tests all faking strategies (including `timestamp`) to pick the most reliable one.
 - IMPROVED: **Fullscreen Discovery Logs** — added a button to view Discovery logs in a large popup window, making long log lines much easier to read.
 - IMPROVED: **Set editor no longer jumps away after saving** — clicking "Save" now keeps you on the same tab and scroll position instead of going back to the sets list. This can help to speed up testing specific configurations.
+- IMPROVED: **Auto-detect config file** — the `--config` flag is no longer required. When omitted, B4 automatically looks for a config file in `/etc/b4/` and `/opt/etc/b4/`. If no config exists yet, B4 picks the best default location and creates one on first run.
+- IMPROVED: SOCKS5 updates (thanks @remmody [#PR64](https://github.com/DanielLavrushin/b4/pull/64))
 
 ## [1.38.0] - 2026-02-27
 

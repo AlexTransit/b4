@@ -211,7 +211,7 @@ func (ds *DiscoverySuite) RunDiscovery() {
 			}
 
 			if preset.Config.Faking.SNIType == config.FakePayloadRandom {
-				preset.Config.Faking.SNIType = ds.bestPayload
+				ds.applyBestPayload(&preset.Config.Faking)
 			}
 			results := ds.testPresetAllDomains(preset)
 			ds.storeResultsMulti(preset, results)
@@ -334,7 +334,7 @@ func (ds *DiscoverySuite) runPhase1Multi(presets []ConfigPreset) ([]StrategyFami
 		default:
 		}
 
-		preset.Config.Faking.SNIType = ds.bestPayload
+		ds.applyBestPayload(&preset.Config.Faking)
 		domainResults := ds.testPresetAllDomains(preset)
 		ds.storeResultsMulti(preset, domainResults)
 
@@ -461,7 +461,7 @@ func (ds *DiscoverySuite) runPhase3Multi(workingFamilies []StrategyFamily, bestP
 		default:
 		}
 
-		preset.Config.Faking.SNIType = ds.bestPayload
+		ds.applyBestPayload(&preset.Config.Faking)
 		results := ds.testPresetAllDomains(preset)
 		ds.storeResultsMulti(preset, results)
 	}
@@ -479,7 +479,7 @@ func (ds *DiscoverySuite) optimizeFakeSNI() ConfigPreset {
 	base.Faking.Strategy = "pastseq"
 	base.Faking.SeqOffset = 10000
 	base.Faking.SNISeqLength = 1
-	base.Faking.SNIType = ds.bestPayload
+	ds.applyBestPayload(&base.Faking)
 	base.Fragmentation.Strategy = "combo"
 	base.Fragmentation.SNIPosition = 1
 	base.Fragmentation.ReverseOrder = true
@@ -548,7 +548,7 @@ func (ds *DiscoverySuite) optimizeCombo() ConfigPreset {
 	base.Faking.Strategy = "pastseq"
 	base.Faking.SeqOffset = 10000
 	base.Faking.SNISeqLength = 1
-	base.Faking.SNIType = ds.bestPayload
+	ds.applyBestPayload(&base.Faking)
 	base.Fragmentation = combo
 	base.TCP = config.TCPConfig{
 		ConnBytesLimit: 19,
@@ -667,7 +667,7 @@ func (ds *DiscoverySuite) optimizeTCPFrag() ConfigPreset {
 	base.Faking.TTL = ds.getOptimalTTL()
 
 	base.Faking.Strategy = "pastseq"
-	base.Faking.SNIType = ds.bestPayload
+	ds.applyBestPayload(&base.Faking)
 
 	basePreset := ConfigPreset{
 		Name:   "tcp-optimize",
@@ -715,7 +715,7 @@ func (ds *DiscoverySuite) optimizeTLSRec() ConfigPreset {
 	base.Faking.TTL = ds.getOptimalTTL()
 
 	base.Faking.Strategy = "pastseq"
-	base.Faking.SNIType = ds.bestPayload
+	ds.applyBestPayload(&base.Faking)
 
 	basePreset := ConfigPreset{
 		Name:   "tls-optimize",
@@ -784,7 +784,7 @@ func (ds *DiscoverySuite) optimizeWithPresets(family StrategyFamily) ConfigPrese
 		if result.Status == CheckStatusComplete && result.Speed > bestSpeed {
 			bestSpeed = result.Speed
 			bestPreset = preset
-			bestPreset.Config.Faking.SNIType = ds.bestPayload
+			ds.applyBestPayload(&bestPreset.Config.Faking)
 		}
 	}
 

@@ -300,14 +300,43 @@ func migrateV3to4(c *Config, _ map[string]interface{}) error {
 	return nil
 }
 
+// discoverConfigPath checks well-known locations for a config file.
+func discoverConfigPath() string {
+	candidates := []string{
+		"/etc/b4/b4.json",
+		"/etc/b4/config.json",
+		"/opt/etc/b4/b4.json",
+		"/opt/etc/b4/config.json",
+	}
+	for _, p := range candidates {
+		if info, err := os.Stat(p); err == nil && !info.IsDir() {
+			return p
+		}
+	}
+	if info, err := os.Stat("/etc/b4"); err == nil && info.IsDir() {
+		return "/etc/b4/b4.json"
+	}
+	if info, err := os.Stat("/opt/etc/b4"); err == nil && info.IsDir() {
+		return "/opt/etc/b4/b4.json"
+	}
+	return "/etc/b4/b4.json"
+}
+
 func (c *Config) LoadWithMigration(path string) error {
+	discovered := false
 	if path == "" {
-		log.Tracef("config path is not defined")
-		return nil
+		path = discoverConfigPath()
+		c.ConfigPath = path
+		discovered = true
+		log.Infof("Using config path: %s", path)
 	}
 
 	info, err := os.Stat(path)
 	if err != nil {
+		if discovered && os.IsNotExist(err) {
+			log.Infof("Config file does not exist yet, using defaults: %s", path)
+			return nil
+		}
 		return log.Errorf("failed to stat config file: %v", err)
 	}
 	if info.IsDir() {
