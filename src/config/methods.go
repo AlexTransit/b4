@@ -412,8 +412,6 @@ func (cfg *Config) CollectUDPPorts() []string {
 	return ports
 }
 
-// CollectMSSClampIPs returns IPv4 and IPv6 IPs/CIDRs grouped by MSS size from sets with MSS clamping enabled.
-// Used for firewall rules that clamp TCP MSS on SYN packets.
 func (cfg *Config) CollectMSSClampIPs() (ipv4 map[int][]string, ipv6 map[int][]string) {
 	ipv4 = make(map[int][]string)
 	ipv6 = make(map[int][]string)
@@ -437,11 +435,9 @@ func (cfg *Config) CollectMSSClampIPs() (ipv4 map[int][]string, ipv6 map[int][]s
 	return
 }
 
-// HasGlobalMSSClamp returns true and the MSS size if the main set has MSS clamping enabled without IP targets.
-// This means MSS clamping should apply globally to all TCP port 443 traffic.
 func (cfg *Config) HasGlobalMSSClamp() (bool, int) {
 	if cfg.MainSet != nil && cfg.MainSet.TCP.MSSClamp.Enabled && cfg.MainSet.TCP.MSSClamp.Size > 0 {
-		if len(cfg.MainSet.Targets.IpsToMatch) == 0 {
+		if len(cfg.MainSet.Targets.IPs) == 0 && len(cfg.MainSet.Targets.GeoIpCategories) == 0 {
 			return true, cfg.MainSet.TCP.MSSClamp.Size
 		}
 	}

@@ -382,20 +382,31 @@ func (n *NFTablesManager) ApplyMSSClamp() error {
 		return []string{"tcp", "option", "maxseg", "size", "set", fmt.Sprintf("%d", size)}
 	}
 
+	hasForward := cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0
+
 	// Global MSS clamp (main set without IP targets) - applies to all TCP port 443
 	if global {
 		// Outgoing SYN (dport 443)
 		args := append([]string{"tcp", "dport", "443"}, synMatch...)
 		args = append(args, mssSet(globalSize)...)
 		if err := n.addFilteredRule("output", args...); err != nil {
-			log.Errorf("Failed to add global MSS clamp output rule: %v", err)
+			return fmt.Errorf("failed to add global MSS clamp output rule: %w", err)
+		}
+
+		// Forward SYN (dport 443) - for device/router mode
+		if hasForward {
+			args = append([]string{"tcp", "dport", "443"}, synMatch...)
+			args = append(args, mssSet(globalSize)...)
+			if err := n.addFilteredRule("forward", args...); err != nil {
+				return fmt.Errorf("failed to add global MSS clamp forward rule: %w", err)
+			}
 		}
 
 		// Incoming SYN-ACK (sport 443)
 		args = append([]string{"tcp", "sport", "443"}, synMatch...)
 		args = append(args, mssSet(globalSize)...)
 		if err := n.addFilteredRule("prerouting", args...); err != nil {
-			log.Errorf("Failed to add global MSS clamp prerouting rule: %v", err)
+			return fmt.Errorf("failed to add global MSS clamp prerouting rule: %w", err)
 		}
 
 		log.Infof("NFTABLES: global MSS clamp enabled (size: %d)", globalSize)
@@ -415,14 +426,23 @@ func (n *NFTablesManager) ApplyMSSClamp() error {
 			args := append([]string{"meta", "nfproto", "ipv4", "ip", "daddr", ipExpr}, synMatch...)
 			args = append(args, mssSet(size)...)
 			if err := n.addRule("output", args...); err != nil {
-				log.Errorf("Failed to add MSS clamp output rule for IPv4: %v", err)
+				return fmt.Errorf("failed to add MSS clamp output rule for IPv4: %w", err)
+			}
+
+			// Forward SYN to target IPs - for device/router mode
+			if hasForward {
+				args = append([]string{"meta", "nfproto", "ipv4", "ip", "daddr", ipExpr}, synMatch...)
+				args = append(args, mssSet(size)...)
+				if err := n.addRule("forward", args...); err != nil {
+					return fmt.Errorf("failed to add MSS clamp forward rule for IPv4: %w", err)
+				}
 			}
 
 			// Incoming SYN-ACK from target IPs
 			args = append([]string{"meta", "nfproto", "ipv4", "ip", "saddr", ipExpr}, synMatch...)
 			args = append(args, mssSet(size)...)
 			if err := n.addRule("prerouting", args...); err != nil {
-				log.Errorf("Failed to add MSS clamp prerouting rule for IPv4: %v", err)
+				return fmt.Errorf("failed to add MSS clamp prerouting rule for IPv4: %w", err)
 			}
 
 			log.Infof("NFTABLES: MSS clamp for %d IPv4 targets (size: %d)", len(ips), size)
@@ -443,14 +463,23 @@ func (n *NFTablesManager) ApplyMSSClamp() error {
 			args := append([]string{"meta", "nfproto", "ipv6", "ip6", "daddr", ipExpr}, synMatch...)
 			args = append(args, mssSet(size)...)
 			if err := n.addRule("output", args...); err != nil {
-				log.Errorf("Failed to add MSS clamp output rule for IPv6: %v", err)
+				return fmt.Errorf("failed to add MSS clamp output rule for IPv6: %w", err)
+			}
+
+			// Forward SYN to target IPs - for device/router mode
+			if hasForward {
+				args = append([]string{"meta", "nfproto", "ipv6", "ip6", "daddr", ipExpr}, synMatch...)
+				args = append(args, mssSet(size)...)
+				if err := n.addRule("forward", args...); err != nil {
+					return fmt.Errorf("failed to add MSS clamp forward rule for IPv6: %w", err)
+				}
 			}
 
 			// Incoming SYN-ACK from target IPs
 			args = append([]string{"meta", "nfproto", "ipv6", "ip6", "saddr", ipExpr}, synMatch...)
 			args = append(args, mssSet(size)...)
 			if err := n.addRule("prerouting", args...); err != nil {
-				log.Errorf("Failed to add MSS clamp prerouting rule for IPv6: %v", err)
+				return fmt.Errorf("failed to add MSS clamp prerouting rule for IPv6: %w", err)
 			}
 
 			log.Infof("NFTABLES: MSS clamp for %d IPv6 targets (size: %d)", len(ips), size)

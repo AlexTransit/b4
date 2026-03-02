@@ -434,6 +434,224 @@ func TestApplyLogLevel(t *testing.T) {
 	}
 }
 
+func TestHasGlobalMSSClamp(t *testing.T) {
+	t.Run("disabled returns false", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		ok, _ := cfg.HasGlobalMSSClamp()
+		if ok {
+			t.Error("expected false when MSS clamp is disabled")
+		}
+	})
+
+	t.Run("enabled on main set without targets returns true", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		cfg.MainSet.TCP.MSSClamp.Enabled = true
+		cfg.MainSet.TCP.MSSClamp.Size = 88
+		cfg.MainSet.Targets.IPs = nil
+		cfg.MainSet.Targets.GeoIpCategories = nil
+
+		ok, size := cfg.HasGlobalMSSClamp()
+		if !ok {
+			t.Error("expected true for main set with MSS clamp and no targets")
+		}
+		if size != 88 {
+			t.Errorf("expected size 88, got %d", size)
+		}
+	})
+
+	t.Run("enabled on main set with IP targets returns false", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		cfg.MainSet.TCP.MSSClamp.Enabled = true
+		cfg.MainSet.TCP.MSSClamp.Size = 88
+		cfg.MainSet.Targets.IPs = []string{"1.1.1.1"}
+
+		ok, _ := cfg.HasGlobalMSSClamp()
+		if ok {
+			t.Error("expected false when main set has IP targets")
+		}
+	})
+
+	t.Run("enabled on main set with geoip categories returns false", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		cfg.MainSet.TCP.MSSClamp.Enabled = true
+		cfg.MainSet.TCP.MSSClamp.Size = 88
+		cfg.MainSet.Targets.GeoIpCategories = []string{"ru"}
+
+		ok, _ := cfg.HasGlobalMSSClamp()
+		if ok {
+			t.Error("expected false when main set has geoip categories")
+		}
+	})
+
+	t.Run("size zero returns false", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		cfg.MainSet.TCP.MSSClamp.Enabled = true
+		cfg.MainSet.TCP.MSSClamp.Size = 0
+
+		ok, _ := cfg.HasGlobalMSSClamp()
+		if ok {
+			t.Error("expected false when size is 0")
+		}
+	})
+}
+
+func TestCollectMSSClampIPs(t *testing.T) {
+	t.Run("no sets enabled returns empty maps", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		ipv4, ipv6 := cfg.CollectMSSClampIPs()
+		if len(ipv4) != 0 || len(ipv6) != 0 {
+			t.Error("expected empty maps when no MSS clamp enabled")
+		}
+	})
+
+	t.Run("collects IPv4 and IPv6 grouped by size", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+
+		set1 := NewSetConfig()
+		set1.Id = "set1"
+		set1.Enabled = true
+		set1.TCP.MSSClamp.Enabled = true
+		set1.TCP.MSSClamp.Size = 88
+		set1.Targets.IpsToMatch = []string{"1.1.1.1", "2.2.2.2", "2001:db8::1"}
+
+		set2 := NewSetConfig()
+		set2.Id = "set2"
+		set2.Enabled = true
+		set2.TCP.MSSClamp.Enabled = true
+		set2.TCP.MSSClamp.Size = 200
+		set2.Targets.IpsToMatch = []string{"3.3.3.3"}
+
+		cfg.Sets = append(cfg.Sets, &set1, &set2)
+
+		ipv4, ipv6 := cfg.CollectMSSClampIPs()
+
+		if len(ipv4[88]) != 2 {
+			t.Errorf("expected 2 IPv4 for size 88, got %d", len(ipv4[88]))
+		}
+		if len(ipv4[200]) != 1 {
+			t.Errorf("expected 1 IPv4 for size 200, got %d", len(ipv4[200]))
+		}
+		if len(ipv6[88]) != 1 {
+			t.Errorf("expected 1 IPv6 for size 88, got %d", len(ipv6[88]))
+		}
+	})
+
+	t.Run("skips disabled sets", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+
+		set := NewSetConfig()
+		set.Id = "disabled"
+		set.Enabled = false
+		set.TCP.MSSClamp.Enabled = true
+		set.TCP.MSSClamp.Size = 88
+		set.Targets.IpsToMatch = []string{"1.1.1.1"}
+		cfg.Sets = append(cfg.Sets, &set)
+
+		ipv4, ipv6 := cfg.CollectMSSClampIPs()
+		if len(ipv4) != 0 || len(ipv6) != 0 {
+			t.Error("expected empty maps for disabled set")
+		}
+	})
+
+	t.Run("skips sets with MSS clamp disabled", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+
+		set := NewSetConfig()
+		set.Id = "no-mss"
+		set.Enabled = true
+		set.TCP.MSSClamp.Enabled = false
+		set.Targets.IpsToMatch = []string{"1.1.1.1"}
+		cfg.Sets = append(cfg.Sets, &set)
+
+		ipv4, ipv6 := cfg.CollectMSSClampIPs()
+		if len(ipv4) != 0 || len(ipv6) != 0 {
+			t.Error("expected empty maps when MSS clamp disabled on set")
+		}
+	})
+}
+
+func TestMSSClampFingerprint(t *testing.T) {
+	t.Run("stable ordering", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+
+		set := NewSetConfig()
+		set.Id = "set1"
+		set.Enabled = true
+		set.TCP.MSSClamp.Enabled = true
+		set.TCP.MSSClamp.Size = 88
+		set.Targets.IpsToMatch = []string{"2.2.2.2", "1.1.1.1"}
+		cfg.Sets = append(cfg.Sets, &set)
+
+		fp1 := cfg.MSSClampFingerprint()
+		fp2 := cfg.MSSClampFingerprint()
+		if fp1 != fp2 {
+			t.Errorf("fingerprint not stable: %q vs %q", fp1, fp2)
+		}
+	})
+
+	t.Run("changes when config changes", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+
+		set := NewSetConfig()
+		set.Id = "set1"
+		set.Enabled = true
+		set.TCP.MSSClamp.Enabled = true
+		set.TCP.MSSClamp.Size = 88
+		set.Targets.IpsToMatch = []string{"1.1.1.1"}
+		cfg.Sets = append(cfg.Sets, &set)
+
+		fp1 := cfg.MSSClampFingerprint()
+
+		set.TCP.MSSClamp.Size = 100
+		fp2 := cfg.MSSClampFingerprint()
+
+		if fp1 == fp2 {
+			t.Error("fingerprint should change when size changes")
+		}
+	})
+
+	t.Run("includes global when main set has no targets", func(t *testing.T) {
+		cfg := NewConfig()
+		cfg.Validate()
+		cfg.MainSet.TCP.MSSClamp.Enabled = true
+		cfg.MainSet.TCP.MSSClamp.Size = 88
+		cfg.MainSet.Targets.IPs = nil
+		cfg.MainSet.Targets.GeoIpCategories = nil
+
+		fp := cfg.MSSClampFingerprint()
+		if fp == "" {
+			t.Error("fingerprint should not be empty for global MSS clamp")
+		}
+		if !contains(fp, "global:88") {
+			t.Errorf("fingerprint should contain 'global:88', got %q", fp)
+		}
+	})
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstr(s, substr))
+}
+
+func containsSubstr(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestResetToDefaults(t *testing.T) {
 	set := NewSetConfig()
 	set.Id = "custom"
