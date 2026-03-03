@@ -370,7 +370,7 @@ export const DetectorRunner = () => {
           title="SNI Whitelist Brute-Force"
           icon={<SniIcon />}
           summary={suite.sni_result.summary}
-          ok={suite.sni_result.found_count > 0}
+          ok={suite.sni_result.tested_count === 0 || suite.sni_result.found_count > 0}
         >
           {suite.sni_result.asn_results &&
             suite.sni_result.asn_results.length > 0 && (

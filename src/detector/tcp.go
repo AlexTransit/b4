@@ -192,12 +192,13 @@ func (s *fatProbeState) handleError(err error, iteration int) FatProbeResult {
 	if iteration == 0 {
 		return FatProbeResult{Alive: false, Detail: detail}
 	}
+	dropAtKB := (iteration * padSizePerIter) / 1024
 	return FatProbeResult{
 		Alive:    true,
 		Detected: true,
-		DropAtKB: iteration * 4,
+		DropAtKB: dropAtKB,
 		RTT:      s.measuredRTT,
-		Detail:   fmt.Sprintf("%s at %dKB", detail, iteration*4),
+		Detail:   fmt.Sprintf("%s at %dKB", detail, dropAtKB),
 	}
 }
 
