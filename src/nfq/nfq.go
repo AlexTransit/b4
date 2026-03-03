@@ -292,7 +292,7 @@ func (w *Worker) Start() error {
 				}
 
 				host := ""
-				matchedIP := matched
+				matchedIP := st != nil
 				matchedSNI := false
 				ipTarget := ""
 				sniTarget := ""
@@ -411,7 +411,7 @@ func (w *Worker) Start() error {
 					return 0
 				}
 
-				matchedIP := matched
+				matchedIP := st != nil
 				matchedQUIC := false
 				isSTUN := false
 				host := ""
