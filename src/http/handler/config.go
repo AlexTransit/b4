@@ -128,7 +128,7 @@ func getSystemInterfaces() ([]string, error) {
 	}
 	// Only exclude container-related interfaces when running on bare metal
 	if !inDocker {
-		excludePrefixes = append(excludePrefixes, "veth", "docker", "virbr")
+		excludePrefixes = append(excludePrefixes, "docker", "virbr")
 	}
 
 	var ifaceNames []string
