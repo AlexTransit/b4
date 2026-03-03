@@ -59,6 +59,12 @@ func (s *DetectorSuite) Run() {
 			s.mu.Lock()
 			s.TCPResult = result
 			s.mu.Unlock()
+
+		case TestSNI:
+			result := s.runSNICheck(ctx)
+			s.mu.Lock()
+			s.SNIResult = result
+			s.mu.Unlock()
 		}
 	}
 
@@ -84,6 +90,7 @@ func (s *DetectorSuite) scheduleCleanup() {
 
 func (s *DetectorSuite) estimateTotalChecks() int {
 	total := 0
+	tcpRequested := false
 	for _, test := range s.Tests {
 		switch test {
 		case TestDNS:
@@ -92,7 +99,26 @@ func (s *DetectorSuite) estimateTotalChecks() int {
 			total += len(CheckDomains) * 3 // TLS1.3 + TLS1.2 + HTTP
 		case TestTCP:
 			total += len(TCPTargets)
+			tcpRequested = true
+		case TestSNI:
+			total += estimateSNIChecks(tcpRequested)
 		}
 	}
+	return total
+}
+
+func estimateSNIChecks(tcpAlreadyRequested bool) int {
+	total := 0
+	asnSet := make(map[string]bool)
+	for _, t := range TCPTargets {
+		if t.Port != 443 {
+			continue
+		}
+		if !tcpAlreadyRequested {
+			total++ // Phase 1 base probe
+		}
+		asnSet[t.ASN] = true
+	}
+	total += len(asnSet) // Phase 2 brute-force per ASN
 	return total
 }

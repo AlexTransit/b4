@@ -23,10 +23,9 @@ import {
   DnsIcon,
   DomainIcon,
   NetworkIcon,
+  SniIcon,
   CheckCircleIcon,
   WarningIcon,
-  ErrorIcon,
-  BlockIcon,
   ExpandIcon,
   CollapseIcon,
 } from "@b4.icons";
@@ -35,33 +34,37 @@ import { B4Alert, B4Badge, B4Section, B4Switch } from "@b4.elements";
 import { useDetector } from "@hooks/useDetector";
 import type {
   DetectorTestType,
-  DNSStatus,
-  DomainStatus,
-  TCPStatus,
   DNSDomainResult,
   DomainCheckResult,
   TCPTargetResult,
+  SNIASNResult,
 } from "@models/detector";
 
 const testNames: Record<DetectorTestType, string> = {
   dns: "DNS Integrity",
   domains: "Domain Accessibility",
-  tcp: "TCP Connection Drop",
+  tcp: "TCP Fat Probe",
+  sni: "SNI Whitelist Brute-Force",
 };
 
 const testDescriptions: Record<DetectorTestType, string> = {
   dns: "Compares UDP DNS vs DoH to detect spoofing and interception",
   domains: "Probes blocked domains via TLS 1.3, TLS 1.2, and HTTP",
-  tcp: "Downloads from CDN endpoints to detect TSPU connection drops at 16-20KB",
+  tcp: "Detects TSPU connection drops via keep-alive requests with increasing header size",
+  sni: "Finds bypass SNI values for blocked ASNs by brute-forcing whitelist domains",
 };
 
 const testIcons: Record<DetectorTestType, React.ReactNode> = {
   dns: <DnsIcon fontSize="small" />,
   domains: <DomainIcon fontSize="small" />,
   tcp: <NetworkIcon fontSize="small" />,
+  sni: <SniIcon fontSize="small" />,
 };
 
-function StatusChip({ status, label }: { status: string; label?: string }) {
+function StatusChip({
+  status,
+  label,
+}: Readonly<{ status: string; label?: string }>) {
   const display = label || status;
   let color: "primary" | "error" | "info" | "secondary" | "default" = "default";
 
@@ -80,8 +83,13 @@ function StatusChip({ status, label }: { status: string; label?: string }) {
     case "ISP_PAGE":
     case "DNS_FAKE":
     case "MIXED":
+    case "NOT_FOUND":
       color = "secondary";
       break;
+    case "FOUND":
+      color = "primary";
+      break;
+    case "NOT_BLOCKED":
     case "TIMEOUT":
     case "ERROR":
       color = "info";
@@ -116,6 +124,7 @@ export const DetectorRunner = () => {
     dns: true,
     domains: true,
     tcp: true,
+    sni: false,
   });
 
   const isReconnecting = suiteId && running && !suite;
@@ -165,7 +174,7 @@ export const DetectorRunner = () => {
         {/* Test selection */}
         {!running && !suite && (
           <Stack spacing={1}>
-            {(["dns", "domains", "tcp"] as DetectorTestType[]).map((test) => (
+            {(["dns", "domains", "tcp", "sni"] as DetectorTestType[]).map((test) => (
               <Box
                 key={test}
                 sx={{
@@ -344,7 +353,7 @@ export const DetectorRunner = () => {
       {/* TCP Results */}
       {suite?.tcp_result && (
         <ResultSection
-          title="TCP Connection Drop Test"
+          title="TCP Fat Probe Test"
           icon={<NetworkIcon />}
           summary={suite.tcp_result.summary}
           ok={suite.tcp_result.detected_count === 0}
@@ -352,6 +361,21 @@ export const DetectorRunner = () => {
           {suite.tcp_result.targets && suite.tcp_result.targets.length > 0 && (
             <TCPTable targets={suite.tcp_result.targets} />
           )}
+        </ResultSection>
+      )}
+
+      {/* SNI Results */}
+      {suite?.sni_result && (
+        <ResultSection
+          title="SNI Whitelist Brute-Force"
+          icon={<SniIcon />}
+          summary={suite.sni_result.summary}
+          ok={suite.sni_result.found_count > 0}
+        >
+          {suite.sni_result.asn_results &&
+            suite.sni_result.asn_results.length > 0 && (
+              <SNITable results={suite.sni_result.asn_results} />
+            )}
         </ResultSection>
       )}
     </Stack>
@@ -365,13 +389,13 @@ function ResultSection({
   summary,
   ok,
   children,
-}: {
+}: Readonly<{
   title: string;
   icon: React.ReactNode;
   summary: string;
   ok: boolean;
   children: React.ReactNode;
-}) {
+}>) {
   const [expanded, setExpanded] = useState(true);
 
   return (
@@ -431,7 +455,7 @@ function ResultSection({
 }
 
 // DNS results table
-function DNSTable({ domains }: { domains: DNSDomainResult[] }) {
+function DNSTable({ domains }: Readonly<{ domains: DNSDomainResult[] }>) {
   return (
     <TableContainer>
       <Table size="small">
@@ -475,7 +499,7 @@ function DNSTable({ domains }: { domains: DNSDomainResult[] }) {
 }
 
 // Domain accessibility results table
-function DomainsTable({ domains }: { domains: DomainCheckResult[] }) {
+function DomainsTable({ domains }: Readonly<{ domains: DomainCheckResult[] }>) {
   return (
     <TableContainer>
       <Table size="small">
@@ -516,8 +540,8 @@ function DomainsTable({ domains }: { domains: DomainCheckResult[] }) {
   );
 }
 
-// TCP drop test results table
-function TCPTable({ targets }: { targets: TCPTargetResult[] }) {
+// TCP fat probe results table
+function TCPTable({ targets }: Readonly<{ targets: TCPTargetResult[] }>) {
   return (
     <TableContainer>
       <Table size="small">
@@ -526,7 +550,8 @@ function TCPTable({ targets }: { targets: TCPTargetResult[] }) {
             <StyledHeaderCell>#</StyledHeaderCell>
             <StyledHeaderCell>Provider</StyledHeaderCell>
             <StyledHeaderCell>ASN</StyledHeaderCell>
-            <StyledHeaderCell>Country</StyledHeaderCell>
+            <StyledHeaderCell>Endpoint</StyledHeaderCell>
+            <StyledHeaderCell>Alive</StyledHeaderCell>
             <StyledHeaderCell>Status</StyledHeaderCell>
             <StyledHeaderCell>Detail</StyledHeaderCell>
           </TableRow>
@@ -539,7 +564,16 @@ function TCPTable({ targets }: { targets: TCPTargetResult[] }) {
               <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
                 {t.target.asn}
               </StyledCell>
-              <StyledCell>{t.target.country}</StyledCell>
+              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+                {t.target.ip}:{t.target.port}
+              </StyledCell>
+              <StyledCell>
+                <B4Badge
+                  label={t.alive ? "Yes" : "No"}
+                  size="small"
+                  color={t.alive ? "primary" : "error"}
+                />
+              </StyledCell>
               <StyledCell>
                 <StatusChip status={t.status} />
               </StyledCell>
@@ -554,6 +588,44 @@ function TCPTable({ targets }: { targets: TCPTargetResult[] }) {
                 }}
               >
                 {t.detail || "-"}
+              </StyledCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  );
+}
+
+// SNI whitelist brute-force results table
+function SNITable({ results }: Readonly<{ results: SNIASNResult[] }>) {
+  return (
+    <TableContainer>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <StyledHeaderCell>ASN</StyledHeaderCell>
+            <StyledHeaderCell>Provider</StyledHeaderCell>
+            <StyledHeaderCell>IP</StyledHeaderCell>
+            <StyledHeaderCell>Status</StyledHeaderCell>
+            <StyledHeaderCell>Found SNI</StyledHeaderCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {results.map((r) => (
+            <TableRow key={r.asn}>
+              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+                AS{r.asn}
+              </StyledCell>
+              <StyledCell>{r.provider}</StyledCell>
+              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+                {r.ip}
+              </StyledCell>
+              <StyledCell>
+                <StatusChip status={r.status} />
+              </StyledCell>
+              <StyledCell sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+                {r.found_sni || "-"}
               </StyledCell>
             </TableRow>
           ))}
@@ -578,7 +650,7 @@ function StyledHeaderCell({
         fontWeight: 600,
         whiteSpace: "nowrap",
         py: 1,
-        ...((props.sx as object) || {}),
+        ...(props.sx as object),
       }}
     >
       {children}
@@ -601,7 +673,7 @@ function StyledCell({
         borderBottom: `1px solid ${colors.border.light}`,
         whiteSpace: "nowrap",
         py: 0.75,
-        ...(sxProp || {}),
+        ...sxProp,
       }}
       {...props}
     >

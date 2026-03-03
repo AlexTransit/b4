@@ -68,4 +68,5 @@ export {
   UploadFile as UploadIcon,
   FilterAlt as FilterIcon,
   OpenInFull as FullscreenIcon,
+  VpnKey as SniIcon,
 } from "@mui/icons-material";
