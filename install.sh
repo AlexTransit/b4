@@ -196,17 +196,21 @@ is_little_endian() {
 
 is_softfloat() {
     if command_exists opkg; then
-        local opkg_arch
-        opkg_arch="$(opkg print-architecture 2>/dev/null)"
-        echo "$opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
-        echo "$opkg_arch" | grep -qi "mips" && return 1
+        _sf_opkg_arch="$(opkg print-architecture 2>/dev/null)"
+        echo "$_sf_opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
+        echo "$_sf_opkg_arch" | grep -qi "mips" && return 1
+    fi
+    if [ -f /proc/cpuinfo ]; then
+        grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
     fi
     if command_exists file; then
-        file /bin/sh 2>/dev/null | grep -qi "soft.float" && return 0
-        file /bin/sh 2>/dev/null | grep -qi "MIPS\|ELF" && return 1
+        _sf_file_out="$(file /bin/sh 2>/dev/null)"
+        echo "$_sf_file_out" | grep -qi "soft.float" && return 0
+        echo "$_sf_file_out" | grep -qi "MIPS\|ELF" && return 1
     fi
-    [ -f /proc/cpuinfo ] || return 1
-    grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
+    if command_exists readelf; then
+        readelf -A /bin/sh 2>/dev/null | grep -qi "soft.float\|softfloat" && return 0
+    fi
     return 1
 }
 
