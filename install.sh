@@ -190,26 +190,21 @@ is_little_endian() {
     [ -f /sys/kernel/cpu_byteorder ] && grep -qi "little" /sys/kernel/cpu_byteorder 2>/dev/null && return 0
     [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null && return 0
     command_exists opkg && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el" && return 0
-    # ELF header byte 6 (index 5): 1=little-endian, 2=big-endian
     [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | od -An -tx1 | tr -d ' ')" = "01" ] && return 0
     return 1
 }
 
 is_softfloat() {
-    # On OpenWrt/Entware, check opkg architecture (most reliable)
     if command_exists opkg; then
         local opkg_arch
         opkg_arch="$(opkg print-architecture 2>/dev/null)"
         echo "$opkg_arch" | grep -qi "softfloat\|_nofpu\|soft_float" && return 0
-        # If opkg reports a known MIPS target without softfloat marker, it's hardfloat
         echo "$opkg_arch" | grep -qi "mips" && return 1
     fi
-    # Check ELF soft-float flag in /bin/sh using file command if available
     if command_exists file; then
         file /bin/sh 2>/dev/null | grep -qi "soft.float" && return 0
         file /bin/sh 2>/dev/null | grep -qi "MIPS\|ELF" && return 1
     fi
-    # Fallback: check /proc/cpuinfo for explicit soft-float indicators
     [ -f /proc/cpuinfo ] || return 1
     grep -qi "nofpu\|no fpu\|soft.float" /proc/cpuinfo 2>/dev/null && return 0
     return 1
@@ -570,8 +565,48 @@ wizard_manual_configure() {
     B4_SERVICE_TYPE="$_INPUT"
 
     auto_arch=$(detect_architecture)
-    read_input "Architecture [${auto_arch}]: " "$auto_arch"
-    B4_ARCH="$_INPUT"
+    B4_SUPPORTED_ARCHS="amd64 arm64 armv7 armv6 armv5 386 mips mipsle mips_softfloat mipsle_softfloat mips64 mips64le loong64 ppc64 ppc64le riscv64 s390x"
+
+    _arch_default=1
+    _arch_idx=1
+    for a in $B4_SUPPORTED_ARCHS; do
+        if [ "$a" = "$auto_arch" ]; then
+            _arch_default=$_arch_idx
+            break
+        fi
+        _arch_idx=$((_arch_idx + 1))
+    done
+
+    while true; do
+        echo "  Available architectures:"
+        _arch_idx=1
+        for a in $B4_SUPPORTED_ARCHS; do
+            if [ "$a" = "$auto_arch" ]; then
+                printf "    ${BOLD}%2d${NC}) %s ${DIM}(detected)${NC}\n" "$_arch_idx" "$a"
+            else
+                printf "    ${BOLD}%2d${NC}) %s\n" "$_arch_idx" "$a"
+            fi
+            _arch_idx=$((_arch_idx + 1))
+        done
+        echo ""
+
+        read_input "Select architecture [${_arch_default}]: " "$_arch_default"
+        _arch_idx=1
+        B4_ARCH=""
+        for a in $B4_SUPPORTED_ARCHS; do
+            if [ "$_arch_idx" = "$_INPUT" ]; then
+                B4_ARCH="$a"
+                break
+            fi
+            _arch_idx=$((_arch_idx + 1))
+        done
+
+        if [ -n "$B4_ARCH" ]; then
+            break
+        fi
+        log_warn "Invalid selection, please try again"
+        echo ""
+    done
 
     detect_pkg_manager
     read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER"
@@ -966,10 +1001,10 @@ platform_merlinwrt_info() {
     if [ ! -d "/opt/etc/init.d" ]; then
         log_warn "Entware not detected!"
         log_info "Entware is required for MerlinWRT. Install it first:"
-        log_info "  1. Plug in a USB drive"
-        log_info "  2. Format it via the router admin panel"
-        log_info "  3. Go to Administration > System > Enable Entware"
-        log_info "  Or visit: https://github.com/Entware/Entware/wiki/Install-on-Asuswrt-Merlin"
+        log_info "  1. Plug in a USB drive and format it via the router admin panel"
+        log_info "  2. Open SSH and run: amtm"
+        log_info "  3. Select option 'ep' to install Entware"
+        log_info "  More info: https://diversion.ch/amtm.html"
 
         if [ -d "/jffs" ] && [ -w "/jffs" ]; then
             log_warn "Falling back to /jffs (limited space, Entware recommended)"
@@ -1059,7 +1094,7 @@ platform_merlinwrt_find_storage() {
     fi
 
     log_err "No writable persistent storage found"
-    log_info "Please install Entware with a USB drive"
+    log_info "Please install Entware via amtm (run 'amtm' in SSH, select 'ep')"
     return 1
 }
 
@@ -2216,7 +2251,7 @@ action_update() {
         log_info "Latest: ${latest_ver}"
     fi
 
-    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -q "$latest_ver"; then
+    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -Fq "$latest_ver"; then
         log_ok "Already up to date"
         return 0
     fi
@@ -2590,8 +2625,6 @@ main() {
             B4_BIN_DIR="${arg#*=}" ;;
         --data-dir=*)
             B4_DATA_DIR="${arg#*=}" ;;
-        --dry-run)
-            DRY_RUN=1 ;;
         --help | -h)
             _show_help
             exit 0 ;;
