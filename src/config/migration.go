@@ -39,6 +39,18 @@ var migrationRegistry = map[int]MigrationFunc{
 	20: migrateV20to21, // Add SOCKS5 proxy server config
 	21: migrateV21to22, // Add NAT masquerade config
 	22: migrateV22to23, // Add TCP MSS clamping config
+	23: migrateV23to24, // Add multidisorder (fake per segment) and new payload types
+}
+
+func migrateV23to24(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v23->v24: Adding multidisorder (fake per segment) to combo/disorder configs")
+	for _, set := range c.Sets {
+		set.Fragmentation.Combo.FakePerSegment = DefaultSetConfig.Fragmentation.Combo.FakePerSegment
+		set.Fragmentation.Combo.FakePerSegCount = DefaultSetConfig.Fragmentation.Combo.FakePerSegCount
+		set.Fragmentation.Disorder.FakePerSegment = DefaultSetConfig.Fragmentation.Disorder.FakePerSegment
+		set.Fragmentation.Disorder.FakePerSegCount = DefaultSetConfig.Fragmentation.Disorder.FakePerSegCount
+	}
+	return nil
 }
 
 func migrateV22to23(c *Config, _ map[string]interface{}) error {

@@ -46,16 +46,25 @@ func (w *Worker) sendDisorderFragments(cfg *config.SetConfig, packet []byte, dst
 
 	minJitter, maxJitter := GetDisorderJitter(disorder)
 
+	fakePerSeg := disorder.FakePerSegment
+	fakePerSegCount := disorder.FakePerSegCount
+	if fakePerSegCount <= 0 {
+		fakePerSegCount = 1
+	}
+
 	seg2d := config.ResolveSeg2Delay(cfg.TCP.Seg2Delay, cfg.TCP.Seg2DelayMax)
 	for i, seg := range segments {
-		if i == 0 && seqovlLen > 0 {
+		sendFake := (fakePerSeg || i == 0) && seqovlLen > 0
+		if sendFake {
 			payloadLen := len(seg.Data) - pi.PayloadStart
 			if seqovlLen <= payloadLen {
 				seqOffset := seg.Seq - pi.Seq0
-				fakeSeg := BuildFakeOverlapSegmentV4(packet, pi, payloadLen, seqOffset, 0, seqovlPattern, cfg.Faking.TTL, true)
-				if fakeSeg != nil {
-					_ = w.sock.SendIPv4(fakeSeg, dst)
-					time.Sleep(50 * time.Microsecond)
+				for f := 0; f < fakePerSegCount; f++ {
+					fakeSeg := BuildFakeOverlapSegmentV4(packet, pi, payloadLen, seqOffset, 0, seqovlPattern, cfg.Faking.TTL, true)
+					if fakeSeg != nil {
+						_ = w.sock.SendIPv4(fakeSeg, dst)
+						time.Sleep(50 * time.Microsecond)
+					}
 				}
 			}
 		}

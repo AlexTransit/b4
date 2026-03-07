@@ -12,6 +12,8 @@ export enum FakingPayloadType {
   DEFAULT = 2,
   DEFAULT2 = 3,
   CAPTURE = 4,
+  ZERO = 5,
+  INVERTED = 6,
 }
 
 export type MutationMode =
@@ -270,6 +272,8 @@ export interface ComboFragConfig {
   first_delay_ms: number;
   jitter_max_us: number;
   decoy_enabled: boolean;
+  fake_per_segment: boolean;
+  fake_per_seg_count: number;
 }
 
 export type DisorderShuffleMode = "full" | "reverse";
@@ -277,6 +281,8 @@ export interface DisorderFragConfig {
   shuffle_mode: DisorderShuffleMode;
   min_jitter_us: number;
   max_jitter_us: number;
+  fake_per_segment: boolean;
+  fake_per_seg_count: number;
 }
 
 export interface DNSConfig {
