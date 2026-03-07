@@ -141,6 +141,15 @@ build-installer:
 	@echo "Building installer script..."
 	@./installer/_build.sh
 
+.PHONY: build-installer2
+build-installer2:
+	@echo "Building installer2 script..."
+	@sh ./installer2/_build.sh
+
+.PHONY: watch-installer2
+watch-installer2:
+	@sh ./installer2/_watch.sh
+
 .PHONY: build-docker
 build-docker:
 	@echo "Building Docker image..."

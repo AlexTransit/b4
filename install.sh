@@ -1,48 +1,19 @@
 #!/bin/sh
-# B4 Universal Installer Script (POSIX Compliant)
-# Automatically detects system architecture and installs the appropriate b4 binary
-# Supports OpenWRT, MerlinWRT, and other Linux-based routers with only sh shell
+# B4 Installer — Universal Linux installer with wizard interface
+# Supports desktop Linux, OpenWRT, MerlinWRT, Keenetic, Mikrotik, Docker, and more
 #
-# AUTO-GENERATED - Do not edit directly
-# Edit files in installer/ and run installer/build.sh
+# AUTO-GENERATED — Do not edit directly
+# Edit files in installer2/ and run: make build-installer
 #
 
 set -e
 
-# Entware paths first so wget-ssl/curl from /opt/bin are preferred over BusyBox
+# Ensure sane PATH (Entware paths first for wget-ssl/curl from /opt/bin)
 export PATH="/opt/bin:/opt/sbin:$HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:$PATH"
 
-# --- END header.sh ---
 
-# Configuration
-REPO_OWNER="DanielLavrushin"
-REPO_NAME="b4"
-# These will be set dynamically by set_system_paths()
-INSTALL_DIR=""
-CONFIG_DIR=""
-SERVICE_DIR=""
-SERVICE_NAME=""
-SYSTEM_TYPE=""
-BINARY_NAME="b4"
-CONFIG_FILE="" # Will be set after CONFIG_DIR is determined
-TEMP_DIR="/tmp/b4_install_$$"
-QUIET_MODE="0"
-WGET_INSECURE="" # Set to "--no-check-certificate" if CA certs are missing
-GEOSITE_SRC=""
-GEOSITE_DST=""
-# Proxy configuration for GitHub fallback
-PROXY_BASE_URL="https://proxy.lavrush.in/github"
-
-# geodat sources (pipe-delimited: number|name|url)
-GEODAT_SOURCES="1|Loyalsoldier source|https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
-2|RUNET Freedom source [recommended]|https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release
-3|Nidelon source|https://github.com/Nidelon/ru-block-v2ray-rules/releases/latest/download
-4|DustinWin source|https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo
-5|Chocolate4U source|https://raw.githubusercontent.com/Chocolate4U/Iran-v2ray-rules/release"
-
-# --- END config.sh ---
-
-# Colors for output (if terminal supports it)
+# ======== lib/colors.sh ========
+# Terminal colors (disabled when not a TTY)
 if [ -t 1 ]; then
     RED='\033[0;31m'
     GREEN='\033[0;32m'
@@ -51,1022 +22,799 @@ if [ -t 1 ]; then
     CYAN='\033[0;36m'
     MAGENTA='\033[0;35m'
     BOLD='\033[1m'
-    NC='\033[0m' # No Color
+    DIM='\033[2m'
+    NC='\033[0m'
 else
-    RED=''
-    GREEN=''
-    YELLOW=''
-    BLUE=''
-    CYAN=''
-    MAGENTA=''
-    BOLD=''
-    NC=''
+    RED='' GREEN='' YELLOW='' BLUE='' CYAN='' MAGENTA='' BOLD='' DIM='' NC=''
 fi
 
-# --- END colors.sh ---
 
-# Helper functions
-print_info() {
-    if [ "$QUIET_MODE" -eq 0 ]; then
-        printf "${BLUE}[INFO   ]${NC} %s\n" "$1" >&2
-    fi
+# ======== lib/log.sh ========
+# Logging functions
+
+QUIET_MODE=0
+
+log_info() {
+    [ "$QUIET_MODE" -eq 1 ] && return
+    printf "${BLUE}[INFO]${NC} %s\n" "$1" >&2
 }
 
-print_success() {
-    if [ "$QUIET_MODE" -eq 0 ]; then
-        printf "${GREEN}[SUCCESS]${NC} %s\n" "$1" >&2
-    fi
+log_ok() {
+    [ "$QUIET_MODE" -eq 1 ] && return
+    printf "${GREEN}[ OK ]${NC} %s\n" "$1" >&2
 }
 
-print_error() {
-    printf "${RED}[ERROR  ]${NC} %s\n" "$1" >&2
+log_warn() {
+    [ "$QUIET_MODE" -eq 1 ] && return
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1" >&2
 }
 
-print_warning() {
-    if [ "$QUIET_MODE" -eq 0 ]; then
-        printf "${YELLOW}[WARNING]${NC} %s\n" "$1" >&2
-    fi
+log_err() {
+    printf "${RED}[ERR ]${NC} %s\n" "$1" >&2
 }
 
-print_header() {
-    if [ "$QUIET_MODE" -eq 0 ]; then
-        printf "\n${MAGENTA}%s${NC}\n" "$1" >&2
-    fi
+log_header() {
+    [ "$QUIET_MODE" -eq 1 ] && return
+    printf "\n${MAGENTA}${BOLD}%s${NC}\n" "$1" >&2
 }
 
-print_detail() {
-    if [ "$QUIET_MODE" -eq 0 ]; then
-        printf "  ${CYAN}%-22s${NC}: %b\n" "$1" "$2" >&2
-    fi
+log_detail() {
+    [ "$QUIET_MODE" -eq 1 ] && return
+    printf "  ${CYAN}%-22s${NC}: %b\n" "$1" "$2" >&2
 }
 
-# Check if command exists (works on routers without 'command' builtin)
+# Print a separator line
+log_sep() {
+    [ "$QUIET_MODE" -eq 1 ] && return
+    printf "${DIM}%s${NC}\n" "─────────────────────────────────────────" >&2
+}
+
+
+# ======== lib/utils.sh ========
+# Core utility functions
+
+# --- Configuration ---
+REPO_OWNER="DanielLavrushin"
+REPO_NAME="b4"
+BINARY_NAME="b4"
+TEMP_DIR="/tmp/b4_install_$$"
+WGET_INSECURE=""
+PROXY_BASE_URL="https://proxy.lavrush.in/github"
+
+# --- Runtime state (set by platform/wizard) ---
+B4_BIN_DIR=""
+B4_DATA_DIR=""
+B4_CONFIG_FILE=""
+B4_SERVICE_TYPE=""
+B4_SERVICE_DIR=""
+B4_SERVICE_NAME=""
+B4_PKG_MANAGER=""
+B4_PLATFORM=""
+
+# --- Command existence check (works on BusyBox/minimal shells) ---
 command_exists() {
-    # Try which first (common on routers)
-    if which "$1" >/dev/null 2>&1; then
-        return 0
-    fi
-
-    # Fallback: try to run with --help (most commands support this)
-    if $1 --help >/dev/null 2>&1; then
-        return 0
-    fi
-
-    # Command not found
-    return 1
+    command -v "$1" >/dev/null 2>&1 || which "$1" >/dev/null 2>&1
 }
 
-# Check if running as root (works on minimal routers)
+# --- Root check ---
 check_root() {
-    # Method 1: Check $USER variable
+    if [ "$(id -u 2>/dev/null)" = "0" ]; then
+        return 0
+    fi
     if [ "$USER" = "root" ]; then
         return 0
     fi
-
-    # Method 2: Try to write to /etc (only root can)
-    if touch /etc/.root_test 2>/dev/null; then
-        rm -f /etc/.root_test 2>/dev/null
+    # Fallback: try writing to /etc
+    if touch /etc/.b4_root_test 2>/dev/null; then
+        rm -f /etc/.b4_root_test
         return 0
     fi
-
-    # Method 3: Check whoami if available
-    if which whoami >/dev/null 2>&1 && [ "$(whoami 2>/dev/null)" = "root" ]; then
-        return 0
-    fi
-
-    # If we get here, probably not root
-    print_error "This script must be run as root"
-    print_info "Please switch to root user first"
+    log_err "This script must be run as root"
     exit 1
 }
 
-# Create necessary directories
-setup_directories() {
-    print_info "Creating directories..."
-
-    # Create install directory if it doesn't exist
-    if [ ! -d "$INSTALL_DIR" ]; then
-        if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
-            # Install dir creation failed - likely read-only filesystem
-            print_warning "Cannot create $INSTALL_DIR (read-only filesystem?)"
-
-            # Try Entware fallback
-            if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ]; then
-                print_warning "Falling back to /opt/sbin (Entware)"
-                INSTALL_DIR="/opt/sbin"
-                CONFIG_DIR="/opt/etc/b4"
-                CONFIG_FILE="${CONFIG_DIR}/b4.json"
-                SERVICE_DIR="/opt/etc/init.d"
-                SERVICE_NAME="S99b4"
-            # Try /tmp fallback (non-persistent but always writable)
-            elif mkdir -p "/tmp/b4" 2>/dev/null; then
-                print_warning "Falling back to /tmp/b4 (non-persistent, will not survive reboot)"
-                INSTALL_DIR="/tmp/b4"
-            else
-                print_error "Failed to create install directory: $INSTALL_DIR"
-                print_error "Filesystem is read-only. Try installing Entware first."
-                exit 1
-            fi
-        fi
-    elif [ ! -w "$INSTALL_DIR" ]; then
-        # Directory exists but is not writable
-        print_warning "$INSTALL_DIR exists but is not writable"
-        if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ]; then
-            print_warning "Falling back to /opt/sbin (Entware)"
-            INSTALL_DIR="/opt/sbin"
-            CONFIG_DIR="/opt/etc/b4"
-            CONFIG_FILE="${CONFIG_DIR}/b4.json"
-            SERVICE_DIR="/opt/etc/init.d"
-            SERVICE_NAME="S99b4"
-        elif mkdir -p "/tmp/b4" 2>/dev/null; then
-            print_warning "Falling back to /tmp/b4 (non-persistent, will not survive reboot)"
-            INSTALL_DIR="/tmp/b4"
-        else
-            print_error "Failed to find writable install directory"
-            exit 1
-        fi
-    fi
-
-    # Create config directory
-    if [ ! -d "$CONFIG_DIR" ]; then
-        if ! mkdir -p "$CONFIG_DIR" 2>/dev/null; then
-            # Config dir creation failed - likely read-only filesystem
-            # Try Entware fallback
-            if [ -d "/opt/etc" ] && [ -w "/opt/etc" ]; then
-                print_warning "Cannot write to $CONFIG_DIR (read-only?), falling back to /opt/etc/b4"
-                CONFIG_DIR="/opt/etc/b4"
-                CONFIG_FILE="${CONFIG_DIR}/b4.json"
-                INSTALL_DIR="/opt/sbin"
-                SERVICE_DIR="/opt/etc/init.d"
-                SERVICE_NAME="S99b4"
-                mkdir -p "$CONFIG_DIR" || {
-                    print_error "Failed to create config directory: $CONFIG_DIR"
-                    exit 1
-                }
-            else
-                print_error "Failed to create config directory: $CONFIG_DIR"
-                print_error "Filesystem may be read-only. Try installing Entware first."
-                exit 1
-            fi
-        fi
-    fi
-
-    # Create temp directory
+# --- Temp directory management ---
+setup_temp() {
     rm -rf "$TEMP_DIR" 2>/dev/null || true
-    mkdir -p "$TEMP_DIR" || {
-        print_error "Failed to create temp directory"
-        exit 1
-    }
+    mkdir -p "$TEMP_DIR" || { log_err "Cannot create temp dir"; exit 1; }
 }
 
-# Clean up temporary files
-cleanup() {
-    if [ -d "$TEMP_DIR" ]; then
-        rm -rf "$TEMP_DIR"
-    fi
+cleanup_temp() {
+    rm -rf "$TEMP_DIR" 2>/dev/null || true
 }
 
-# Set up trap for cleanup
-trap cleanup EXIT INT TERM
+trap cleanup_temp EXIT INT TERM
 
-# Check if process is running (POSIX compliant, no pidof)
-is_process_running() {
-    process_name="$1"
-    # Match exact binary name, not the installer script
-    if ps 2>/dev/null | grep -v grep | grep -v "b4install" | grep -q "^.*${process_name}$\|^.*${process_name}[[:space:]]"; then
+# --- Package manager detection ---
+detect_pkg_manager() {
+    if [ -n "$B4_PKG_MANAGER" ]; then
         return 0
-    else
-        return 1
+    fi
+    if command_exists apt-get; then
+        B4_PKG_MANAGER="apt"
+    elif command_exists dnf; then
+        B4_PKG_MANAGER="dnf"
+    elif command_exists yum; then
+        B4_PKG_MANAGER="yum"
+    elif command_exists pacman; then
+        B4_PKG_MANAGER="pacman"
+    elif command_exists apk; then
+        B4_PKG_MANAGER="apk"
+    elif command_exists opkg; then
+        B4_PKG_MANAGER="opkg"
     fi
 }
 
-# Stop process (POSIX compliant)
-stop_process() {
-    process_name="$1"
-    if is_process_running "$process_name"; then
-        print_info "Stopping existing $process_name process..."
-        # Try pkill if available, otherwise use ps + kill
-        if command_exists pkill; then
-            pkill "^${process_name}$" 2>/dev/null || true
-        else
-            # BusyBox way: find and kill by name, exclude installer script
-            ps | grep -v grep | grep -v "b4install" | grep "${process_name}$\|${process_name}[[:space:]]" | awk '{print $1}' | while read pid; do
-                if [ -n "$pid" ]; then
-                    kill "$pid" 2>/dev/null || true
-                fi
-            done
-        fi
-        sleep 2
-    fi
-}
-
-# Convert GitHub URL to proxy URL
-convert_to_proxy_url() {
-    url="$1"
-    # Check if URL is from allowed GitHub domains
-    case "$url" in
-    https://raw.githubusercontent.com/DanielLavrushin/* | \
-        https://github.com/DanielLavrushin/* | \
-        https://objects.githubusercontent.com/DanielLavrushin/* | \
-        https://codeload.github.com/DanielLavrushin/* | \
-        https://gist.githubusercontent.com/DanielLavrushin/* | \
-        https://api.github.com/repos/DanielLavrushin/*)
-        echo "${PROXY_BASE_URL}/${url}"
-        ;;
-    *)
-        echo "$url"
-        ;;
+pkg_install() {
+    detect_pkg_manager
+    case "$B4_PKG_MANAGER" in
+    apt)    apt-get update -qq >/dev/null 2>&1; apt-get install -y -qq "$@" >/dev/null 2>&1 ;;
+    dnf)    dnf install -y -q "$@" >/dev/null 2>&1 ;;
+    yum)    yum install -y -q "$@" >/dev/null 2>&1 ;;
+    pacman) pacman -S --noconfirm --needed "$@" >/dev/null 2>&1 ;;
+    apk)    apk add --quiet "$@" >/dev/null 2>&1 ;;
+    opkg)   opkg update >/dev/null 2>&1; opkg install "$@" >/dev/null 2>&1 ;;
+    *)      log_warn "No package manager detected"; return 1 ;;
     esac
 }
 
-# Check if wget supports HTTPS
-wget_supports_https() {
-    # Try HTTPS HEAD request against multiple endpoints
-    # (github.com may be blocked in some regions)
-    for test_url in "https://proxy.lavrush.in" "https://github.com" "https://cloudflare.com"; do
-        if wget --spider -q --timeout=5 "$test_url" 2>/dev/null; then
-            return 0
+# --- Architecture detection ---
+detect_architecture() {
+    arch=$(uname -m)
+
+    case "$arch" in
+    x86_64 | amd64)         echo "amd64" ;;
+    i386 | i486 | i586 | i686) echo "386" ;;
+    aarch64 | arm64)        echo "arm64" ;;
+    armv7 | armv7l)
+        # Check for full ARMv7 VFP support, otherwise use armv5 for safety
+        if [ -f /proc/cpuinfo ] &&
+           grep -qE "(vfpv[3-9])" /proc/cpuinfo 2>/dev/null &&
+           grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
+            echo "armv7"
+        else
+            echo "armv5"
         fi
-    done
+        ;;
+    armv6*)                 echo "armv6" ;;
+    armv5*)                 echo "armv5" ;;
+    arm*)
+        if [ -f /proc/cpuinfo ]; then
+            if grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then echo "armv7"
+            elif grep -qE "CPU architecture:\s*6" /proc/cpuinfo 2>/dev/null; then echo "armv6"
+            else echo "armv5"
+            fi
+        else
+            echo "armv5"
+        fi
+        ;;
+    mips64*)
+        variant="mips64"
+        if is_little_endian; then variant="mips64le"; fi
+        if is_softfloat; then variant="${variant}_softfloat"; fi
+        echo "$variant"
+        ;;
+    mips*)
+        variant="mips"
+        if is_little_endian; then variant="mipsle"; fi
+        if is_softfloat; then variant="${variant}_softfloat"; fi
+        echo "$variant"
+        ;;
+    ppc64le)    echo "ppc64le" ;;
+    ppc64)      echo "ppc64" ;;
+    riscv64)    echo "riscv64" ;;
+    s390x)      echo "s390x" ;;
+    loongarch64) echo "loong64" ;;
+    *) log_err "Unsupported architecture: $arch"; exit 1 ;;
+    esac
+}
+
+is_little_endian() {
+    uname -m | grep -qi "el" && return 0
+    [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null && return 0
+    command_exists opkg && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el" && return 0
+    # ELF header check
+    [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null | od -An -tx1 | tr -d ' ')" = "01" ] && return 0
     return 1
 }
 
-# Download file from URL with GitHub fallback
+is_softfloat() {
+    [ -f /proc/cpuinfo ] || return 1
+    ! grep -qi "fpu" /proc/cpuinfo 2>/dev/null && return 0
+    grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null && return 0
+    return 1
+}
+
+# --- HTTPS support ---
+check_https_support() {
+    if command_exists curl && curl -sI --max-time 5 "https://github.com" >/dev/null 2>&1; then
+        return 0
+    fi
+    if command_exists wget && wget --spider -q --timeout=5 "https://github.com" 2>/dev/null; then
+        return 0
+    fi
+    # Try with --no-check-certificate
+    if command_exists wget && wget --spider -q --timeout=5 --no-check-certificate "https://github.com" 2>/dev/null; then
+        WGET_INSECURE="--no-check-certificate"
+        log_warn "HTTPS works only with --no-check-certificate (CA certs missing)"
+        return 0
+    fi
+    return 1
+}
+
+ensure_https_support() {
+    if check_https_support; then
+        return 0
+    fi
+    log_warn "HTTPS not available — trying to install SSL support"
+    if command_exists opkg; then
+        opkg update >/dev/null 2>&1 || true
+        opkg install ca-certificates >/dev/null 2>&1 || true
+        opkg install wget-ssl >/dev/null 2>&1 || true
+        hash -r 2>/dev/null || true
+        if check_https_support; then return 0; fi
+    fi
+    log_err "HTTPS not available. Cannot download from GitHub."
+    log_info "On Entware/OpenWrt: opkg install wget-ssl ca-certificates"
+    return 1
+}
+
+# --- Download helpers ---
+convert_to_proxy_url() {
+    url="$1"
+    case "$url" in
+    https://raw.githubusercontent.com/${REPO_OWNER}/* | \
+    https://github.com/${REPO_OWNER}/* | \
+    https://api.github.com/repos/${REPO_OWNER}/*)
+        echo "${PROXY_BASE_URL}/${url}" ;;
+    *) echo "$url" ;;
+    esac
+}
+
 fetch_file() {
     url="$1"
     output="$2"
-    dl_err=""
 
     if ! command_exists curl && ! command_exists wget; then
-        print_error "Neither curl nor wget found"
+        log_err "Neither curl nor wget found"
         return 1
     fi
 
-    # Try direct download - try both curl and wget (BusyBox curl may lack SSL)
-    if command_exists curl; then
-        dl_err=$(curl -sfL --max-time 10 -o "$output" "$url" 2>&1) && return 0
-    fi
-    if command_exists wget; then
-        dl_err=$(wget -q $WGET_INSECURE --timeout=10 -O "$output" "$url" 2>&1) && return 0
-    fi
+    # Try direct
+    if command_exists curl && curl -sfL --max-time 30 -o "$output" "$url" 2>/dev/null; then return 0; fi
+    if command_exists wget && wget -q $WGET_INSECURE --timeout=30 -O "$output" "$url" 2>/dev/null; then return 0; fi
 
-    # If direct download failed, try proxy fallback
+    # Try proxy fallback
     proxy_url=$(convert_to_proxy_url "$url")
     if [ "$proxy_url" != "$url" ]; then
-        print_warning "Direct download failed, trying proxy (proxy.lavrush.in)..."
-        if command_exists curl; then
-            dl_err=$(curl -sfL --max-time 15 -o "$output" "$proxy_url" 2>&1) && return 0
-        fi
-        if command_exists wget; then
-            dl_err=$(wget -q $WGET_INSECURE --timeout=15 -O "$output" "$proxy_url" 2>&1) && return 0
-        fi
+        log_warn "Direct download failed, trying proxy..."
+        if command_exists curl && curl -sfL --max-time 30 -o "$output" "$proxy_url" 2>/dev/null; then return 0; fi
+        if command_exists wget && wget -q $WGET_INSECURE --timeout=30 -O "$output" "$proxy_url" 2>/dev/null; then return 0; fi
     fi
 
-    print_error "Failed to download: $url"
-    [ -n "$dl_err" ] && print_error "Last error: $dl_err"
+    log_err "Failed to download: $url"
     return 1
 }
 
-# Fetch URL content to stdout with GitHub fallback
 fetch_stdout() {
     url="$1"
-    dl_err=""
 
-    if ! command_exists curl && ! command_exists wget; then
-        return 1
-    fi
-
-    # Try direct download - try both curl and wget (BusyBox curl may lack SSL)
     if command_exists curl; then
-        result=$(curl -sfL --max-time 10 "$url" 2>/tmp/b4_fetch_err) || true
-        dl_err=$(cat /tmp/b4_fetch_err 2>/dev/null)
-        rm -f /tmp/b4_fetch_err
-        if [ -n "$result" ]; then
-            echo "$result"
-            return 0
-        fi
+        result=$(curl -sfL --max-time 15 "$url" 2>/dev/null) && [ -n "$result" ] && echo "$result" && return 0
     fi
     if command_exists wget; then
-        result=$(wget -qO- $WGET_INSECURE --timeout=10 "$url" 2>/tmp/b4_fetch_err) || true
-        dl_err=$(cat /tmp/b4_fetch_err 2>/dev/null)
-        rm -f /tmp/b4_fetch_err
-        if [ -n "$result" ]; then
-            echo "$result"
-            return 0
-        fi
+        result=$(wget -qO- $WGET_INSECURE --timeout=15 "$url" 2>/dev/null) && [ -n "$result" ] && echo "$result" && return 0
     fi
 
-    # If direct download failed, try proxy fallback
+    # Proxy fallback
     proxy_url=$(convert_to_proxy_url "$url")
     if [ "$proxy_url" != "$url" ]; then
-        print_warning "Direct download failed, trying proxy (proxy.lavrush.in)..."
         if command_exists curl; then
-            result=$(curl -sfL --max-time 15 "$proxy_url" 2>/tmp/b4_fetch_err) || true
-            dl_err=$(cat /tmp/b4_fetch_err 2>/dev/null)
-            rm -f /tmp/b4_fetch_err
-            if [ -n "$result" ]; then
-                echo "$result"
-                return 0
-            fi
+            result=$(curl -sfL --max-time 15 "$proxy_url" 2>/dev/null) && [ -n "$result" ] && echo "$result" && return 0
         fi
         if command_exists wget; then
-            result=$(wget -qO- $WGET_INSECURE --timeout=15 "$proxy_url" 2>/tmp/b4_fetch_err) || true
-            dl_err=$(cat /tmp/b4_fetch_err 2>/dev/null)
-            rm -f /tmp/b4_fetch_err
-            if [ -n "$result" ]; then
-                echo "$result"
-                return 0
-            fi
+            result=$(wget -qO- $WGET_INSECURE --timeout=15 "$proxy_url" 2>/dev/null) && [ -n "$result" ] && echo "$result" && return 0
         fi
     fi
 
-    [ -n "$dl_err" ] && print_error "Download error: $dl_err"
     return 1
 }
 
-detect_pkg_manager() {
-    if command_exists opkg; then
-        PKG_MGR="opkg"
-        PKG_UPDATE="opkg update"
-        PKG_INSTALL="opkg install"
-    elif command_exists apt-get; then
-        PKG_MGR="apt"
-        PKG_UPDATE="apt-get update"
-        PKG_INSTALL="apt-get install -y"
-    elif command_exists yum; then
-        PKG_MGR="yum"
-        PKG_UPDATE=""
-        PKG_INSTALL="yum install -y"
-    elif command_exists apk; then
-        PKG_MGR="apk"
-        PKG_UPDATE="apk update"
-        PKG_INSTALL="apk add"
-    fi
-}
-
-install_packages() {
-    packages="$1"
-
-    [ -z "$PKG_MGR" ] && detect_pkg_manager
-    [ -z "$PKG_MGR" ] && {
-        print_error "No package manager"
-        return 1
-    }
-
-    [ -n "$PKG_UPDATE" ] && $PKG_UPDATE >/dev/null 2>&1 || true
-
-    for pkg in $packages; do
-        actual_pkg="$pkg"
-        case "$PKG_MGR" in
-        opkg) [ "$pkg" = "nohup" ] && actual_pkg="coreutils-nohup" ;;
-        apt | apk) [ "$pkg" = "nohup" ] && actual_pkg="coreutils" ;;
-        esac
-
-        print_info "Installing $actual_pkg..."
-        $PKG_INSTALL $actual_pkg >/dev/null 2>&1 && print_success "Installed $actual_pkg" || print_warning "Failed: $actual_pkg"
-    done
-}
-
-check_dependencies() {
-    required_deps="tar"
-
-    missing_required=""
-
-    if ! command_exists curl && ! command_exists wget; then
-        missing_required="${missing_required} wget"
-    fi
-
-    for dep in $required_deps; do
-        if ! command_exists "$dep"; then
-            missing_required="${missing_required} $dep"
-        fi
-    done
-
-    if [ -n "$missing_required" ]; then
-        print_error "Missing required dependencies:$missing_required"
-
-        if [ "$QUIET_MODE" = "1" ]; then
-            install_packages "$missing_required" || exit 1
-        else
-            printf "${CYAN}Attempt to install? (Y/n): ${NC}"
-            read answer </dev/tty || answer="y"
-
-            case "$answer" in
-            [nN] | [nN][oO]) exit 1 ;;
-            *) install_packages "$missing_required" || exit 1 ;;
-            esac
-        fi
-    fi
-
-    # Check HTTPS support - critical for downloading from GitHub
-    ensure_https_support
-
-    check_recommended_packages
-}
-
-# Check if curl supports HTTPS
-curl_supports_https() {
-    for test_url in "https://ya.ru"; do
-        if curl -sI --max-time 5 "$test_url" >/dev/null 2>&1; then
-            return 0
-        fi
-    done
-    return 1
-}
-
-# Ensure wget/curl can handle HTTPS (critical for GitHub downloads)
-ensure_https_support() {
-    # If curl exists with SSL, we're fine
-    if command_exists curl; then
-        if curl_supports_https; then
-            return 0
-        fi
-    fi
-
-    # Check if wget supports HTTPS
-    if command_exists wget; then
-        if wget_supports_https; then
-            return 0
-        fi
-    fi
-
-    # Neither wget nor curl can do HTTPS
-    print_warning "HTTPS support not available (required for GitHub downloads)"
-
-    # Try to install wget-ssl and ca-certificates on Entware/OpenWrt
-    if command_exists opkg; then
-        print_info "Attempting to install wget-ssl and ca-certificates for HTTPS support..."
-        if [ "$QUIET_MODE" = "1" ]; then
-            opkg update >/dev/null 2>&1 || true
-            opkg install ca-certificates >/dev/null 2>&1 || true
-            opkg install wget-ssl >/dev/null 2>&1 || true
-        else
-            printf "${CYAN}Install wget-ssl and ca-certificates for HTTPS support? (Y/n): ${NC}"
-            read answer </dev/tty || answer="y"
-            case "$answer" in
-            [nN] | [nN][oO]) ;;
-            *)
-                opkg update >/dev/null 2>&1 || true
-                if opkg install ca-certificates >/dev/null 2>&1; then
-                    print_success "ca-certificates installed"
-                else
-                    print_warning "Failed to install ca-certificates"
-                fi
-                if opkg install wget-ssl >/dev/null 2>&1; then
-                    print_success "wget-ssl installed"
-                else
-                    print_warning "Failed to install wget-ssl"
-                fi
-                # Rehash PATH to pick up new binary
-                hash -r 2>/dev/null || true
-                ;;
-            esac
-        fi
-
-        # Verify HTTPS now works
-        if command_exists wget && wget_supports_https; then
-            return 0
-        fi
-        if command_exists curl && curl_supports_https; then
-            return 0
-        fi
-    fi
-
-    # Last resort: try --no-check-certificate (missing CA certs but SSL works)
-    if command_exists wget; then
-        if wget --spider -q --timeout=5 --no-check-certificate "https://github.com" 2>/dev/null; then
-            print_warning "HTTPS works only with --no-check-certificate (CA certificates missing)"
-            print_info "Install CA certificates: opkg install ca-certificates"
-            WGET_INSECURE="--no-check-certificate"
-            return 0
-        fi
-    fi
-
-    print_warning "HTTPS may not work - downloads from GitHub might fail"
-    print_info "On Entware/Keenetic: opkg install wget-ssl ca-certificates"
-    print_info "On OpenWrt: opkg install wget-ssl ca-certificates"
-}
-
-# Map kernel module package name to the actual module name for lsmod check
-kmod_to_module() {
-    case "$1" in
-    kmod-nfnetlink-queue) echo "nfnetlink_queue" ;;
-    kmod-ipt-nfqueue) echo "xt_NFQUEUE" ;;
-    kmod-ipt-raw) echo "iptable_raw" ;;
-    kmod-ipt-ipset) echo "ip_set" ;;
-    kmod-nft-core | kmod-nft-base) echo "nf_tables" ;;
-    kmod-nft-queue) echo "nft_queue" ;;
-    kmod-nf-conntrack-netlink) echo "nf_conntrack_netlink" ;;
-    iptables-mod-nfqueue) echo "xt_NFQUEUE" ;;
-    *) echo "" ;;
-    esac
-}
-
-# Check if a kernel module package is actually needed
-# Returns 0 (needed) or 1 (not needed / already loaded)
-kmod_pkg_needed() {
-    pkg="$1"
-    mod=$(kmod_to_module "$pkg")
-    [ -z "$mod" ] && return 0
-    # Module already loaded - no need for the package
-    lsmod 2>/dev/null | grep -q "^${mod}" && return 1
-    return 0
-}
-
-check_recommended_packages() {
-    case "$SYSTEM_TYPE" in
-    openwrt)
-        # Userspace packages always recommended
-        recommended="jq wget-ssl coreutils-nohup"
-        # Kernel module packages - only recommend if the module isn't already loaded
-        kmod_packages="kmod-nfnetlink-queue kmod-ipt-nfqueue kmod-ipt-raw kmod-ipt-ipset kmod-nft-core kmod-nft-queue kmod-nf-conntrack-netlink iptables-mod-nfqueue"
-        pkg_cmd="opkg"
-        ;;
-    entware | merlin)
-        recommended="ca-certificates curl wget-ssl jq coreutils-nohup iptables"
-        kmod_packages=""
-        pkg_cmd="opkg"
-        ;;
-    padavan)
-        # If Entware is available, use opkg
-        if command_exists opkg; then
-            recommended="ca-certificates curl wget-ssl jq coreutils-nohup iptables"
-            kmod_packages=""
-            pkg_cmd="opkg"
-        else
-            missing=""
-            for cmd in jq nohup; do
-                command_exists "$cmd" || missing="${missing} $cmd"
-            done
-            [ -z "$missing" ] && return 0
-            print_warning "Recommended but missing:$missing"
-            print_warning "Install Entware to get a package manager: https://github.com/Entware/Entware/wiki"
-            return 0
-        fi
-        ;;
-    systemd-linux | sysv-linux | generic-linux)
-        missing=""
-        for cmd in jq nohup iptables; do
-            command_exists "$cmd" || missing="${missing} $cmd"
-        done
-        [ -z "$missing" ] && return 0
-        print_warning "Recommended but missing:$missing"
-        [ "$QUIET_MODE" = "1" ] && return 0
-        detect_pkg_manager
-        [ -z "$PKG_MGR" ] && {
-            print_warning "No package manager found"
-            return 0
-        }
-        printf "${CYAN}Install recommended packages? (Y/n): ${NC}"
-        read answer </dev/tty || answer="y"
-
-        case "$answer" in
-        [nN] | [nN][oO]) return 0 ;;
-        *) install_packages "$missing" ;;
-        esac
-        return 0
-        ;;
-    *)
-        return 0
-        ;;
-    esac
-
-    # Check which userspace packages are missing
-    missing=""
-    for pkg in $recommended; do
-        $pkg_cmd list-installed 2>/dev/null | grep -q "^${pkg} " || missing="${missing} $pkg"
-    done
-
-    # Check kernel module packages: skip if module already loaded or package not in repo
-    for pkg in $kmod_packages; do
-        # Skip if already installed
-        $pkg_cmd list-installed 2>/dev/null | grep -q "^${pkg} " && continue
-        # Skip if the kernel module is already loaded (built-in or loaded by firmware)
-        kmod_pkg_needed "$pkg" || continue
-        # Skip if the package doesn't exist in the repo
-        $pkg_cmd list "$pkg" 2>/dev/null | grep -q "^${pkg} " || continue
-        missing="${missing} $pkg"
-    done
-
-    [ -z "$missing" ] && return 0
-
-    print_warning "Missing packages:$missing"
-
-    if [ "$QUIET_MODE" = "1" ]; then
-        $pkg_cmd update >/dev/null 2>&1
-        for pkg in $missing; do
-            $pkg_cmd install "$pkg" >/dev/null 2>&1 || true
-        done
-        return 0
-    fi
-
-    printf "${CYAN}Install missing packages? (Y/n): ${NC}"
-    read answer </dev/tty || answer="y"
-
-    case "$answer" in
-    [nN] | [nN][oO]) print_warning "B4 may not function correctly" ;;
-    *)
-        $pkg_cmd update >/dev/null 2>&1 || true
-        for pkg in $missing; do
-            print_info "Installing $pkg..."
-            $pkg_cmd install "$pkg" >/dev/null 2>&1 && print_success "Installed $pkg" || print_warning "Failed: $pkg"
-        done
-        ;;
-    esac
-}
-
-# --- END utils.sh ---
-
-# Detect system type and set appropriate paths
-detect_system_type() {
-    # Check for Entware
-    # Some systems like Keenetic don't have entware_release file
-    if [ -d "/opt/etc/init.d" ]; then
-        # Has Entware init structure
-        if [ -f "/opt/etc/entware_release" ] || [ -f "/opt/bin/opkg" ] || [ -d "/opt/lib/opkg" ]; then
-            echo "entware"
-            return
-        fi
-    fi
-
-    # Check for Keenetic specifically
-    if [ -f "/proc/device-tree/model" ] && grep -qi "keenetic" /proc/device-tree/model 2>/dev/null; then
-        echo "entware"
-        return
-    fi
-
-    # Fallback: if /opt/sbin exists and is writable but /etc is read-only, assume Entware-like
-    if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ] && ! [ -w "/etc" ]; then
-        echo "entware"
-        return
-    fi
-
-    # Check for OpenWRT
-    if [ -f "/etc/openwrt_release" ]; then
-        echo "openwrt"
-        return
-    fi
-
-    # Check for MerlinWRT
-    if [ -f "/etc/merlinwrt_release" ] || [ -d "/jffs" ]; then
-        echo "merlin"
-        return
-    fi
-
-    # Check for Padavan firmware (has /etc/storage for persistent writable area and /etc_ro)
-    if [ -d "/etc/storage" ] && [ -d "/etc_ro" ]; then
-        echo "padavan"
-        return
-    fi
-
-    # Check for standard systemd-based Linux
-    if [ -d "/etc/systemd/system" ] && command_exists systemctl; then
-        echo "systemd-linux"
-        return
-    fi
-
-    # Check for standard init.d Linux
-    if [ -d "/etc/init.d" ] && [ ! -f "/etc/openwrt_release" ]; then
-        echo "sysv-linux"
-        return
-    fi
-
-    # Default to generic Linux
-    echo "generic-linux"
-}
-
-# Set paths based on system type
-set_system_paths() {
-    SYSTEM_TYPE=$(detect_system_type)
-
-    case "$SYSTEM_TYPE" in
-    entware | merlin)
-        INSTALL_DIR="/opt/sbin"
-        CONFIG_DIR="/opt/etc/b4"
-        SERVICE_DIR="/opt/etc/init.d"
-        SERVICE_NAME="S99b4"
-        ;;
-    padavan)
-        # Padavan: root filesystem is read-only (squashfs)
-        # /etc/storage is the persistent writable JFFS partition
-        if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ]; then
-            # Entware is installed - use Entware paths
-            INSTALL_DIR="/opt/sbin"
-            CONFIG_DIR="/opt/etc/b4"
-            SERVICE_DIR="/opt/etc/init.d"
-            SERVICE_NAME="S99b4"
-        else
-            # No Entware - use /etc/storage (persistent) for config,
-            # /tmp for binary (non-persistent, re-download on boot via startup script)
-            INSTALL_DIR="/tmp/b4"
-            CONFIG_DIR="/etc/storage/b4"
-            SERVICE_DIR="/etc/storage"
-            SERVICE_NAME="b4"
-            print_warning "No Entware detected. Binary will be in /tmp (non-persistent)."
-            print_warning "Consider installing Entware for persistent installation."
-        fi
-        ;;
-    openwrt)
-        # OpenWRT typically uses /usr/sbin or /usr/bin
-        if [ -d "/usr/sbin" ]; then
-            INSTALL_DIR="/usr/sbin"
-        else
-            INSTALL_DIR="/usr/bin"
-        fi
-        CONFIG_DIR="/etc/b4"
-        SERVICE_DIR="/etc/init.d"
-        SERVICE_NAME="b4"
-        ;;
-    systemd-linux)
-        INSTALL_DIR="/usr/local/bin"
-        CONFIG_DIR="/etc/b4"
-        SERVICE_DIR="/etc/systemd/system"
-        SERVICE_NAME="b4.service"
-        ;;
-    sysv-linux | generic-linux)
-        INSTALL_DIR="/usr/local/bin"
-        CONFIG_DIR="/etc/b4"
-        SERVICE_DIR="/etc/init.d"
-        SERVICE_NAME="b4"
-        ;;
-    *)
-        # Fallback
-        INSTALL_DIR="/usr/local/bin"
-        CONFIG_DIR="/etc/b4"
-        ;;
-    esac
-
-    CONFIG_FILE="${CONFIG_DIR}/b4.json"
-
-    print_info "Detected system: $SYSTEM_TYPE"
-    print_info "Using install directory: $INSTALL_DIR"
-    print_info "Using config directory: $CONFIG_DIR"
-}
-
-# Detect system architecture and return appropriate binary variant
-detect_architecture() {
-    arch=$(uname -m)
-    arch_variant=""
-
-    case "$arch" in
-    x86_64 | amd64)
-        arch_variant="amd64"
-        ;;
-    i386 | i486 | i586 | i686)
-        arch_variant="386"
-        ;;
-    aarch64 | arm64)
-        arch_variant="arm64"
-        ;;
-    armv7)
-        arch_variant="armv7"
-        ;;
-    armv7* | armv7l | armv7-*)
-        # Default to armv5 for compatibility, only use armv7 if certain
-        arch_variant="armv5"
-
-        # Only use armv7 if we have clear evidence of full support
-        if [ -f /proc/cpuinfo ]; then
-            # Need BOTH vfpv3+ AND proper architecture confirmation
-            if grep -qE "(vfpv[3-9]|vfpv[0-9][0-9])" /proc/cpuinfo 2>/dev/null &&
-                grep -qE "CPU architecture:\s*7" /proc/cpuinfo 2>/dev/null; then
-                arch_variant="armv7"
-                print_info "Full ARMv7 support detected, using armv7 binary"
-            else
-                print_warning "armv7l detected but using armv5 for compatibility (safer for routers)"
-            fi
-        fi
-        ;;
-    armv6*)
-        arch_variant="armv6"
-        ;;
-    armv5*)
-        arch_variant="armv5"
-        ;;
-    arm*)
-        # Generic ARM - try to detect version from CPU info
-        if [ -f /proc/cpuinfo ]; then
-            # Look for CPU architecture line first (most reliable)
-            if grep -qE "CPU architecture:\s*7" /proc/cpuinfo; then
-                arch_variant="armv7"
-            elif grep -qE "CPU architecture:\s*6" /proc/cpuinfo; then
-                arch_variant="armv6"
-            elif grep -qE "CPU architecture:\s*5" /proc/cpuinfo; then
-                arch_variant="armv5"
-            # Fallback to searching for ARM version strings
-            elif grep -qi "ARMv7" /proc/cpuinfo; then
-                arch_variant="armv7"
-            elif grep -qi "ARMv6" /proc/cpuinfo; then
-                arch_variant="armv6"
-            elif grep -qi "ARMv5" /proc/cpuinfo; then
-                arch_variant="armv5"
-            else
-                # Default to armv5 for maximum compatibility
-                arch_variant="armv5"
-            fi
-        else
-            # No cpuinfo available, default to safest option
-            arch_variant="armv5"
-        fi
-        ;;
-    mips64)
-        # Check MIPS endianness
-        mips_le=false
-        if uname -m | grep -qi "el"; then
-            mips_le=true
-        elif [ -f /sys/kernel/cpu_byteorder ] && grep -qi "little" /sys/kernel/cpu_byteorder 2>/dev/null; then
-            mips_le=true
-        elif [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null; then
-            mips_le=true
-        elif command -v opkg >/dev/null 2>&1 && opkg print-architecture 2>/dev/null | grep -qi "mipsel\|mips64el"; then
-            mips_le=true
-        elif [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null)" = "$(printf '\1')" ]; then
-            # ELF header byte 6 (index 5): 1=little-endian, 2=big-endian
-            mips_le=true
-        fi
-
-        if [ "$mips_le" = true ]; then
-            arch_variant="mips64le"
-        else
-            arch_variant="mips64"
-        fi
-        # Check for softfloat (no FPU)
-        if [ -f /proc/cpuinfo ]; then
-            if ! grep -qi "fpu" /proc/cpuinfo 2>/dev/null || grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null; then
-                arch_variant="${arch_variant}_softfloat"
-                print_warning "No FPU detected, using softfloat binary"
-            fi
-        fi
-        ;;
-    mips*)
-        # 32-bit MIPS - determine endianness
-        mips_le=false
-        if uname -m | grep -qi "el"; then
-            mips_le=true
-        elif [ -f /sys/kernel/cpu_byteorder ] && grep -qi "little" /sys/kernel/cpu_byteorder 2>/dev/null; then
-            mips_le=true
-        elif [ -f /proc/cpuinfo ] && grep -qi "little.endian\|byteorder.*little" /proc/cpuinfo 2>/dev/null; then
-            mips_le=true
-        elif command -v opkg >/dev/null 2>&1 && opkg print-architecture 2>/dev/null | grep -qi "mipsel"; then
-            mips_le=true
-        elif [ "$(dd if=/bin/sh bs=1 skip=5 count=1 2>/dev/null)" = "$(printf '\1')" ]; then
-            mips_le=true
-        fi
-
-        if [ "$mips_le" = true ]; then
-            arch_variant="mipsle"
-        else
-            arch_variant="mips"
-        fi
-        # Check for softfloat (no FPU)
-        if [ -f /proc/cpuinfo ]; then
-            if ! grep -qi "fpu" /proc/cpuinfo 2>/dev/null || grep -qi "nofpu\|no fpu" /proc/cpuinfo 2>/dev/null; then
-                arch_variant="${arch_variant}_softfloat"
-                print_warning "No FPU detected, using softfloat binary"
-            fi
-        fi
-        ;;
-    ppc64le)
-        arch_variant="ppc64le"
-        ;;
-    ppc64)
-        arch_variant="ppc64"
-        ;;
-    riscv64)
-        arch_variant="riscv64"
-        ;;
-    s390x)
-        arch_variant="s390x"
-        ;;
-    loongarch64)
-        arch_variant="loong64"
-        ;;
-    *)
-        print_error "Unsupported architecture: $arch"
-        exit 1
-        ;;
-    esac
-
-    # ONLY output the result to stdout
-    echo "$arch_variant"
-}
-
-# --- END system.sh ---
-
-# This is the core installation part script for b4 Universal.
-
-# Get latest release version from GitHub - ONLY returns version string
+# --- GitHub release helpers ---
 get_latest_version() {
     api_url="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest"
-
     version=$(fetch_stdout "$api_url" | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
-
     if [ -z "$version" ]; then
-        print_error "Failed to fetch latest version"
+        log_err "Failed to fetch latest version"
         exit 1
     fi
-
     echo "$version"
 }
 
-# Verify checksum
 verify_checksum() {
     file="$1"
     checksum_url="$2"
     checksum_file="${file}.sha256"
-
-    print_info "Downloading SHA256 checksum..."
 
     if ! fetch_file "$checksum_url" "$checksum_file"; then
         rm -f "$checksum_file"
         return 1
     fi
 
-    if [ ! -s "$checksum_file" ]; then
-        rm -f "$checksum_file"
-        return 1
-    fi
-
-    expected_checksum=$(awk '{print $1}' "$checksum_file")
-
-    if [ -z "$expected_checksum" ]; then
-        print_warning "Could not parse checksum from file"
-        rm -f "$checksum_file"
-        return 1
-    fi
+    expected=$(awk '{print $1}' "$checksum_file")
+    rm -f "$checksum_file"
+    [ -z "$expected" ] && return 1
 
     if ! command_exists sha256sum; then
-        print_warning "sha256sum not found, skipping verification"
-        rm -f "$checksum_file"
+        log_warn "sha256sum not found, skipping verification"
         return 1
     fi
 
-    actual_checksum=$(sha256sum "$file" | awk '{print $1}')
-
-    rm -f "$checksum_file"
-
-    if [ "$expected_checksum" = "$actual_checksum" ]; then
-        print_success "SHA256 checksum verified: $actual_checksum"
+    actual=$(sha256sum "$file" | awk '{print $1}')
+    if [ "$expected" = "$actual" ]; then
+        log_ok "SHA256 verified: $actual"
         return 0
     else
-        print_error "SHA256 checksum mismatch!"
-        print_error "Expected: $expected_checksum"
-        print_error "Got:      $actual_checksum"
+        log_err "SHA256 mismatch! Expected: $expected Got: $actual"
         return 2
     fi
 }
 
-# Download file and verify checksums
-download_file() {
-    url="$1"
-    output="$2"
-    version="$3"
-    arch="$4"
+# --- Process management ---
+is_b4_running() {
+    if command_exists pgrep; then
+        pgrep -x "$BINARY_NAME" >/dev/null 2>&1
+    else
+        ps 2>/dev/null | grep -v grep | grep -q "[/]${BINARY_NAME}\$\|[/]${BINARY_NAME}[[:space:]]"
+    fi
+}
 
-    print_info "Downloading from: $url"
+stop_b4() {
+    if ! is_b4_running; then return 0; fi
+    log_info "Stopping running b4 process..."
+    if command_exists pkill; then
+        pkill -x "$BINARY_NAME" 2>/dev/null || true
+    else
+        ps 2>/dev/null | grep -v grep | grep "${BINARY_NAME}" | awk '{print $1}' | while read pid; do
+            kill "$pid" 2>/dev/null || true
+        done
+    fi
+    sleep 2
+}
 
-    if ! fetch_file "$url" "$output"; then
-        print_error "Download failed"
+# --- Directory helpers ---
+is_writable_dir() {
+    dir="$1"
+    [ -d "$dir" ] && [ -w "$dir" ] && return 0
+    # Try to create and test
+    mkdir -p "$dir" 2>/dev/null && [ -w "$dir" ] && return 0
+    return 1
+}
+
+ensure_dir() {
+    dir="$1"
+    label="$2"
+    if ! mkdir -p "$dir" 2>/dev/null; then
+        log_err "Cannot create ${label}: ${dir}"
         return 1
     fi
-
-    # Construct checksum URL
-    file_name="${BINARY_NAME}-linux-${arch}.tar.gz"
-    sha256_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}/${file_name}.sha256"
-
-    # Try to verify SHA256 checksum
-    if verify_checksum "$output" "$sha256_url"; then
-        return 0
-    elif [ $? -eq 2 ]; then
-        print_error "Download verification failed!"
-        return 0
-    else
-        print_warning "No checksum file found - unable to verify download integrity"
-
-        if command_exists sha256sum; then
-            local_hash=$(sha256sum "$output" | awk '{print $1}')
-            print_info "Local SHA256: $local_hash"
-        fi
+    if [ ! -w "$dir" ]; then
+        log_err "${label} not writable: ${dir}"
+        return 1
     fi
+    return 0
+}
+
+# --- Read user input (works even when stdin is piped) ---
+read_input() {
+    prompt="$1"
+    default="$2"
+    printf "${CYAN}%b${NC}" "$prompt" >&2
+    read answer </dev/tty 2>/dev/null || answer="$default"
+    [ -z "$answer" ] && answer="$default"
+    echo "$answer"
+}
+
+# --- Yes/No prompt ---
+confirm() {
+    prompt="$1"
+    default="${2:-y}" # default yes
+
+    if [ "$default" = "y" ]; then
+        hint="Y/n"
+    else
+        hint="y/N"
+    fi
+
+    answer=$(read_input "${prompt} (${hint}): " "$default")
+
+    case "$answer" in
+    [yY] | [yY][eE][sS]) return 0 ;;
+    [nN] | [nN][oO]) return 1 ;;
+    *) [ "$default" = "y" ] && return 0 || return 1 ;;
+    esac
+}
+
+
+# ======== lib/wizard.sh ========
+# Interactive wizard — handles both manual and automatic modes
+
+WIZARD_MODE="" # "auto" or "manual"
+
+# Show the welcome banner and mode selection
+wizard_start() {
+    echo ""
+    printf "${BOLD}"
+    echo "  ╔═══════════════════════════════════════╗"
+    echo "  ║       B4 Universal Installer          ║"
+    echo "  ╚═══════════════════════════════════════╝"
+    printf "${NC}"
+    echo ""
+
+    log_sep
+    echo ""
+    printf "  ${BOLD}1${NC}) Automatic detection ${DIM}(recommended)${NC}\n"
+    printf "  ${BOLD}2${NC}) Manual configuration\n"
+    echo ""
+
+    choice=$(read_input "Select mode [1]: " "1")
+
+    case "$choice" in
+    2) WIZARD_MODE="manual" ;;
+    *) WIZARD_MODE="auto" ;;
+    esac
+}
+
+# Run automatic detection and show results for review
+wizard_auto_detect() {
+    log_header "Detecting system..."
+    echo ""
+
+    # 1. Detect platform
+    platform_auto_detect
+    if [ -z "$B4_PLATFORM" ]; then
+        log_err "Could not detect platform"
+        log_info "Try manual mode or set B4_PLATFORM environment variable"
+        exit 1
+    fi
+
+    # 2. Load platform defaults
+    platform_call info
+
+    # 3. Detect architecture
+    B4_ARCH=$(detect_architecture)
+
+    # 4. Detect package manager
+    detect_pkg_manager
+
+    # 5. Show what was detected
+    wizard_show_config
+
+    echo ""
+    if ! confirm "Proceed with these settings?"; then
+        log_info "Switching to manual mode..."
+        WIZARD_MODE="manual"
+        wizard_manual_configure
+    fi
+}
+
+# Manual configuration — ask for every setting
+wizard_manual_configure() {
+    log_header "Manual configuration"
+    echo ""
+
+    # 1. Platform selection
+    echo "  Available platforms:"
+    idx=1
+    for p in $REGISTERED_PLATFORMS; do
+        pname=$(platform_dispatch "$p" name)
+        printf "    ${BOLD}%d${NC}) %s\n" "$idx" "$pname"
+        idx=$((idx + 1))
+    done
+    echo ""
+
+    choice=$(read_input "Select platform [1]: " "1")
+    idx=1
+    for p in $REGISTERED_PLATFORMS; do
+        if [ "$idx" = "$choice" ]; then
+            B4_PLATFORM="$p"
+            break
+        fi
+        idx=$((idx + 1))
+    done
+
+    # Load platform defaults first
+    platform_call info
+
+    # 2. Binary directory
+    B4_BIN_DIR=$(read_input "Binary directory [${B4_BIN_DIR}]: " "$B4_BIN_DIR")
+
+    # 3. Data/config directory
+    B4_DATA_DIR=$(read_input "Data directory [${B4_DATA_DIR}]: " "$B4_DATA_DIR")
+    B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
+
+    # 4. Service type
+    echo ""
+    echo "  Service types: systemd, procd, sysv, entware, none"
+    B4_SERVICE_TYPE=$(read_input "Service type [${B4_SERVICE_TYPE}]: " "$B4_SERVICE_TYPE")
+
+    # 5. Architecture
+    auto_arch=$(detect_architecture)
+    B4_ARCH=$(read_input "Architecture [${auto_arch}]: " "$auto_arch")
+
+    # 6. Package manager
+    detect_pkg_manager
+    B4_PKG_MANAGER=$(read_input "Package manager [${B4_PKG_MANAGER:-none}]: " "$B4_PKG_MANAGER")
+
+    echo ""
+    wizard_show_config
+    echo ""
+    if ! confirm "Proceed with these settings?"; then
+        log_info "Aborted."
+        exit 0
+    fi
+}
+
+# Display current configuration
+wizard_show_config() {
+    log_sep
+    pname=""
+    if [ -n "$B4_PLATFORM" ]; then
+        pname=$(platform_dispatch "$B4_PLATFORM" name)
+    fi
+    log_detail "Platform" "${BOLD}${pname}${NC} (${B4_PLATFORM})"
+    log_detail "Architecture" "${B4_ARCH}"
+    log_detail "Binary directory" "${B4_BIN_DIR}"
+    log_detail "Data directory" "${B4_DATA_DIR}"
+    log_detail "Config file" "${B4_CONFIG_FILE}"
+    log_detail "Service type" "${B4_SERVICE_TYPE}"
+    log_detail "Package manager" "${B4_PKG_MANAGER:-none}"
+
+    # Show enabled features
+    if [ -n "$REGISTERED_FEATURES" ]; then
+        echo ""
+        log_detail "Features" ""
+        for f in $REGISTERED_FEATURES; do
+            fname=$(feature_dispatch "$f" name)
+            fdesc=$(feature_dispatch "$f" description)
+            printf "    ${GREEN}+${NC} %s ${DIM}— %s${NC}\n" "$fname" "$fdesc" >&2
+        done
+    fi
+    log_sep
+}
+
+# Feature selection wizard (called during install)
+wizard_select_features() {
+    if [ -z "$REGISTERED_FEATURES" ]; then
+        return 0
+    fi
+
+    log_header "Optional features"
+    echo ""
+
+    for f in $REGISTERED_FEATURES; do
+        fname=$(feature_dispatch "$f" name)
+        fdesc=$(feature_dispatch "$f" description)
+        fdefault=$(feature_dispatch "$f" default_enabled)
+
+        if [ "$fdefault" = "yes" ]; then
+            def="y"
+        else
+            def="n"
+        fi
+
+        if confirm "  Enable ${BOLD}${fname}${NC}? ${DIM}(${fdesc})${NC}" "$def"; then
+            ENABLED_FEATURES="${ENABLED_FEATURES} ${f}"
+        fi
+    done
+}
+
+
+# ======== platforms/_interface.sh ========
+# Platform registration and dispatch system
+#
+# Each platform file must define these functions (prefixed with platform_<id>_):
+#   name             — Human-readable name
+#   match            — Return 0 if this platform is detected, 1 otherwise
+#   info             — Set B4_BIN_DIR, B4_DATA_DIR, B4_SERVICE_TYPE, etc.
+#   check_deps       — Verify/install kernel modules and dependencies
+#   install_service  — Write the service/init script
+#   remove_service   — Remove the service/init script
+#   start_service    — Start the b4 service
+#   stop_service     — Stop the b4 service
+#   find_storage     — Find writable storage (for routers with limited rootfs)
+#
+# Then register with: register_platform "<id>"
+
+REGISTERED_PLATFORMS=""
+
+register_platform() {
+    id="$1"
+    REGISTERED_PLATFORMS="${REGISTERED_PLATFORMS} ${id}"
+}
+
+# Dispatch a call to the active platform
+# Usage: platform_call <function> [args...]
+platform_call() {
+    func="$1"
+    shift
+    platform_dispatch "$B4_PLATFORM" "$func" "$@"
+}
+
+# Dispatch to a specific platform
+# Usage: platform_dispatch <platform_id> <function> [args...]
+platform_dispatch() {
+    pid="$1"
+    func="$2"
+    shift 2
+    # Build function name: platform_<id>_<func>
+    fn="platform_${pid}_${func}"
+    if type "$fn" >/dev/null 2>&1; then
+        "$fn" "$@"
+    else
+        log_warn "Platform '${pid}' does not implement '${func}'"
+        return 1
+    fi
+}
+
+
+# ======== platforms/_detect.sh ========
+# Auto-detection: iterate registered platforms and find the best match
+#
+# Override with: B4_PLATFORM=<id> environment variable
+
+platform_auto_detect() {
+    # User override — most reliable
+    if [ -n "$B4_PLATFORM" ]; then
+        # Verify the platform exists
+        for p in $REGISTERED_PLATFORMS; do
+            if [ "$p" = "$B4_PLATFORM" ]; then
+                log_ok "Using user-specified platform: $B4_PLATFORM"
+                return 0
+            fi
+        done
+        log_err "Unknown platform: $B4_PLATFORM"
+        log_info "Available: $REGISTERED_PLATFORMS"
+        exit 1
+    fi
+
+    # Try each registered platform's match function
+    for p in $REGISTERED_PLATFORMS; do
+        if platform_dispatch "$p" match 2>/dev/null; then
+            B4_PLATFORM="$p"
+            pname=$(platform_dispatch "$p" name)
+            log_ok "Detected platform: ${pname}"
+            return 0
+        fi
+    done
+
+    # Fallback to generic_linux if registered
+    for p in $REGISTERED_PLATFORMS; do
+        if [ "$p" = "generic_linux" ]; then
+            B4_PLATFORM="generic_linux"
+            log_warn "No specific platform matched, using Generic Linux"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+
+# ======== platforms/generic-linux.sh ========
+# Platform: Generic Linux (Ubuntu, Debian, Fedora, Arch, Alpine, etc.)
+# Covers any systemd-based or sysv-init desktop/server Linux
+
+platform_generic_linux_name() {
+    echo "Generic Linux (Ubuntu/Debian/Fedora/Arch/Alpine)"
+}
+
+platform_generic_linux_match() {
+    # Match any Linux with systemd or standard init.d
+    # This is the lowest-priority fallback — other platforms should match first
+    [ "$(uname -s)" = "Linux" ] || return 1
+
+    # Don't match if this looks like a router firmware
+    [ -f /etc/openwrt_release ] && return 1
+    [ -f /etc/merlinwrt_release ] && return 1
+    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1  # Padavan
+
+    # Match systemd or standard init
+    command_exists systemctl && return 0
+    [ -d /etc/init.d ] && return 0
 
     return 0
 }
 
-# --- END download.sh ---
+platform_generic_linux_info() {
+    B4_BIN_DIR="/usr/local/bin"
+    B4_DATA_DIR="/etc/b4"
+    B4_CONFIG_FILE="${B4_DATA_DIR}/b4.json"
 
-# Create systemd service file (for systems with systemd)
-create_systemd_service() {
-    # Only create if systemd is actually available and functioning
-    if ! [ -d "/etc/systemd/system" ] || ! command_exists systemctl; then
-        return
+    if command_exists systemctl && systemctl list-units >/dev/null 2>&1; then
+        B4_SERVICE_TYPE="systemd"
+        B4_SERVICE_DIR="/etc/systemd/system"
+        B4_SERVICE_NAME="b4.service"
+    elif [ -d /etc/init.d ]; then
+        B4_SERVICE_TYPE="sysv"
+        B4_SERVICE_DIR="/etc/init.d"
+        B4_SERVICE_NAME="b4"
+    else
+        B4_SERVICE_TYPE="none"
     fi
 
-    # Check if systemd is actually running (not just installed)
-    if ! systemctl list-units >/dev/null 2>&1; then
-        return
+    detect_pkg_manager
+}
+
+platform_generic_linux_check_deps() {
+    missing=""
+
+    # Check basic tools
+    if ! command_exists curl && ! command_exists wget; then
+        missing="${missing} wget"
+    fi
+    command_exists tar || missing="${missing} tar"
+
+    if [ -n "$missing" ]; then
+        log_warn "Missing required:${missing}"
+        if confirm "Install missing packages?"; then
+            pkg_install $missing || log_warn "Some packages failed to install"
+        else
+            log_err "Cannot continue without:${missing}"
+            exit 1
+        fi
     fi
 
-    cat >"/etc/systemd/system/b4.service" <<EOF
+    ensure_https_support || exit 1
+
+    # Check kernel modules
+    _generic_linux_check_kmods
+
+    # Recommended packages
+    _generic_linux_check_recommended
+}
+
+_generic_linux_check_kmods() {
+    for mod in xt_NFQUEUE xt_connbytes xt_multiport nf_conntrack; do
+        if ! lsmod 2>/dev/null | grep -q "^${mod}"; then
+            modprobe "$mod" 2>/dev/null || true
+        fi
+    done
+
+    # Verify at least NFQUEUE is available
+    if ! lsmod 2>/dev/null | grep -q "xt_NFQUEUE\|nfnetlink_queue"; then
+        log_warn "xt_NFQUEUE kernel module not loaded"
+        case "$B4_PKG_MANAGER" in
+        apt) log_info "Try: apt install xtables-addons-common" ;;
+        dnf | yum) log_info "Try: dnf install xtables-addons" ;;
+        pacman) log_info "Try: pacman -S xtables-addons" ;;
+        esac
+    fi
+}
+
+_generic_linux_check_recommended() {
+    rec_missing=""
+    command_exists jq || rec_missing="${rec_missing} jq"
+    command_exists iptables || command_exists nft || rec_missing="${rec_missing} iptables"
+
+    if [ -n "$rec_missing" ]; then
+        log_warn "Recommended but missing:${rec_missing}"
+        if confirm "Install recommended packages?"; then
+            pkg_install $rec_missing || true
+        fi
+    fi
+}
+
+platform_generic_linux_install_service() {
+    case "$B4_SERVICE_TYPE" in
+    systemd) _generic_linux_install_systemd ;;
+    sysv)    _generic_linux_install_sysv ;;
+    none)    log_warn "No init system detected, skipping service setup" ;;
+    esac
+}
+
+_generic_linux_install_systemd() {
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
 [Unit]
 Description=B4 DPI Bypass Service
 After=network.target
@@ -1074,1639 +822,940 @@ After=network.target
 [Service]
 Type=simple
 User=root
-ExecStart=${INSTALL_DIR}/${BINARY_NAME} --config ${CONFIG_FILE}
+ExecStart=${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}
 Restart=on-failure
 RestartSec=5
+TimeoutStopSec=10
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    print_success "Systemd service created. You can manage it with:"
-    print_info "  systemctl start b4"
-    print_info "  systemctl stop b4"
-    print_info "  systemctl enable b4  # To start on boot"
-
-    SYSTEMCTL_CREATED="1"
+    log_ok "Systemd service created: ${B4_SERVICE_NAME}"
+    log_info "  systemctl start b4"
+    log_info "  systemctl enable b4  # auto-start on boot"
 }
 
-# Common init script body (shared between OpenWRT and standard)
-get_init_script_body() {
-    cat <<'BODY'
-PROG=PROG_PLACEHOLDER
-CONFIG_FILE=CONFIG_PLACEHOLDER
-PIDFILE=/var/run/b4.pid
+_generic_linux_install_sysv() {
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+#!/bin/sh
+# B4 DPI Bypass Service
+PROG="${B4_BIN_DIR}/${BINARY_NAME}"
+CONFIG="${B4_CONFIG_FILE}"
+PIDFILE="/var/run/b4.pid"
 
 kernel_mod_load() {
-    KERNEL=$(uname -r)
-    connbytes_mod_path=$(find /lib/modules/$KERNEL -name "xt_connbytes.ko*" 2>/dev/null | head -1)
-    [ -n "$connbytes_mod_path" ] && insmod "$connbytes_mod_path" >/dev/null 2>&1
-    nfqueue_mod_path=$(find /lib/modules/$KERNEL -name "xt_NFQUEUE.ko*" 2>/dev/null | head -1)
-    [ -n "$nfqueue_mod_path" ] && insmod "$nfqueue_mod_path" >/dev/null 2>&1
-    multiport_mod_path=$(find /lib/modules/$KERNEL -name "xt_multiport.ko*" 2>/dev/null | head -1)
-    [ -n "$multiport_mod_path" ] && insmod "$multiport_mod_path" >/dev/null 2>&1
-    modprobe xt_connbytes >/dev/null 2>&1 || true
-    modprobe xt_NFQUEUE >/dev/null 2>&1 || true
-    modprobe xt_multiport >/dev/null 2>&1 || true
+    modprobe xt_connbytes 2>/dev/null || true
+    modprobe xt_NFQUEUE 2>/dev/null || true
+    modprobe xt_multiport 2>/dev/null || true
 }
 
 start() {
     echo "Starting b4..."
-    if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
-        echo "b4 is already running"
-        return 1
-    fi
+    [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
     kernel_mod_load
-    nohup $PROG --config $CONFIG_FILE > /var/log/b4.log 2>&1 &
-    echo $! > "$PIDFILE"
+    nohup \$PROG --config \$CONFIG >/var/log/b4.log 2>&1 &
+    echo \$! >"\$PIDFILE"
     sleep 1
-    if kill -0 $(cat "$PIDFILE") 2>/dev/null; then
-        echo "b4 started (PID: $(cat "$PIDFILE"))"
+    if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
+        echo "b4 started (PID: \$(cat \$PIDFILE))"
     else
-        echo "Warning: b4 may have failed to start, check /var/log/b4.log"
-        rm -f "$PIDFILE"
+        echo "b4 failed to start, check /var/log/b4.log"
+        rm -f "\$PIDFILE"
         return 1
     fi
 }
 
 stop() {
     echo "Stopping b4..."
-    if [ -f "$PIDFILE" ]; then
-        kill $(cat "$PIDFILE") 2>/dev/null
-        rm -f "$PIDFILE"
-        echo "b4 stopped"
-    else
-        killall b4 2>/dev/null || true
-        echo "b4 stopped"
-    fi
+    [ -f "\$PIDFILE" ] && kill \$(cat "\$PIDFILE") 2>/dev/null
+    rm -f "\$PIDFILE"
+    echo "b4 stopped"
 }
 
-status() {
-    if [ -f "$PIDFILE" ] && kill -0 $(cat "$PIDFILE") 2>/dev/null; then
-        echo "b4 is running (PID: $(cat "$PIDFILE"))"
-        return 0
-    elif pgrep -x b4 >/dev/null 2>&1; then
-        echo "b4 is running (no pidfile)"
-        return 0
-    else
-        echo "b4 is not running"
-        return 1
-    fi
-}
-BODY
-}
-
-# Create OpenWRT/Entware init script
-create_sysv_service() {
-    INIT_DIR=""
-
-    if [ -d "/opt/etc/init.d" ] && [ -w "/opt/etc/init.d" ]; then
-        INIT_DIR="/opt/etc/init.d"
-        print_info "Detected Entware/MerlinWRT system"
-    elif [ -d "/etc/init.d" ] && [ -w "/etc/init.d" ]; then
-        INIT_DIR="/etc/init.d"
-    elif [ -d "/opt/etc" ]; then
-        mkdir -p /opt/etc/init.d 2>/dev/null && INIT_DIR="/opt/etc/init.d"
-    fi
-
-    if [ -z "$INIT_DIR" ]; then
-        print_warning "Could not create init script - no writable init directory found"
-        return
-    fi
-
-    print_info "Creating init script in $INIT_DIR..."
-
-    if [ "$INIT_DIR" = "/etc/init.d" ]; then
-        INIT_SCRIPT_NAME="b4"
-    else
-        INIT_SCRIPT_NAME="S99b4"
-    fi
-
-    INIT_FULL_PATH="${INIT_DIR}/${INIT_SCRIPT_NAME}"
-    rm -f "${INIT_DIR}/S99b4" 2>/dev/null || true
-
-    if [ -f "${INIT_DIR}/rc.func" ]; then
-        # Merlin/Entware rc.func - completely different mechanism
-        print_info "rc.func found in $INIT_DIR, using it for init script"
-        cat >"${INIT_FULL_PATH}" <<'EOF'
-#!/bin/sh
-# B4 DPI Bypass Service Init Script
-
-ENABLED=yes
-PROCS=b4
-ARGS="--config=CONFIG_PLACEHOLDER"
-PREARGS="nohup"
-DESC="$PROCS"
-PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-kernel_mod_load() {
-    KERNEL=$(uname -r)
-    connbytes_mod_path=$(find /lib/modules/$KERNEL -name "xt_connbytes.ko*" 2>/dev/null | head -1)
-    [ -n "$connbytes_mod_path" ] && insmod "$connbytes_mod_path" >/dev/null 2>&1
-    nfqueue_mod_path=$(find /lib/modules/$KERNEL -name "xt_NFQUEUE.ko*" 2>/dev/null | head -1)
-    [ -n "$nfqueue_mod_path" ] && insmod "$nfqueue_mod_path" >/dev/null 2>&1
-    multiport_mod_path=$(find /lib/modules/$KERNEL -name "xt_multiport.ko*" 2>/dev/null | head -1)
-    [ -n "$multiport_mod_path" ] && insmod "$multiport_mod_path" >/dev/null 2>&1
-    modprobe xt_connbytes >/dev/null 2>&1 || true
-    modprobe xt_NFQUEUE >/dev/null 2>&1 || true
-    modprobe xt_multiport >/dev/null 2>&1 || true
-}
-
-[ "$1" = "start" ] || [ "$1" = "restart" ] && kernel_mod_load
-
-. /opt/etc/init.d/rc.func
-EOF
-
-    elif [ -f "/etc/openwrt_release" ] && [ -f "/etc/rc.common" ]; then
-        # OpenWRT - rc.common handles command dispatch
-        print_info "Creating OpenWRT init script"
-        {
-            echo '#!/bin/sh /etc/rc.common'
-            echo '# B4 DPI Bypass Service - OpenWRT'
-            echo ''
-            echo 'START=99'
-            echo 'STOP=10'
-            echo ''
-            get_init_script_body
-        } >"${INIT_FULL_PATH}"
-
-    else
-        # Standard SysV init - needs case block
-        print_info "Creating standard init.d script"
-        {
-            echo '#!/bin/sh'
-            echo '# B4 DPI Bypass Service Init Script'
-            echo ''
-            get_init_script_body
-            cat <<'EOF'
-
-case "$1" in
+case "\$1" in
     start)   start ;;
     stop)    stop ;;
     restart) stop; sleep 1; start ;;
-    status)  status ;;
-    *)       echo "Usage: $0 {start|stop|restart|status}"; exit 1 ;;
+    *)       echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
 esac
 EOF
-        } >"${INIT_FULL_PATH}"
-    fi
 
-    sed "s|PROG_PLACEHOLDER|${INSTALL_DIR}/${BINARY_NAME}|g; s|CONFIG_PLACEHOLDER|${CONFIG_FILE}|g" \
-        "${INIT_FULL_PATH}" >"${INIT_FULL_PATH}.tmp"
-    mv "${INIT_FULL_PATH}.tmp" "${INIT_FULL_PATH}"
-    chmod +x "${INIT_FULL_PATH}"
+    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+}
 
-    if [ -f "/etc/openwrt_release" ] && [ -f "/etc/rc.common" ]; then
-        "${INIT_FULL_PATH}" enable 2>/dev/null && print_success "Service enabled for auto-start on boot"
-    fi
+platform_generic_linux_remove_service() {
+    case "$B4_SERVICE_TYPE" in
+    systemd)
+        systemctl stop b4 2>/dev/null || true
+        systemctl disable b4 2>/dev/null || true
+        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+        systemctl daemon-reload
+        ;;
+    sysv)
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+        rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+        ;;
+    esac
+}
 
-    print_success "Init script created at ${INIT_FULL_PATH}"
-    print_info "  ${INIT_FULL_PATH} {start|stop|restart|status}"
+platform_generic_linux_start_service() {
+    case "$B4_SERVICE_TYPE" in
+    systemd)
+        systemctl restart b4 2>/dev/null && log_ok "Service started" && return 0
+        ;;
+    sysv)
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
+        ;;
+    esac
+    log_warn "Could not start service"
+    return 1
+}
 
-    if [ -f "/etc/openwrt_release" ]; then
-        print_info "  ${INIT_FULL_PATH} enable   # Start on boot"
-        print_info "  ${INIT_FULL_PATH} disable  # Don't start on boot"
+platform_generic_linux_stop_service() {
+    case "$B4_SERVICE_TYPE" in
+    systemd)  systemctl stop b4 2>/dev/null ;;
+    sysv)     "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null ;;
+    esac
+}
+
+platform_generic_linux_find_storage() {
+    # Standard Linux — no special storage detection needed
+    return 0
+}
+
+register_platform "generic_linux"
+
+
+# ======== features/_interface.sh ========
+# Feature registration and dispatch system
+#
+# Each feature file must define these functions (prefixed with feature_<id>_):
+#   name             — Human-readable name
+#   description      — Short description
+#   default_enabled  — "yes" or "no"
+#   run              — Execute the feature (install/configure)
+#   remove           — Undo/clean up the feature
+#
+# Then register with: register_feature "<id>"
+
+REGISTERED_FEATURES=""
+ENABLED_FEATURES=""
+
+register_feature() {
+    id="$1"
+    REGISTERED_FEATURES="${REGISTERED_FEATURES} ${id}"
+}
+
+# Dispatch to a specific feature
+feature_dispatch() {
+    fid="$1"
+    func="$2"
+    shift 2
+    fn="feature_${fid}_${func}"
+    if type "$fn" >/dev/null 2>&1; then
+        "$fn" "$@"
+    else
+        log_warn "Feature '${fid}' does not implement '${func}'"
+        return 1
     fi
 }
 
-# --- END service.sh ---
+# Run all enabled features
+features_run() {
+    for f in $ENABLED_FEATURES; do
+        fname=$(feature_dispatch "$f" name)
+        log_header "Feature: ${fname}"
+        feature_dispatch "$f" run || log_warn "Feature '${fname}' had issues"
+    done
+}
 
-# Get geosite path from config using jq if available
-get_geodat_from_config() {
-    if [ -f "$CONFIG_FILE" ] && command_exists jq; then
-        sitedat_path=$(jq -r '.system.geo.sitedat_path // empty' "$CONFIG_FILE" 2>/dev/null)
-        if [ -n "$sitedat_path" ] && [ "$sitedat_path" != "null" ]; then
-            # Extract directory from path
-            echo "$(dirname "$sitedat_path")"
-            return 0
+# Remove all registered features
+features_remove() {
+    for f in $REGISTERED_FEATURES; do
+        feature_dispatch "$f" remove 2>/dev/null || true
+    done
+}
+
+
+# ======== features/geodat.sh ========
+# Feature: GeoData files (geosite.dat + geoip.dat)
+# Downloads v2ray-format geo databases for domain/IP categorization
+
+GEODAT_SOURCES="1|Loyalsoldier|https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download
+2|RUNET Freedom (recommended)|https://raw.githubusercontent.com/runetfreedom/russia-v2ray-rules-dat/release
+3|Nidelon|https://github.com/Nidelon/ru-block-v2ray-rules/releases/latest/download
+4|DustinWin|https://github.com/DustinWin/ruleset_geodata/releases/download/mihomo
+5|Chocolate4U|https://raw.githubusercontent.com/Chocolate4U/Iran-v2ray-rules/release"
+
+feature_geodat_name() {
+    echo "GeoData files"
+}
+
+feature_geodat_description() {
+    echo "Download geosite.dat & geoip.dat for domain/IP filtering"
+}
+
+feature_geodat_default_enabled() {
+    echo "yes"
+}
+
+feature_geodat_run() {
+    log_sep
+    echo ""
+
+    # Select source
+    echo "  Available geodata sources:"
+    echo "$GEODAT_SOURCES" | while IFS='|' read -r num name _url; do
+        [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
+    done
+    echo ""
+
+    choice=$(read_input "Select source [2]: " "2")
+
+    base_url=$(echo "$GEODAT_SOURCES" | grep "^${choice}|" | cut -d'|' -f3)
+    if [ -z "$base_url" ]; then
+        log_warn "Invalid selection, using default"
+        base_url=$(echo "$GEODAT_SOURCES" | grep "^2|" | cut -d'|' -f3)
+    fi
+
+    # Destination directory
+    save_dir="$B4_DATA_DIR"
+
+    # Check if config already has a geodat path
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+        if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            save_dir=$(dirname "$existing")
+            log_info "Found existing geodat path: $save_dir"
         fi
+    fi
+
+    save_dir=$(read_input "Save directory [${save_dir}]: " "$save_dir")
+
+    ensure_dir "$save_dir" "Geodat directory" || return 1
+
+    # Download files
+    log_info "Downloading geosite.dat..."
+    if ! fetch_file "${base_url}/geosite.dat" "${save_dir}/geosite.dat"; then
+        log_err "Failed to download geosite.dat"
+        return 1
+    fi
+    [ ! -s "${save_dir}/geosite.dat" ] && log_err "geosite.dat is empty" && return 1
+
+    log_info "Downloading geoip.dat..."
+    if ! fetch_file "${base_url}/geoip.dat" "${save_dir}/geoip.dat"; then
+        log_err "Failed to download geoip.dat"
+        return 1
+    fi
+    [ ! -s "${save_dir}/geoip.dat" ] && log_err "geoip.dat is empty" && return 1
+
+    log_ok "GeoData downloaded to ${save_dir}"
+
+    # Update config
+    _geodat_update_config "${save_dir}/geosite.dat" "${save_dir}/geoip.dat" "$base_url"
+}
+
+_geodat_update_config() {
+    sitedat_path="$1"
+    ipdat_path="$2"
+    base_url="$3"
+
+    if ! command_exists jq; then
+        log_warn "jq not found — please update config manually:"
+        log_info "  Set system.geo.sitedat_path = $sitedat_path"
+        log_info "  Set system.geo.ipdat_path = $ipdat_path"
+        return 0
+    fi
+
+    if [ ! -f "$B4_CONFIG_FILE" ]; then
+        # Create minimal config
+        jq -n \
+            --arg sp "$sitedat_path" \
+            --arg su "${base_url}/geosite.dat" \
+            --arg ip "$ipdat_path" \
+            --arg iu "${base_url}/geoip.dat" \
+            '{ system: { geo: { sitedat_path: $sp, sitedat_url: $su, ipdat_path: $ip, ipdat_url: $iu } } }' \
+            >"$B4_CONFIG_FILE"
+        log_ok "Created config with geodat paths"
+        return 0
+    fi
+
+    # Update existing config
+    tmp="${B4_CONFIG_FILE}.tmp"
+    if jq \
+        --arg sp "$sitedat_path" \
+        --arg su "${base_url}/geosite.dat" \
+        --arg ip "$ipdat_path" \
+        --arg iu "${base_url}/geoip.dat" \
+        '.system.geo = (.system.geo // {}) + { sitedat_path: $sp, sitedat_url: $su, ipdat_path: $ip, ipdat_url: $iu }' \
+        "$B4_CONFIG_FILE" >"$tmp" 2>/dev/null; then
+        mv "$tmp" "$B4_CONFIG_FILE"
+        log_ok "Config updated with geodat paths"
+    else
+        rm -f "$tmp"
+        log_warn "Failed to update config, please set paths manually"
+    fi
+}
+
+feature_geodat_remove() {
+    # Don't remove geodata files on uninstall — user may want them
+    return 0
+}
+
+register_feature "geodat"
+
+
+# ======== features/https.sh ========
+# Feature: HTTPS for B4 web interface
+# Detects existing TLS certificates on the system and configures b4 to use them
+
+feature_https_name() {
+    echo "HTTPS web interface"
+}
+
+feature_https_description() {
+    echo "Enable HTTPS for B4 web UI using detected TLS certificates"
+}
+
+feature_https_default_enabled() {
+    # Only suggest if certificates exist
+    _https_detect_certs >/dev/null 2>&1 && echo "yes" || echo "no"
+}
+
+feature_https_run() {
+    cert_info=$(_https_detect_certs)
+    if [ -z "$cert_info" ]; then
+        log_info "No TLS certificates found on this system"
+        log_info "You can configure HTTPS later in B4 Web UI > Settings > Web Server"
+        return 0
+    fi
+
+    cert_path=$(echo "$cert_info" | cut -d'|' -f1)
+    key_path=$(echo "$cert_info" | cut -d'|' -f2)
+    cert_source=$(echo "$cert_info" | cut -d'|' -f3)
+
+    log_info "Found TLS certificate: ${cert_source}"
+    log_detail "Certificate" "$cert_path"
+    log_detail "Key" "$key_path"
+
+    if ! confirm "Enable HTTPS with this certificate?"; then
+        return 0
+    fi
+
+    if ! command_exists jq; then
+        log_warn "jq not found — please update config manually:"
+        log_info "  Set system.web_server.tls_cert = $cert_path"
+        log_info "  Set system.web_server.tls_key = $key_path"
+        return 0
+    fi
+
+    if [ ! -f "$B4_CONFIG_FILE" ]; then
+        ensure_dir "$(dirname "$B4_CONFIG_FILE")" "Config directory" || return 1
+        jq -n \
+            --arg cert "$cert_path" \
+            --arg key "$key_path" \
+            '{ system: { web_server: { tls_cert: $cert, tls_key: $key } } }' \
+            >"$B4_CONFIG_FILE"
+    else
+        tmp="${B4_CONFIG_FILE}.tmp"
+        if jq --arg cert "$cert_path" --arg key "$key_path" \
+            '.system.web_server.tls_cert = $cert | .system.web_server.tls_key = $key' \
+            "$B4_CONFIG_FILE" >"$tmp" 2>/dev/null; then
+            mv "$tmp" "$B4_CONFIG_FILE"
+        else
+            rm -f "$tmp"
+            log_warn "Failed to update config"
+            return 1
+        fi
+    fi
+
+    log_ok "HTTPS enabled"
+}
+
+_https_detect_certs() {
+    # Common certificate locations on various systems
+    if [ -f "/etc/uhttpd.crt" ] && [ -f "/etc/uhttpd.key" ]; then
+        echo "/etc/uhttpd.crt|/etc/uhttpd.key|OpenWrt uhttpd"
+        return 0
+    fi
+    if [ -f "/etc/cert.pem" ] && [ -f "/etc/key.pem" ]; then
+        echo "/etc/cert.pem|/etc/key.pem|System default"
+        return 0
+    fi
+    if [ -f "/etc/ssl/certs/server.crt" ] && [ -f "/etc/ssl/private/server.key" ]; then
+        echo "/etc/ssl/certs/server.crt|/etc/ssl/private/server.key|System SSL"
+        return 0
     fi
     return 1
 }
 
-# Display geosite source menu and get user choice
-select_geo_source() {
-    echo "" >&2
-    echo "=======================================" >&2
-    echo "  Select Geosite Data Source" >&2
-    echo "=======================================" >&2
-    echo "" >&2
-
-    # Display sources (using POSIX-compliant iteration)
-    echo "$GEODAT_SOURCES" | while IFS='|' read -r num name url; do
-        if [ -n "$num" ]; then
-            printf "  ${GREEN}%s${NC}) %s\n" "$num" "$name" >&2
-        fi
-    done
-
-    echo "" >&2
-    printf "${CYAN}Select source (1-5) or 'q' to skip: ${NC}" >&2
-    read choice </dev/tty || choice="q"
-
-    case "$choice" in
-    [qQ] | [qQ][uU][iI][tT])
-        return 1
-        ;;
-    [1-5])
-        # Extract URL for selected choice (POSIX-compliant)
-        selected_url=$(echo "$GEODAT_SOURCES" | grep "^${choice}|" | cut -d'|' -f3)
-        if [ -n "$selected_url" ]; then
-            echo "$selected_url"
-            return 0
-        else
-            print_error "Invalid selection"
-            return 1
-        fi
-        ;;
-    *)
-        print_error "Invalid selection"
-        return 1
-        ;;
-    esac
-}
-
-download_geodat() {
-    base_url="$1"
-    save_dir="$2"
-
-    sitedat_url="${base_url}/geosite.dat"
-    ipdat_url="${base_url}/geoip.dat"
-    sitedat_path="${save_dir}/geosite.dat"
-    ipdat_path="${save_dir}/geoip.dat"
-
-    # Verify save_dir is writable
-    if [ ! -w "$(dirname "$save_dir")" ] && [ ! -d "$save_dir" ]; then
-        if [ -d "/opt/etc" ] && [ -w "/opt/etc" ]; then
-            save_dir="/opt/etc/b4"
-            sitedat_path="${save_dir}/geosite.dat"
-            ipdat_path="${save_dir}/geoip.dat"
-            print_warning "Original path not writable, using: $save_dir"
-        fi
-    fi
-
-    # Create directory
-    if [ ! -d "$save_dir" ]; then
-        mkdir -p "$save_dir" || {
-            print_error "Failed to create directory: $save_dir"
-            return 1
-        }
-    fi
-
-    # Download geosite.dat
-    print_info "Downloading geosite.dat from: $sitedat_url"
-    if ! fetch_file "$sitedat_url" "$sitedat_path"; then
-        print_error "Failed to download geosite.dat"
-        return 1
-    fi
-
-    if [ ! -s "$sitedat_path" ]; then
-        print_error "Downloaded geosite.dat is empty"
-        rm -f "$sitedat_path"
-        return 1
-    fi
-
-    # Download geoip.dat
-    print_info "Downloading geoip.dat from: $ipdat_url"
-    if ! fetch_file "$ipdat_url" "$ipdat_path"; then
-        print_error "Failed to download geoip.dat"
-        return 1
-    fi
-
-    if [ ! -s "$ipdat_path" ]; then
-        print_error "Downloaded geoip.dat is empty"
-        rm -f "$ipdat_path"
-        return 1
-    fi
-
-    print_success "Geosite: $sitedat_path"
-    print_success "GeoIP: $ipdat_path"
+feature_https_remove() {
     return 0
 }
 
-# Update config file with geodat paths
-update_config_geodat_path() {
-    sitedat_path="$1"
-    ipdat_path="$2"
-    sitedat_url="$3/geosite.dat"
-    ipdat_url="$3/geoip.dat"
+register_feature "https"
 
-    # Try to update with jq if available
-    if command_exists jq; then
-        print_info "Updating config file..."
 
-        if [ ! -f "$CONFIG_FILE" ]; then
-            jq -n \
-                --arg sitedat_path "$sitedat_path" \
-                --arg sitedat_url "$sitedat_url" \
-                --arg ipdat_path "$ipdat_path" \
-                --arg ipdat_url "$ipdat_url" \
-                '{
-                    system: {
-                        geo: {
-                            sitedat_path: $sitedat_path,
-                            sitedat_url: $sitedat_url,
-                            ipdat_path: $ipdat_path,
-                            ipdat_url: $ipdat_url
-                        }
-                    }
-                }' >"$CONFIG_FILE"
-            print_success "Created new config file with geodat settings"
-            return 0
-        fi
+# ======== actions/install.sh ========
+# Action: Install b4
 
-        # Create temporary file
-        temp_file="${CONFIG_FILE}.tmp"
+action_install() {
+    version="$1"
+    force_arch="$2"
 
-        # Merge into existing geo object instead of replacing
-        if jq \
-            --arg sitedat_path "$sitedat_path" \
-            --arg sitedat_url "$sitedat_url" \
-            --arg ipdat_path "$ipdat_path" \
-            --arg ipdat_url "$ipdat_url" \
-            '.system.geo = (.system.geo // {}) + {
-                 sitedat_path: $sitedat_path,
-                 sitedat_url: $sitedat_url,
-                 ipdat_path: $ipdat_path,
-                 ipdat_url: $ipdat_url
-             }' \
-            "$CONFIG_FILE" >"$temp_file" 2>/dev/null; then
+    check_root
 
-            mv "$temp_file" "$CONFIG_FILE" || {
-                print_error "Failed to update config file"
-                rm -f "$temp_file"
-                return 1
-            }
-            print_success "Config updated:"
-            print_success "  Geosite: $sitedat_path"
-            print_success "  URL: $sitedat_url"
-            print_success "  GeoIP:   $ipdat_path"
-            print_success "  URL: $ipdat_url"
-
-            # Show what was actually written
-            print_info "Verifying config..."
-            if command_exists jq; then
-                jq '.system.geo' "$CONFIG_FILE" 2>/dev/null || true
-            fi
-            return 0
-        else
-            print_error "Failed to parse config with jq"
-            rm -f "$temp_file"
-            return 1
-        fi
+    # --- Wizard ---
+    if [ "$QUIET_MODE" -eq 1 ]; then
+        WIZARD_MODE="auto"
+        platform_auto_detect
+        platform_call info
+        B4_ARCH="${force_arch:-$(detect_architecture)}"
+        detect_pkg_manager
+        # Enable all default features in quiet mode
+        for f in $REGISTERED_FEATURES; do
+            fdefault=$(feature_dispatch "$f" default_enabled)
+            [ "$fdefault" = "yes" ] && ENABLED_FEATURES="${ENABLED_FEATURES} ${f}"
+        done
     else
-        print_warning "jq not found - cannot automatically update config"
-        print_info "Please manually add to your config file:"
-        print_info '  "system": {'
-        print_info '    "geo": {'
-        print_info "      \"sitedat_path\": \"$sitedat_path\","
-        print_info "      \"sitedat_url\": \"$sitedat_url\","
-        print_info "      \"ipdat_path\": \"$ipdat_path\","
-        print_info "      \"ipdat_url\": \"$ipdat_url\""
-        print_info '    }'
-        print_info '  }'
-        echo ""
-        print_info "Or update paths in B4 Web UI: Settings -> Geodat Settings"
-        return 0
-    fi
-}
+        wizard_start
 
-# Setup geosite data
-setup_geodat() {
-    echo ""
-    echo "======================================="
-    echo "  GEO Data Setup"
-    echo "======================================="
-    echo ""
+        case "$WIZARD_MODE" in
+        auto)
+            wizard_auto_detect
+            ;;
+        manual)
+            wizard_manual_configure
+            ;;
+        esac
 
-    if [ -z "$GEOSITE_SRC" ] && [ -z "$GEOSITE_DST" ]; then
-        # Skip prompts in quiet mode
-        if [ "$QUIET_MODE" = "1" ]; then
-            print_info "Geosite setup skipped (quiet mode)"
-            return 0
-        fi
+        # Override arch if user forced it
+        [ -n "$force_arch" ] && B4_ARCH="$force_arch"
 
-        printf "${CYAN}Do you want to download geosite.dat & geoip.dat files? (y/N): ${NC}"
-        read answer </dev/tty || answer="n"
-    else
-        answer="y"
+        # Feature selection
+        wizard_select_features
     fi
 
-    case "$answer" in
-    [yY] | [yY][eE][sS])
-        # Select source
-        if [ -z "$GEOSITE_SRC" ]; then
-            sitedat_url=$(select_geo_source)
-            if [ $? -ne 0 ] || [ -z "$sitedat_url" ]; then
-                print_info "Geosite setup skipped"
-                return 0
-            fi
-        else
-            sitedat_url="$GEOSITE_SRC"
-            print_info "Using geosite source: $sitedat_url"
-        fi
-
-        # Set default directory BEFORE using it
-        default_dir="$CONFIG_DIR"
-
-        # Try to get existing path from config
-        existing_dir=$(get_geodat_from_config || true)
-        if [ -n "$existing_dir" ]; then
-            default_dir="$existing_dir"
-            print_info "Found existing geosite path in config: $default_dir"
-        fi
-
-        if [ -z "$GEOSITE_DST" ]; then
-            # Skip in quiet mode - use default
-            if [ "$QUIET_MODE" = "1" ]; then
-                geosite_dst_dir="$default_dir"
-            else
-                echo ""
-                printf "${CYAN}Save directory [${default_dir}]: ${NC}"
-                read geosite_dst_dir </dev/tty || geosite_dst_dir="$default_dir"
-
-                if [ -z "$geosite_dst_dir" ]; then
-                    geosite_dst_dir="$default_dir"
-                fi
-            fi
-        else
-            geosite_dst_dir="$GEOSITE_DST"
-            print_info "Using geodat destination: $geosite_dst_dir"
-        fi
-
-        # Download geosite file
-        download_geodat "$sitedat_url" "$geosite_dst_dir"
-        sitedat_path="${geosite_dst_dir}/geosite.dat"
-        ipdat_path="${geosite_dst_dir}/geoip.dat"
-
-        # Update config
-        update_config_geodat_path "$sitedat_path" "$ipdat_path" "$sitedat_url"
-
-        print_success "Geosite setup completed!"
-        return 0
-
-        ;;
-    *)
-        print_info "Geosite setup skipped"
-        ;;
-    esac
-
     echo ""
-    return 0
-}
+    log_header "Installing B4"
 
-# --- END geodat.sh ---
+    # --- Check dependencies ---
+    log_info "Checking dependencies..."
+    platform_call check_deps
 
-# This is the core installation part script for b4 Universal.
-# Install b4 binary
-install_b4() {
-    arch="$1"
-    version="$2"
+    # --- Resolve version ---
+    if [ -z "$version" ]; then
+        log_info "Fetching latest version..."
+        version=$(get_latest_version)
+    fi
+    log_ok "Version: ${version}"
+    log_ok "Architecture: ${B4_ARCH}"
 
-    # Construct download URL
-    file_name="${BINARY_NAME}-linux-${arch}.tar.gz"
+    # --- Prepare directories ---
+    ensure_dir "$B4_BIN_DIR" "Binary directory" || exit 1
+    ensure_dir "$B4_DATA_DIR" "Data directory" || exit 1
+    setup_temp
+
+    # --- Download & install binary ---
+    file_name="${BINARY_NAME}-linux-${B4_ARCH}.tar.gz"
     download_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}/${file_name}"
     archive_path="${TEMP_DIR}/${file_name}"
 
-    # Download the archive with checksum verification
-    if ! download_file "$download_url" "$archive_path" "$version" "$arch"; then
-        print_error "Failed to download b4 for architecture: $arch"
+    log_info "Downloading b4..."
+    if ! fetch_file "$download_url" "$archive_path"; then
+        log_err "Download failed for architecture: ${B4_ARCH}"
         exit 1
     fi
 
-    rm -f "/opt/etc/init.d/S99b4" 2>/dev/null || true # remove legacy script
-    rm -f "/etc/init.d/b4" 2>/dev/null || true        # remove legacy script
-    rm -f "/var/log/b4.log" 2>/dev/null || true       # remove legacy log
+    # Verify checksum
+    sha_url="${download_url}.sha256"
+    verify_checksum "$archive_path" "$sha_url" || true
 
-    # Extract the binary
-    print_info "Extracting archive..."
+    # Extract
+    log_info "Extracting..."
     cd "$TEMP_DIR"
-    tar -xzf "$archive_path" || {
-        print_error "Failed to extract archive"
-        exit 1
-    }
-
+    tar -xzf "$archive_path" || { log_err "Failed to extract archive"; exit 1; }
     rm -f "$archive_path"
 
-    # Check if binary exists
     if [ ! -f "${BINARY_NAME}" ]; then
-        print_error "Binary not found in archive"
+        log_err "Binary not found in archive"
         exit 1
     fi
 
-    # Stop existing b4 if running
-    stop_process "$BINARY_NAME"
+    # Stop running instance
+    stop_b4
 
-    # Create timestamp in POSIX way
-    timestamp=$(date '+%Y%m%d_%H%M%S')
-    BACKUP_FILE="${INSTALL_DIR}/${BINARY_NAME}.backup.${timestamp}"
-
-    # Backup existing binary if it exists
-    if [ -f "${INSTALL_DIR}/${BINARY_NAME}" ]; then
-        print_info "Backing up existing binary..."
-        mv "${INSTALL_DIR}/${BINARY_NAME}" "$BACKUP_FILE"
+    # Backup existing binary
+    if [ -f "${B4_BIN_DIR}/${BINARY_NAME}" ]; then
+        ts=$(date '+%Y%m%d_%H%M%S')
+        mv "${B4_BIN_DIR}/${BINARY_NAME}" "${B4_BIN_DIR}/${BINARY_NAME}.backup.${ts}"
+        log_info "Existing binary backed up"
     fi
 
-    print_info "Installing b4 to ${INSTALL_DIR}..."
-    mv "${BINARY_NAME}" "${INSTALL_DIR}/" 2>/dev/null || cp "${BINARY_NAME}" "${INSTALL_DIR}/" || {
-        print_error "Failed to copy binary to install directory"
+    # Install
+    mv "${BINARY_NAME}" "${B4_BIN_DIR}/" 2>/dev/null || cp "${BINARY_NAME}" "${B4_BIN_DIR}/" || {
+        log_err "Failed to install binary to ${B4_BIN_DIR}"
         exit 1
     }
+    chmod +x "${B4_BIN_DIR}/${BINARY_NAME}"
 
-    # Set executable permissions
-    chmod +x "${INSTALL_DIR}/${BINARY_NAME}" || {
-        print_error "Failed to set executable permissions"
-        exit 1
-    }
-
-    # Verify installation
-    if "${INSTALL_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
-        [ -n "$BACKUP_FILE" ] && rm -f "$BACKUP_FILE" 2>/dev/null || true
+    # Verify
+    if "${B4_BIN_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
+        installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
+        log_ok "Binary installed: ${installed_ver}"
         # Clean old backups
-        rm -f "${INSTALL_DIR}/${BINARY_NAME}".backup.* 2>/dev/null || true
-        print_success "b4 installed successfully!"
+        rm -f "${B4_BIN_DIR}/${BINARY_NAME}".backup.* 2>/dev/null || true
     else
-        print_warning "Binary installed but version check failed"
+        log_warn "Binary installed but version check failed"
     fi
+
+    # --- Install service ---
+    log_info "Setting up service..."
+    platform_call install_service
+
+    # --- Run enabled features ---
+    if [ -n "$ENABLED_FEATURES" ]; then
+        features_run
+    fi
+
+    # --- Summary ---
+    _install_summary "$version"
 }
 
-detect_tls_certs() {
-    if [ -f "/etc/uhttpd.crt" ] && [ -f "/etc/uhttpd.key" ]; then
-        TLS_CERT="/etc/uhttpd.crt"
-        TLS_KEY="/etc/uhttpd.key"
-        return 0
+_install_summary() {
+    version="$1"
+
+    echo ""
+    log_header "Installation Complete"
+    log_sep
+    log_detail "Version" "$version"
+    log_detail "Binary" "${B4_BIN_DIR}/${BINARY_NAME}"
+    log_detail "Config" "${B4_CONFIG_FILE}"
+    log_detail "Service" "${B4_SERVICE_TYPE}"
+    log_sep
+
+    # Check if binary is in PATH
+    if ! echo "$PATH" | grep -q "$B4_BIN_DIR"; then
+        log_warn "$B4_BIN_DIR is not in PATH"
+        log_info "Consider: ln -s ${B4_BIN_DIR}/${BINARY_NAME} /usr/bin/${BINARY_NAME}"
     fi
 
-    if [ -f "/etc/cert.pem" ] && [ -f "/etc/key.pem" ]; then
-        TLS_CERT="/etc/cert.pem"
-        TLS_KEY="/etc/key.pem"
-        return 0
-    fi
-    return 1
-}
+    # Show web interface info
+    _show_web_info
 
-# Print web interface access information
-print_web_interface_info() {
-    local web_port="7000"
-    local protocol="http"
+    echo ""
+    log_info "To see all options: ${B4_BIN_DIR}/${BINARY_NAME} --help"
+    echo ""
 
-    if [ -f "$CONFIG_FILE" ] && command_exists jq; then
-        web_port=$(jq -r '.system.web_server.port // 7000' "$CONFIG_FILE" 2>/dev/null)
-        tls_cert=$(jq -r '.system.web_server.tls_cert // ""' "$CONFIG_FILE" 2>/dev/null)
-        if [ -n "$tls_cert" ]; then
-            protocol="https"
+    # Offer to start service
+    if [ "$QUIET_MODE" -eq 0 ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
+        if confirm "Start B4 service now?"; then
+            platform_call start_service || true
         fi
     fi
 
     echo ""
-    echo "======================================="
-    echo "  Web Interface Access"
-    echo "======================================="
+    printf "${GREEN}${BOLD}  B4 installation finished!${NC}\n"
     echo ""
+}
 
-    # Get LAN IP (br0 interface on routers)
+_show_web_info() {
+    web_port="7000"
+    protocol="http"
+
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        web_port=$(jq -r '.system.web_server.port // 7000' "$B4_CONFIG_FILE" 2>/dev/null)
+        tls=$(jq -r '.system.web_server.tls_cert // ""' "$B4_CONFIG_FILE" 2>/dev/null)
+        [ -n "$tls" ] && protocol="https"
+    fi
+
+    # Try to get LAN IP
     lan_ip=""
     if command_exists ip; then
         lan_ip=$(ip -4 addr show br0 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
-    fi
-    if [ -z "$lan_ip" ] && command_exists ifconfig; then
-        lan_ip=$(ifconfig br0 2>/dev/null | grep 'inet addr:' | awk '{print $2}' | cut -d':' -f2)
-    fi
-    if [ -z "$lan_ip" ]; then
-        if command_exists ip; then
-            lan_ip=$(ip -4 addr show 2>/dev/null | grep 'inet 192.168' | head -n1 | awk '{print $2}' | cut -d'/' -f1)
-        elif command_exists ifconfig; then
-            lan_ip=$(ifconfig 2>/dev/null | grep 'inet addr:192.168' | head -n1 | awk '{print $2}' | cut -d':' -f2)
-        fi
+        [ -z "$lan_ip" ] && lan_ip=$(ip -4 addr 2>/dev/null | grep 'inet 192.168' | head -1 | awk '{print $2}' | cut -d'/' -f1)
     fi
 
     if [ -n "$lan_ip" ]; then
-        print_info "Local network access (LAN):"
-        # Print URL with detected protocol (http/https)
-        printf "        ${GREEN}%s://%s:%s${NC}\n" "$protocol" "$lan_ip" "$web_port"
-        printf "        (remember to start the service first)\n"
+        echo ""
+        log_info "Web interface: ${protocol}://${lan_ip}:${web_port}"
     fi
-
-    echo ""
 }
 
-# Main installation process
-main_install() {
 
-    #  get args
-    VERSION=""
-    FORCE_ARCH=""
-    for arg in "$@"; do
-        case "$arg" in
-        v* | V*)
-            VERSION="$arg"
-            print_info "Using specified version: $VERSION"
-            ;;
-        --arch=*)
-            FORCE_ARCH="${arg#*=}"
-            print_info "Using specified architecture: $FORCE_ARCH"
-            ;;
-        --quiet | -q)
-            QUIET_MODE=1
-            ;;
-        --geosite-src=*)
-            GEOSITE_SRC="${arg#*=}"
-            ;;
-        --geosite-dst=*)
-            GEOSITE_DST="${arg#*=}"
-            ;;
-        esac
-    done
+# ======== actions/remove.sh ========
+# Action: Remove b4
 
-    # Detect system and set paths
-    set_system_paths
-
-    if [ "$QUIET_MODE" = "0" ]; then
-        echo ""
-        echo "======================================="
-        echo "     B4 Universal Installer"
-        echo "======================================="
-        echo ""
-    fi
-
-    # Check if running as root
+action_remove() {
     check_root
 
-    # Check dependencies
-    check_dependencies
+    log_header "Removing B4"
 
-    # Detect architecture
-    if [ -n "$FORCE_ARCH" ]; then
-        ARCH="$FORCE_ARCH"
-        print_info "Raw architecture: $(uname -m)"
-        print_success "Using forced architecture: $ARCH"
+    # Detect platform if not set
+    if [ -z "$B4_PLATFORM" ]; then
+        platform_auto_detect || true
+        if [ -n "$B4_PLATFORM" ]; then
+            platform_call info
+        fi
+    fi
+
+    # Stop running process
+    stop_b4
+
+    # Remove service
+    if [ -n "$B4_PLATFORM" ]; then
+        log_info "Removing service..."
+        platform_call remove_service 2>/dev/null || true
     else
-        print_info "Detecting system architecture..."
-        ARCH=$(detect_architecture)
-        print_info "Raw architecture: $(uname -m)"
-        print_success "Architecture detected: $ARCH"
-    fi
-
-    if [ -z "$VERSION" ]; then
-        print_info "Fetching latest release information..."
-        VERSION=$(get_latest_version)
-        print_success "Latest version: $VERSION"
-    fi
-
-    # Setup directories
-    setup_directories
-
-    # Install b4
-    install_b4 "$ARCH" "$VERSION"
-
-    # Create service files
-    create_systemd_service
-    if [ "$SYSTEMCTL_CREATED" != "1" ]; then
-        create_sysv_service
-
-        # Offer HTTPS setup if router certificates are detected
-        if detect_tls_certs && [ "$QUIET_MODE" = "0" ] && [ -f "$CONFIG_FILE" ] && command_exists jq; then
-            current_cert=$(jq -r '.system.web_server.tls_cert // ""' "$CONFIG_FILE" 2>/dev/null)
-            if [ -z "$current_cert" ]; then
-                echo ""
-                print_info "Router SSL certificates detected: $TLS_CERT"
-                printf "${CYAN}Enable HTTPS for the B4 web interface? (Y/n): ${NC}"
-                read tls_answer </dev/tty || tls_answer="y"
-                if [ -z "$tls_answer" ]; then
-                    tls_answer="y"
-                fi
-                case "$tls_answer" in
-                [nN] | [nN][oO])
-                    print_info "HTTPS not enabled. You can enable it later in Settings > Web Server."
-                    ;;
-                *)
-                    jq --arg cert "$TLS_CERT" --arg key "$TLS_KEY" \
-                        '.system.web_server.tls_cert = $cert | .system.web_server.tls_key = $key' \
-                        "$CONFIG_FILE" >"${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
-                    print_success "HTTPS enabled with $TLS_CERT"
-                    ;;
-                esac
+        # Manual cleanup of known service locations
+        for svc in \
+            /etc/systemd/system/b4.service \
+            /etc/init.d/b4 \
+            /opt/etc/init.d/S99b4; do
+            if [ -f "$svc" ]; then
+                rm -f "$svc"
+                log_info "Removed: $svc"
             fi
-        fi
+        done
+        command_exists systemctl && systemctl daemon-reload 2>/dev/null || true
     fi
 
-    if [ "$QUIET_MODE" = "0" ]; then
-        setup_geodat
+    # Remove features
+    features_remove
 
-        # Print installation summary
-        echo ""
-        print_info "Binary installed to: ${INSTALL_DIR}/${BINARY_NAME}"
-        print_info "Configuration at: ${CONFIG_FILE}"
-        echo ""
-        print_info "To see all B4 options:"
-        print_info "  ${INSTALL_DIR}/${BINARY_NAME} --help"
-
-        # Check PATH
-        if ! echo "$PATH" | grep -q "$INSTALL_DIR"; then
-            print_warning "Note: $INSTALL_DIR is not in your PATH"
-            print_info "You may want to add it to your PATH or create a symlink:"
-            print_info "  ln -s ${INSTALL_DIR}/${BINARY_NAME} /usr/bin/${BINARY_NAME}"
-        fi
-
-        print_web_interface_info
-
-        echo ""
-        print_success "Installation finished successfully!"
-        echo ""
-        printf "${CYAN}Start B4 service now? (Y/n): ${NC}"
-        read answer </dev/tty || answer="y"
-
-        if [ -z "$answer" ]; then
-            answer="y"
-        fi
-
-        case "$answer" in
-        [nN] | [nN][oO])
-            print_info "Service not started. Start manually when ready."
-            ;;
-        *)
-            if [ -f "/etc/systemd/system/b4.service" ] && command_exists systemctl; then
-                systemctl restart b4 2>/dev/null && print_success "Service started"
-            elif [ -f "/opt/etc/init.d/S99b4" ]; then
-                /opt/etc/init.d/S99b4 restart 2>/dev/null && print_success "Service started"
-            elif [ -f "/etc/init.d/b4" ]; then
-                /etc/init.d/b4 restart 2>/dev/null && print_success "Service started"
-            fi
-            ;;
-        esac
-        echo ""
-
-        echo "======================================="
-        echo "       Installation Complete!"
-        echo "======================================="
-    fi
-
-}
-
-# --- END core.sh ---
-
-# B4 DPI Bypass Uninstaller Script
-remove_b4() {
-    echo ""
-    echo "======================================="
-    echo "     B4 Uninstaller"
-    echo "======================================="
-    echo ""
-
-    # Detect system to get proper paths
-    set_system_paths
-
-    # Stop the service first
-    print_info "Stopping b4 service if running..."
-
-    # Check systemd service FIRST
-    if [ -f "/etc/systemd/system/b4.service" ] && command_exists systemctl; then
-        systemctl stop b4 2>/dev/null || true
-        systemctl disable b4 2>/dev/null || true
-        print_info "Stopped systemd service"
-    fi
-
-    # Check Entware init script
-    if [ -f "/opt/etc/init.d/S99b4" ]; then
-        /opt/etc/init.d/S99b4 stop 2>/dev/null || true
-        print_info "Stopped Entware service"
-    fi
-
-    # Check standard init script
-    if [ -f "/etc/init.d/b4" ]; then
-        /etc/init.d/b4 stop 2>/dev/null || true
-        print_info "Stopped init service"
-    fi
-
-    # Kill any remaining b4 processes
-    kill_b4_processes
-
-    # Remove binary from all possible locations
-    POSSIBLE_DIRS="/opt/sbin /usr/local/bin /usr/bin /usr/sbin"
-    for dir in $POSSIBLE_DIRS; do
-        if [ -f "$dir/$BINARY_NAME" ]; then
-            print_info "Removing binary: $dir/$BINARY_NAME"
-            rm -f "$dir/$BINARY_NAME"
-            print_success "Binary removed from $dir"
-
-            # Remove any backup files
-            rm -f "$dir/"${BINARY_NAME}.backup.* 2>/dev/null || true
-
+    # Remove binary from known locations
+    for dir in /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
+        if [ -f "${dir}/${BINARY_NAME}" ]; then
+            rm -f "${dir}/${BINARY_NAME}"
+            rm -f "${dir}/${BINARY_NAME}".backup.* 2>/dev/null || true
+            log_info "Removed binary from: ${dir}"
         fi
     done
 
-    # Remove service files
-    if [ -f "/etc/systemd/system/b4.service" ]; then
-        print_info "Removing systemd service..."
-        rm -f "/etc/systemd/system/b4.service"
-        if command_exists systemctl; then
-            systemctl daemon-reload 2>/dev/null || true
+    # Ask about config
+    for cfg in /etc/b4 /opt/etc/b4; do
+        if [ -d "$cfg" ]; then
+            if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove config directory ${cfg}?" "n"; then
+                rm -rf "$cfg"
+                log_info "Removed: ${cfg}"
+            else
+                log_info "Keeping: ${cfg}"
+            fi
         fi
-        print_success "Systemd service removed"
-    fi
+    done
 
-    if [ -f "/opt/etc/init.d/S99b4" ]; then
-        print_info "Removing Entware init script..."
-        rm -f "/opt/etc/init.d/S99b4"
-        print_success "Entware init script removed"
-    fi
-
-    if [ -f "/etc/init.d/b4" ]; then
-        print_info "Removing init script..."
-        rm -f "/etc/init.d/b4"
-        print_success "Init script removed"
-    fi
-
-    # Remove symlinks
-    if [ -L "/usr/bin/${BINARY_NAME}" ]; then
-        print_info "Removing symlink: /usr/bin/${BINARY_NAME}"
-        rm -f "/usr/bin/${BINARY_NAME}"
-    fi
-
-    # Ask about configuration ONCE
-    printf "${CYAN}Remove configuration files as well? (y/N): ${NC}"
-    read answer </dev/tty || answer="n"
-
-    case "$answer" in
-    [yY] | [yY][eE][sS])
-        print_info "Removing configuration directory: $CONFIG_DIR"
-        rm -rf "$CONFIG_DIR"
-        print_success "Configuration removed"
-        ;;
-    *)
-        print_info "Configuration preserved at: $CONFIG_DIR"
-        ;;
-    esac
-
-    # Remove log files and directories
-    rm -f /var/log/b4.log 2>/dev/null || true
-    rm -rf /var/log/b4 2>/dev/null || true
+    # Cleanup
     rm -f /var/run/b4.pid 2>/dev/null || true
-
-    # Remove temporary files created by b4
-    rm -rf /tmp/b4_* 2>/dev/null || true
-    rm -f /tmp/b4install_update.sh 2>/dev/null || true
-    rm -rf /tmp/b4 2>/dev/null || true
+    rm -f /var/log/b4.log 2>/dev/null || true
 
     echo ""
-    print_success "B4 has been uninstalled successfully!"
+    log_ok "B4 has been removed"
     echo ""
-
-    exit 0
 }
 
-# Kill any remaining b4 processes
-kill_b4_processes() {
-    # Collect PIDs first, avoid subshell issues
-    pids=$(ps 2>/dev/null | grep -v grep | grep -v "b4install" | grep "b4$\|b4[[:space:]]" | awk '{print $1}' | tr '\n' ' ')
 
-    if [ -n "$pids" ]; then
-        print_info "Killing remaining b4 processes: $pids"
+# ======== actions/update.sh ========
+# Action: Update b4 to latest version
 
-        # SIGTERM first
-        for pid in $pids; do
-            kill "$pid" 2>/dev/null || true
-        done
+action_update() {
+    force_arch="$1"
 
-        sleep 2
+    check_root
 
-        # SIGKILL stubborn processes
-        for pid in $pids; do
-            if kill -0 "$pid" 2>/dev/null; then
-                print_warning "Force killing PID $pid"
-                kill -9 "$pid" 2>/dev/null || true
-            fi
-        done
+    log_header "Updating B4"
 
-        sleep 1
+    # Detect platform
+    if [ -z "$B4_PLATFORM" ]; then
+        platform_auto_detect || true
+        if [ -n "$B4_PLATFORM" ]; then
+            platform_call info
+        fi
     fi
-}
 
-# --- END remove.sh ---
-
-# Perform update - stops service, updates, and restarts
-perform_update() {
-    QUIET_MODE=1 # Force quiet mode during updates
-
-    echo ""
-    echo "======================================="
-    echo "     B4 Update Process"
-    echo "======================================="
-    echo ""
-
-    # Find existing installation
-    FOUND_BINARY=""
-    for dir in /opt/sbin /usr/local/bin /usr/bin /usr/sbin; do
-        if [ -f "$dir/$BINARY_NAME" ]; then
-            FOUND_BINARY="$dir/$BINARY_NAME"
-            INSTALL_DIR="$dir"
+    # Find existing binary
+    existing_bin=""
+    for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin; do
+        if [ -f "${dir}/${BINARY_NAME}" ]; then
+            existing_bin="${dir}/${BINARY_NAME}"
+            B4_BIN_DIR="$dir"
             break
         fi
     done
 
-    if [ -z "$FOUND_BINARY" ]; then
-        print_error "B4 binary not found. Please install first."
+    if [ -z "$existing_bin" ]; then
+        log_err "B4 is not installed. Use install mode instead."
         exit 1
     fi
 
-    # Find existing config
-    for dir in /opt/etc/b4 /etc/b4; do
-        if [ -f "$dir/b4.json" ]; then
-            CONFIG_DIR="$dir"
-            CONFIG_FILE="$dir/b4.json"
-            break
-        fi
-    done
+    # Get current version
+    current_ver=$("$existing_bin" --version 2>&1 | head -1) || current_ver="unknown"
+    log_info "Current: ${current_ver}"
 
-    print_info "Found existing installation at: $INSTALL_DIR"
-    print_info "Using config at: $CONFIG_DIR"
-
-    # Detect service manager
-    SERVICE_MANAGER=""
-    RESTART_CMD=""
-
-    if [ -f "/etc/systemd/system/b4.service" ] && command_exists systemctl; then
-        SERVICE_MANAGER="systemd"
-        RESTART_CMD="systemctl restart b4"
-    elif [ -f "/opt/etc/init.d/S99b4" ]; then
-        SERVICE_MANAGER="entware"
-        RESTART_CMD="/opt/etc/init.d/S99b4 restart"
-    elif [ -f "/etc/init.d/b4" ]; then
-        SERVICE_MANAGER="init"
-        RESTART_CMD="/etc/init.d/b4 restart"
+    # Detect arch from existing binary or system
+    if [ -n "$force_arch" ]; then
+        B4_ARCH="$force_arch"
     else
-        print_error "No service manager detected. Cannot perform automatic update."
-        exit 1
+        B4_ARCH=$(detect_architecture)
     fi
 
-    print_info "Detected service manager: $SERVICE_MANAGER"
+    # Get latest version
+    log_info "Checking for updates..."
+    latest_ver=$(get_latest_version)
+    log_info "Latest: ${latest_ver}"
 
-    # Extract geosite settings from config if available
-    GEOSITE_SRC=""
-    GEOSITE_DST=""
-    if [ -f "$CONFIG_FILE" ] && command_exists jq; then
-        GEOSITE_SRC=$(jq -r '.system.geo.sitedat_url // empty' "$CONFIG_FILE" 2>/dev/null)
-        sitedat_path=$(jq -r '.system.geo.sitedat_path // empty' "$CONFIG_FILE" 2>/dev/null)
-        if [ -n "$sitedat_path" ] && [ "$sitedat_path" != "null" ]; then
-            GEOSITE_DST=$(dirname "$sitedat_path")
-        fi
-    fi
-
-    # Stop the service
-    print_info "Stopping b4 service..."
-    case "$SERVICE_MANAGER" in
-    systemd)
-        systemctl stop b4 2>/dev/null || true
-        ;;
-    entware)
-        /opt/etc/init.d/S99b4 stop 2>/dev/null || true
-        ;;
-    init)
-        /etc/init.d/b4 stop 2>/dev/null || true
-        ;;
-    esac
-
-    sleep 2
-    print_success "Service stopped"
-
-    # Perform the update (call main_install with quiet mode)
-    print_info "Installing latest version..."
-    main_install "$@"
-
-    # Start the service
-    print_info "Starting b4 service..."
-    case "$SERVICE_MANAGER" in
-    systemd)
-        systemctl start b4
-        ;;
-    entware)
-        /opt/etc/init.d/S99b4 start
-        ;;
-    init)
-        /etc/init.d/b4 start
-        ;;
-    esac
-
-    sleep 2
-
-    # Verify service is running
-    service_running=0
-    case "$SERVICE_MANAGER" in
-    systemd) systemctl is-active --quiet b4 && service_running=1 ;;
-    entware | init) ps | grep -v grep | grep -q "b4$\|b4[[:space:]]" && service_running=1 ;;
-    esac
-
-    if [ "$service_running" = "1" ]; then
-        print_success "Service started successfully"
-        echo ""
-        echo "======================================="
-        echo "     Update Complete!"
-        echo "======================================="
-        echo ""
-    else
-        print_error "Service may not have started correctly"
-        print_info "Check logs: journalctl -u b4 -f (systemd) or /var/log/b4.log"
-        exit 1
-    fi
-}
-
-# --- END update.sh ---
-
-# Check kernel module status
-check_kernel_module() {
-    module_name="$1"
-
-    # Check if module is loaded
-    if lsmod 2>/dev/null | grep -q "^$module_name"; then
-        echo "loaded"
+    if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -q "$latest_ver"; then
+        log_ok "Already up to date"
         return 0
     fi
 
-    # Skip filesystem check on routers - often hangs
-    echo "unknown"
-    return 0
-}
-
-# Get service status
-get_service_status() {
-    # Check if b4 process is running
-    if ps 2>/dev/null | grep -v grep | grep -v "b4install" | grep -q "b4$\|b4[[:space:]]"; then
-        echo "running"
-        return 0
-    fi
-
-    # Check systemd service
-    if [ -f "/etc/systemd/system/b4.service" ] && command_exists systemctl; then
-        if systemctl is-active --quiet b4 2>/dev/null; then
-            echo "running (systemd)"
-            return 0
-        else
-            echo "stopped (systemd)"
+    if [ "$QUIET_MODE" -eq 0 ]; then
+        if ! confirm "Update to ${latest_ver}?"; then
+            log_info "Update cancelled"
             return 0
         fi
     fi
 
-    # Check Entware init
-    if [ -f "/opt/etc/init.d/S99b4" ]; then
-        echo "configured (entware)"
-        return 0
-    fi
+    # Download and install
+    setup_temp
 
-    # Check standard init
-    if [ -f "/etc/init.d/b4" ]; then
-        echo "configured (init.d)"
-        return 0
-    fi
+    file_name="${BINARY_NAME}-linux-${B4_ARCH}.tar.gz"
+    download_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${latest_ver}/${file_name}"
+    archive_path="${TEMP_DIR}/${file_name}"
 
-    echo "not installed"
-    return 0
-}
+    log_info "Downloading ${latest_ver}..."
+    fetch_file "$download_url" "$archive_path" || { log_err "Download failed"; exit 1; }
 
-# Get network interfaces info
-get_network_info() {
-    primary_ip=""
-    if command_exists ip; then
-        primary_ip=$(ip -4 route get 1 2>/dev/null | awk '/src/{print $7}' | head -1 || true)
-    elif command_exists ifconfig; then
-        primary_ip=$(ifconfig 2>/dev/null | grep 'inet addr:' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d':' -f2 || true)
-    fi
+    # Verify
+    sha_url="${download_url}.sha256"
+    verify_checksum "$archive_path" "$sha_url" || true
 
-    echo "$primary_ip"
-}
+    # Extract
+    cd "$TEMP_DIR"
+    tar -xzf "$archive_path" || { log_err "Extraction failed"; exit 1; }
 
-# Detect firewall backend
-detect_firewall_backend() {
-    if command_exists nft; then
-        out=$(nft list tables 2>/dev/null || true)
-        if [ -n "$out" ]; then
-            echo "nftables"
-            return 0
-        fi
-    fi
+    # Stop, backup, replace
+    stop_b4
 
-    # Check for iptables
-    if command_exists iptables; then
-        out=$(iptables --version 2>/dev/null || true)
-        if echo "$out" | grep -q "nf_tables"; then
-            echo "iptables-nft"
-        else
-            echo "iptables-legacy"
-        fi
-        return 0
-    fi
+    ts=$(date '+%Y%m%d_%H%M%S')
+    cp "$existing_bin" "${existing_bin}.backup.${ts}"
 
-    echo "none"
-    return 0
-}
+    mv "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" 2>/dev/null || \
+        cp "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" || \
+        { log_err "Failed to replace binary"; exit 1; }
+    chmod +x "$existing_bin"
 
-# Check if iptables multiport module works
-check_multiport_support() {
-    if ! command_exists iptables; then
-        echo "no_iptables"
-        return 0
-    fi
-
-    # Try to add a test rule using multiport
-    # Try with -w first (lock wait), fall back without it for older iptables
-    if iptables -w -t filter -A INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT 2>/dev/null ||
-        iptables -t filter -A INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT 2>/dev/null; then
-        # Success - remove it immediately (try both variants)
-        iptables -w -t filter -D INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT 2>/dev/null ||
-            iptables -t filter -D INPUT -p tcp -m multiport --dports 80,443 -j ACCEPT 2>/dev/null
-        # Check if loaded as module or built-in
-        if lsmod 2>/dev/null | grep -q "^xt_multiport"; then
-            echo "works_module"
-        else
-            echo "works_builtin"
-        fi
-        return 0
-    fi
-
-    echo "not_available"
-    return 0
-}
-
-# System information display function
-show_system_info() {
-
-    set_system_paths
-
-    echo ""
-    echo "======================================="
-    echo "       B4 System Information"
-    echo "======================================="
-
-    print_header "System Information"
-
-    # Map SYSTEM_TYPE (from detect_system_type) to display name
-    os_version=""
-    case "$SYSTEM_TYPE" in
-    openwrt)
-        os_type="OpenWRT"
-        os_version=$(grep 'DISTRIB_RELEASE' /etc/openwrt_release 2>/dev/null | cut -d'=' -f2 | tr -d "'\"" || true)
-        ;;
-    merlin)
-        os_type="MerlinWRT"
-        os_version=$(cat /etc/merlinwrt_release 2>/dev/null || true)
-        ;;
-    entware)
-        os_type="Entware"
-        os_version=$(cat /opt/etc/entware_release 2>/dev/null || true)
-        ;;
-    padavan)
-        os_type="Padavan"
-        ;;
-    systemd-linux | sysv-linux | generic-linux)
-        if [ -f /etc/os-release ]; then
-            os_type=$(grep '^NAME=' /etc/os-release | cut -d'=' -f2 | tr -d '"' || echo "Linux")
-            os_version=$(grep '^VERSION=' /etc/os-release | cut -d'=' -f2 | tr -d '"' || true)
-        else
-            os_type="Linux"
-        fi
-        ;;
-    *)
-        os_type="Linux"
-        ;;
-    esac
-
-    print_detail "Operating System" "$os_type ${os_version}"
-    print_detail "Kernel Version" "$(uname -r)"
-    print_detail "Architecture (raw)" "$(uname -m)"
-    print_detail "Architecture (b4)" "$(detect_architecture)"
-    print_detail "Hostname" "$(hostname 2>/dev/null || echo 'unknown')"
-
-    # CPU Info
-    if [ -f /proc/cpuinfo ]; then
-        cpu_model=$(grep 'model name' /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | sed 's/^ *//' || true)
-        if [ -z "$cpu_model" ]; then
-            cpu_model=$(grep 'Processor' /proc/cpuinfo 2>/dev/null | head -1 | cut -d':' -f2 | sed 's/^ *//' || true)
-        fi
-        if [ -n "$cpu_model" ]; then
-            print_detail "CPU Model" "$cpu_model"
-        fi
-
-        cpu_cores=$(grep -c '^processor' /proc/cpuinfo 2>/dev/null || echo "1")
-        print_detail "CPU Cores" "$cpu_cores"
-    fi
-
-    # Memory Info
-    if [ -f /proc/meminfo ]; then
-        mem_total=$(grep '^MemTotal:' /proc/meminfo | awk '{printf "%.0f MB", $2/1024}')
-        mem_available=$(grep '^MemAvailable:' /proc/meminfo | awk '{printf "%.0f MB", $2/1024}')
-        if [ -n "$mem_available" ]; then
-            print_detail "Memory" "$mem_total (Available: $mem_available)"
-        else
-            # Fallback for older kernels without MemAvailable
-            mem_free=$(grep '^MemFree:' /proc/meminfo | awk '{printf "%.0f MB", $2/1024}')
-            print_detail "Memory" "$mem_total (Free: $mem_free)"
-        fi
-    fi
-
-    # B4 Installation Status
-    print_header "B4 Status"
-
-    # Check if b4 is installed
-    if [ -f "${INSTALL_DIR}/${BINARY_NAME}" ]; then
-        print_detail "Binary Location" "${INSTALL_DIR}/${BINARY_NAME}"
-
-        # Get version if possible
-        if "${INSTALL_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
-            b4_version=$("${INSTALL_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
-            print_detail "Installed Version" "$b4_version"
-        else
-            print_detail "Installed Version" "Unknown (binary present)"
-        fi
-
-        # Check service status
-        service_status=$(get_service_status)
-        if echo "$service_status" | grep -q "running"; then
-            print_detail "Service Status" "${GREEN}$service_status${NC}"
-        else
-            print_detail "Service Status" "${YELLOW}$service_status${NC}"
-        fi
+    # Verify
+    if "$existing_bin" --version >/dev/null 2>&1; then
+        new_ver=$("$existing_bin" --version 2>&1 | head -1)
+        log_ok "Updated to: ${new_ver}"
+        rm -f "${existing_bin}".backup.* 2>/dev/null || true
     else
-        print_detail "Installation Status" "${RED}Not installed${NC}"
+        log_warn "Updated binary failed version check"
     fi
 
-    # Check for config file
-    if [ -f "$CONFIG_FILE" ]; then
-        print_detail "Config File" "$CONFIG_FILE"
-
-        # Check config content if jq is available
-        if command_exists jq; then
-            queue_num=$(jq -r '.queue_start_num // 537' "$CONFIG_FILE" 2>/dev/null || echo "537")
-            threads=$(jq -r '.threads // 4' "$CONFIG_FILE" 2>/dev/null || echo "4")
-            web_port=$(jq -r '.web_server.port // 0' "$CONFIG_FILE" 2>/dev/null || echo "0")
-            print_detail "Queue Number" "$queue_num"
-            print_detail "Worker Threads" "$threads"
-            if [ "$web_port" != "0" ]; then
-                print_detail "Web UI Port" "$web_port"
-            fi
-        fi
-    else
-        print_detail "Config File" "${YELLOW}Not found${NC}"
-    fi
-
-    # Check for geosite data
-    if [ -f "$CONFIG_FILE" ] && command_exists jq; then
-        sitedat_path=$(jq -r '.system.geo.sitedat_path // empty' "$CONFIG_FILE" 2>/dev/null)
-        if [ -n "$sitedat_path" ] && [ "$sitedat_path" != "null" ] && [ -f "$sitedat_path" ]; then
-            geosite_size=$(du -h "$sitedat_path" 2>/dev/null | cut -f1)
-            print_detail "geosite.dat" "$sitedat_path ($geosite_size)"
-        fi
-
-        ipdat_path=$(jq -r '.system.geo.ipdat_path // empty' "$CONFIG_FILE" 2>/dev/null)
-        if [ -n "$ipdat_path" ] && [ "$ipdat_path" != "null" ] && [ -f "$ipdat_path" ]; then
-            ipdat_size=$(du -h "$ipdat_path" 2>/dev/null | cut -f1)
-            print_detail "geoip.dat" "$ipdat_path ($ipdat_size)"
-        fi
-    fi
-
-    # Show process details if running
-    if ps 2>/dev/null | grep -v grep | grep -v "b4install" | grep -q "b4$\|b4[[:space:]]"; then
-        b4_pid=$(ps 2>/dev/null | grep -v grep | grep -v "b4install" | grep "b4$\|b4[[:space:]]" | awk '{print $1}' | head -1)
-        if [ -n "$b4_pid" ] && [ -d "/proc/$b4_pid" ]; then
-            # Memory usage
-            if [ -f "/proc/$b4_pid/status" ]; then
-                rss=$(grep '^VmRSS:' /proc/$b4_pid/status 2>/dev/null | awk '{printf "%.1f MB", $2/1024}')
-                [ -n "$rss" ] && print_detail "Memory Usage" "$rss (PID: $b4_pid)"
-            fi
-            # Uptime
-            if [ -f "/proc/$b4_pid/stat" ] && [ -f "/proc/uptime" ]; then
-                start_ticks=$(awk '{print $22}' /proc/$b4_pid/stat 2>/dev/null)
-                uptime_sec=$(awk '{print int($1)}' /proc/uptime 2>/dev/null)
-                hz=$(getconf CLK_TCK 2>/dev/null || echo 100)
-                if [ -n "$start_ticks" ] && [ -n "$uptime_sec" ]; then
-                    proc_uptime=$((uptime_sec - start_ticks / hz))
-                    days=$((proc_uptime / 86400))
-                    hours=$(((proc_uptime % 86400) / 3600))
-                    mins=$(((proc_uptime % 3600) / 60))
-                    if [ $days -gt 0 ]; then
-                        print_detail "Uptime" "${days}d ${hours}h ${mins}m"
-                    elif [ $hours -gt 0 ]; then
-                        print_detail "Uptime" "${hours}h ${mins}m"
-                    else
-                        print_detail "Uptime" "${mins}m"
-                    fi
-                fi
-            fi
-        fi
-    fi
-
-    # Service Manager Detection
-    print_header "Service Management"
-
-    if [ -f "/etc/systemd/system/b4.service" ] && command_exists systemctl; then
-        print_detail "Service Manager" "systemd"
-        print_detail "Service File" "/etc/systemd/system/b4.service"
-    elif [ -f "/opt/etc/init.d/S99b4" ]; then
-        print_detail "Service Manager" "Entware init"
-        print_detail "Service File" "/opt/etc/init.d/S99b4"
-    elif [ -f "/etc/init.d/b4" ]; then
-        print_detail "Service Manager" "SysV init"
-        print_detail "Service File" "/etc/init.d/b4"
-    else
-        print_detail "Service Manager" "${YELLOW}None configured${NC}"
-    fi
-
-    # Firewall/Netfilter Status
-    print_header "Firewall & Netfilter"
-
-    firewall_backend=$(detect_firewall_backend)
-    print_detail "Firewall Backend" "$firewall_backend"
-
-    # Check for iptables
-    if command_exists iptables; then
-        iptables_version=$(iptables --version 2>&1 | head -1 | awk '{print $2}' | tr -d 'v')
-        print_detail "iptables" "${GREEN}Available${NC} (v$iptables_version)"
-
-        # Check for b4 rules in iptables
-        if iptables -t mangle -L B4 -n 2>/dev/null | grep -q NFQUEUE; then
-            print_detail "iptables Rules" "${GREEN}Active${NC}"
-        fi
-    else
-        print_detail "iptables" "${YELLOW}Not found${NC}"
-    fi
-
-    # Check for nftables
-    if command_exists nft; then
-        nft_version=$(nft --version 2>&1 | awk '{print $2}' | tr -d 'v')
-        print_detail "nftables" "${GREEN}Available${NC} (v$nft_version)"
-
-        # Check for b4 rules in nftables
-        if nft list table inet b4_mangle 2>/dev/null | grep -q queue; then
-            print_detail "nftables Rules" "${GREEN}Active${NC}"
-        fi
-    else
-        print_detail "nftables" "${YELLOW}Not found${NC}"
-    fi
-
-    # Check for ip6tables
-    if command_exists ip6tables; then
-        print_detail "ip6tables" "${GREEN}Available${NC}"
-    else
-        print_detail "ip6tables" "${YELLOW}Not found${NC}"
-    fi
-
-    # Check netfilter queue status
-    if [ -f /proc/net/netfilter/nfnetlink_queue ]; then
-        nfqueue_info=$(cat /proc/net/netfilter/nfnetlink_queue 2>/dev/null | grep -v "^#" | head -1 || true)
-        if [ -n "$nfqueue_info" ]; then
-            print_detail "NFQueue Status" "${GREEN}Available${NC}"
-        else
-            print_detail "NFQueue Status" "${YELLOW}Available (no queues)${NC}"
-        fi
-    else
-        print_detail "NFQueue Status" "${RED}Not available${NC}"
-    fi
-
-    # Show queue stats if b4 is using queues
-    if [ -f /proc/net/netfilter/nfnetlink_queue ]; then
-        queue_stats=$(cat /proc/net/netfilter/nfnetlink_queue 2>/dev/null | grep -v "^#" | head -1)
-        if [ -n "$queue_stats" ]; then
-            queue_id=$(echo "$queue_stats" | awk '{print $1}')
-            queue_dropped=$(echo "$queue_stats" | awk '{print $5}')
-            print_detail "Queue ID" "$queue_id"
-            if [ "$queue_dropped" != "0" ]; then
-                print_detail "Queue Drops" "${YELLOW}$queue_dropped${NC}"
-            fi
-        fi
-    fi
-
-    print_header "Network Interfaces"
-
-    # WAN interface (common names)
-    # for iface in eth0 wan0 ppp0 vlan2; do
-    #     if [ -d "/sys/class/net/$iface" ]; then
-    #         ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1 | head -1)
-    #         [ -n "$ip_addr" ] && print_detail "WAN ($iface)" "$ip_addr"
-    #         break
-    #     fi
-    # done
-
-    # LAN interface
-    for iface in br0 br-lan eth1 lan0; do
-        if [ -d "/sys/class/net/$iface" ]; then
-            ip_addr=$(ip -4 addr show "$iface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1 | head -1)
-            [ -n "$ip_addr" ] && print_detail "LAN ($iface)" "$ip_addr"
-            break
-        fi
-    done
-
-    # Kernel Modules
-    print_header "Kernel Modules"
-
-    # Netfilter modules
-    modules="nf_conntrack xt_connbytes xt_NFQUEUE xt_multiport nf_tables nft_queue nft_ct"
-    for mod in $modules; do
-        status=$(check_kernel_module "$mod" || true)
-        case "$status" in
-        loaded)
-            print_detail "$mod" "${GREEN}Loaded${NC}"
-            ;;
-        available)
-            print_detail "$mod" "${CYAN}Available${NC}"
-            ;;
-        unknown)
-            print_detail "$mod" "${YELLOW}Not found${NC}"
-            ;;
-        esac
-    done
-
-    # Check conntrack settings
-    if [ -f /proc/sys/net/netfilter/nf_conntrack_checksum ]; then
-        checksum=$(cat /proc/sys/net/netfilter/nf_conntrack_checksum 2>/dev/null || echo "1")
-        if [ "$checksum" = "0" ]; then
-            print_detail "conntrack_checksum" "${GREEN}Disabled (good)${NC}"
-        else
-            print_detail "conntrack_checksum" "${YELLOW}Enabled${NC}"
-        fi
-    fi
-
-    if [ -f /proc/sys/net/netfilter/nf_conntrack_tcp_be_liberal ]; then
-        liberal=$(cat /proc/sys/net/netfilter/nf_conntrack_tcp_be_liberal 2>/dev/null || echo "0")
-        if [ "$liberal" = "1" ]; then
-            print_detail "tcp_be_liberal" "${GREEN}Enabled (good)${NC}"
-        else
-            print_detail "tcp_be_liberal" "${YELLOW}Disabled${NC}"
-        fi
-    fi
-
-    # Check multiport support (iptables only)
-    if [ "$firewall_backend" != "nftables" ] && command_exists iptables; then
-        multiport_status=$(check_multiport_support)
-        case "$multiport_status" in
-        works_module)
-            print_detail "iptables multiport" "${GREEN}Available (module)${NC}"
-            ;;
-        works_builtin)
-            print_detail "iptables multiport" "${GREEN}Available (built-in)${NC}"
-            ;;
-        not_available)
-            print_detail "iptables multiport" "${YELLOW}Not available (fallback mode)${NC}"
-            ;;
-        esac
-    fi
-
-    # Dependencies Check
-    print_header "Dependencies"
-
-    deps="wget curl tar jq sha256sum nohup"
-    for dep in $deps; do
-        if command_exists "$dep"; then
-            print_detail "$dep" "${GREEN}Available${NC}"
-        else
-            print_detail "$dep" "${YELLOW}Not found${NC}"
-        fi
-    done
-
-    # Package Manager Detection
-    print_header "Package Management"
-
-    if command_exists opkg; then
-        print_detail "Package Manager" "opkg (OpenWRT/Entware)"
-    elif command_exists apt-get; then
-        print_detail "Package Manager" "apt (Debian/Ubuntu)"
-    elif command_exists yum; then
-        print_detail "Package Manager" "yum (RedHat/CentOS)"
-    elif command_exists apk; then
-        print_detail "Package Manager" "apk (Alpine)"
-    else
-        print_detail "Package Manager" "${YELLOW}None detected${NC}"
-    fi
-
-    # Recommendations
-    print_header "Recommendations"
-
-    recommendations=0
-
-    # Check if running as root
-    if [ "$USER" != "root" ] && ! (touch /etc/.root_test 2>/dev/null && rm -f /etc/.root_test 2>/dev/null); then
-        printf "  ${YELLOW}⚠${NC}  Run this script as root for installation"
-        recommendations=$((recommendations + 1))
-    fi
-
-    # Check for missing critical dependencies
-    if ! command_exists wget && ! command_exists curl; then
-        printf "  ${RED}✗${NC}  Install wget or curl for downloading"
-        recommendations=$((recommendations + 1))
-    fi
-
-    if ! command_exists tar; then
-        printf "  ${RED}✗${NC}  Install tar for extracting archives"
-        recommendations=$((recommendations + 1))
-    fi
-
-    # Check for missing kernel modules
-    if [ "$(check_kernel_module nf_conntrack)" = "unknown" ]; then
-        printf "  ${RED}✗${NC}  nf_conntrack module not found"
-        recommendations=$((recommendations + 1))
-    fi
-
-    if [ "$(check_kernel_module xt_connbytes)" = "unknown" ]; then
-        printf "  ${RED}✗${NC}  xt_connbytes module not found"
-        recommendations=$((recommendations + 1))
-    fi
-
-    if [ "$(check_kernel_module xt_NFQUEUE)" = "unknown" ]; then
-        printf "  ${RED}✗${NC}  xt_NFQUEUE module not found"
-        recommendations=$((recommendations + 1))
-    fi
-
-    if [ "$(check_kernel_module xt_multiport)" = "unknown" ]; then
-        printf "  ${RED}✗${NC}  xt_multiport module not found"
-        recommendations=$((recommendations + 1))
-    fi
-
-    # Check firewall
-    if [ "$firewall_backend" = "none" ]; then
-        printf "  ${RED}✗${NC}  No firewall (iptables/nftables) detected"
-        recommendations=$((recommendations + 1))
-    fi
-
-    # Check if b4 is installed but not running
-    if [ -f "${INSTALL_DIR}/${BINARY_NAME}" ]; then
-        service_status=$(get_service_status)
-        if ! echo "$service_status" | grep -q "running"; then
-            printf "  ${YELLOW}⚠${NC}  B4 is installed but not running"
-            if [ -f "/etc/systemd/system/b4.service" ]; then
-                printf "      Try: systemctl start b4"
-            elif [ -f "/opt/etc/init.d/S99b4" ]; then
-                printf "      Try: /opt/etc/init.d/S99b4 start"
-            elif [ -f "/etc/init.d/b4" ]; then
-                printf "      Try: /etc/init.d/b4 start"
-            fi
-            recommendations=$((recommendations + 1))
-        fi
-    fi
-
-    if [ $recommendations -eq 0 ]; then
-        printf "  ${GREEN}✓${NC}  System appears ready for B4"
+    # Restart service if it was running
+    if [ -n "$B4_PLATFORM" ]; then
+        log_info "Restarting service..."
+        platform_call start_service 2>/dev/null || true
     fi
 
     echo ""
-
+    log_ok "Update complete"
+    echo ""
 }
 
 
-# --- END sysinfo.sh ---
+# ======== actions/sysinfo.sh ========
+# Action: Show system diagnostics
 
-# Main function - parse arguments
+action_sysinfo() {
+    log_header "B4 System Diagnostics"
+    log_sep
+
+    # OS info
+    log_detail "OS" "$(uname -s) $(uname -r)"
+    log_detail "Architecture" "$(uname -m)"
+    [ -f /etc/os-release ] && log_detail "Distribution" "$(. /etc/os-release && echo "$PRETTY_NAME")"
+    [ -f /etc/openwrt_release ] && log_detail "OpenWrt" "$(. /etc/openwrt_release && echo "$DISTRIB_DESCRIPTION")"
+
+    # Platform detection
+    platform_auto_detect 2>/dev/null || true
+    if [ -n "$B4_PLATFORM" ]; then
+        pname=$(platform_dispatch "$B4_PLATFORM" name 2>/dev/null)
+        log_detail "Detected platform" "${pname} (${B4_PLATFORM})"
+        platform_call info 2>/dev/null || true
+        log_detail "Binary dir" "${B4_BIN_DIR}"
+        log_detail "Data dir" "${B4_DATA_DIR}"
+        log_detail "Service type" "${B4_SERVICE_TYPE}"
+    fi
+
+    log_sep
+
+    # B4 installation status
+    found_bin=""
+    for dir in /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /tmp/b4; do
+        if [ -f "${dir}/${BINARY_NAME}" ]; then
+            found_bin="${dir}/${BINARY_NAME}"
+            ver=$("$found_bin" --version 2>&1 | head -1) || ver="unknown"
+            log_detail "B4 binary" "${found_bin} (${ver})"
+            break
+        fi
+    done
+    [ -z "$found_bin" ] && log_detail "B4 binary" "${RED}not found${NC}"
+
+    if is_b4_running; then
+        log_detail "B4 status" "${GREEN}running${NC}"
+    else
+        log_detail "B4 status" "${YELLOW}not running${NC}"
+    fi
+
+    # Config
+    for cfg in /etc/b4/b4.json /opt/etc/b4/b4.json; do
+        [ -f "$cfg" ] && log_detail "Config" "$cfg" && break
+    done
+
+    log_sep
+
+    # Kernel modules
+    echo ""
+    log_info "Kernel modules:"
+    for mod in xt_NFQUEUE nfnetlink_queue xt_connbytes xt_multiport nf_conntrack; do
+        if lsmod 2>/dev/null | grep -q "^${mod}"; then
+            printf "    ${GREEN}loaded${NC}  %s\n" "$mod" >&2
+        else
+            printf "    ${RED}missing${NC} %s\n" "$mod" >&2
+        fi
+    done
+
+    # Network tools
+    echo ""
+    log_info "Network tools:"
+    for tool in iptables nft curl wget jq tar sha256sum; do
+        if command_exists "$tool"; then
+            printf "    ${GREEN}found${NC}   %s\n" "$tool" >&2
+        else
+            printf "    ${YELLOW}missing${NC} %s\n" "$tool" >&2
+        fi
+    done
+
+    # Package manager
+    echo ""
+    detect_pkg_manager
+    log_detail "Package manager" "${B4_PKG_MANAGER:-none}"
+
+    # HTTPS support
+    if check_https_support 2>/dev/null; then
+        log_detail "HTTPS support" "${GREEN}yes${NC}"
+    else
+        log_detail "HTTPS support" "${RED}no${NC}"
+    fi
+
+    # Storage
+    echo ""
+    log_info "Storage:"
+    for dir in / /opt /tmp /jffs /mnt/sda1 /etc/storage; do
+        if [ -d "$dir" ]; then
+            avail=$(df -h "$dir" 2>/dev/null | tail -1 | awk '{print $4}')
+            writable="rw"
+            [ ! -w "$dir" ] && writable="ro"
+            printf "    %-15s %s available (%s)\n" "$dir" "${avail:-?}" "$writable" >&2
+        fi
+    done
+
+    echo ""
+    log_sep
+}
+
+
+# ======== main.sh ========
+# Main entry point — argument parsing and dispatch
+
 main() {
-    # Check for remove flag first
+    ACTION="install"
+    VERSION=""
+    FORCE_ARCH=""
+
+    # Parse arguments
     for arg in "$@"; do
         case "$arg" in
         --remove | --uninstall | -r)
-            check_root
-            remove_b4
-            exit 0
-            ;;
+            ACTION="remove" ;;
         --update | -u)
-            check_root
-            perform_update "$@"
-            exit 0
-            ;;
-        --info | -i | --sysinfo)
-            show_system_info
-            exit 0
-            ;;
+            ACTION="update" ;;
+        --sysinfo | --info | -i)
+            ACTION="sysinfo" ;;
+        --quiet | -q)
+            QUIET_MODE=1 ;;
+        --arch=*)
+            FORCE_ARCH="${arg#*=}" ;;
+        --platform=*)
+            B4_PLATFORM="${arg#*=}" ;;
+        --bin-dir=*)
+            B4_BIN_DIR="${arg#*=}" ;;
+        --data-dir=*)
+            B4_DATA_DIR="${arg#*=}" ;;
+        --dry-run)
+            DRY_RUN=1 ;;
         --help | -h)
-            echo "Usage: $0 [OPTIONS] [VERSION]"
-            echo ""
-            echo "Options:"
-            echo "  --sysinfo, -i       Show system information and b4 status"
-            echo "  --remove, -r        Uninstall b4 from the system"
-            echo "  --update, -u        Update b4 to latest version"
-            echo "  --arch=ARCH         Force architecture (skip auto-detection)"
-            echo "  --help, -h          Show this help message"
-            echo "  --quiet, -q         Suppress output except for errors"
-            echo "  --geosite-src URL   Specify geosite.dat source URL"
-            echo "  --geosite-dst DIR   Specify directory to save geosite.dat"
-            echo "  VERSION             Install specific version (e.g., v1.4.0)"
-            echo ""
-            echo "Architectures:"
-            echo "  amd64, 386, arm64, armv5, armv6, armv7,"
-            echo "  mips, mipsle, mips_softfloat, mipsle_softfloat,"
-            echo "  mips64, mips64le, loong64, ppc64, ppc64le, riscv64, s390x"
-            echo ""
-            echo "Examples:"
-            echo "  $0                          Install latest version"
-            echo "  $0 v1.4.0                   Install version 1.4.0"
-            echo "  $0 --arch=mipsle_softfloat  Force architecture"
-            echo "  $0 --sysinfo                Show system diagnostics"
-            echo "  $0 --update                 Update to latest version"
-            echo "  $0 --remove                 Uninstall b4"
-            exit 0
-            ;;
+            _show_help
+            exit 0 ;;
+        v* | V*)
+            VERSION="$arg" ;;
         esac
     done
 
-    # No remove/update flag found, proceed with installation
-    main_install "$@"
+    # Dispatch
+    case "$ACTION" in
+    install) action_install "$VERSION" "$FORCE_ARCH" ;;
+    remove)  action_remove ;;
+    update)  action_update "$FORCE_ARCH" ;;
+    sysinfo) action_sysinfo ;;
+    esac
 }
 
-# Run main function
-main "$@"
+_show_help() {
+    echo "B4 Universal Installer"
+    echo ""
+    echo "Usage: $0 [OPTIONS] [VERSION]"
+    echo ""
+    echo "Actions:"
+    echo "  (default)           Install b4 (interactive wizard)"
+    echo "  --update, -u        Update b4 to latest version"
+    echo "  --remove, -r        Uninstall b4"
+    echo "  --sysinfo, -i       Show system diagnostics"
+    echo ""
+    echo "Options:"
+    echo "  --arch=ARCH         Force architecture (skip detection)"
+    echo "  --platform=ID       Force platform (skip detection)"
+    echo "  --bin-dir=DIR       Override binary directory"
+    echo "  --data-dir=DIR      Override data/config directory"
+    echo "  --quiet, -q         Non-interactive mode with defaults"
+    echo "  --help, -h          Show this help"
+    echo ""
+    echo "Environment overrides:"
+    echo "  B4_PLATFORM         Platform ID (generic_linux, openwrt, merlinwrt, ...)"
+    echo "  B4_BIN_DIR          Binary install directory"
+    echo "  B4_DATA_DIR         Data/config directory"
+    echo "  B4_PKG_MANAGER      Package manager (apt, dnf, pacman, opkg, ...)"
+    echo ""
+    echo "Architectures:"
+    echo "  amd64, 386, arm64, armv5, armv6, armv7,"
+    echo "  mips, mipsle, mips_softfloat, mipsle_softfloat,"
+    echo "  mips64, mips64le, loong64, ppc64, ppc64le, riscv64, s390x"
+    echo ""
+    echo "Examples:"
+    echo "  $0                            Interactive install"
+    echo "  $0 v1.4.0                     Install specific version"
+    echo "  $0 --arch=mipsle_softfloat    Force architecture"
+    echo "  $0 --platform=openwrt         Force platform"
+    echo "  $0 --quiet                    Non-interactive with defaults"
+    echo "  $0 --update                   Update to latest"
+    echo "  $0 --remove                   Uninstall"
+    echo "  $0 --sysinfo                  Show diagnostics"
+}
 
-# --- END main.sh ---
+main "$@"
 
