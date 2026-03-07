@@ -196,6 +196,7 @@ func (c *Config) Validate() error {
 
 	c.LoadCapturePayloads()
 	c.BuildTCPPortMap()
+	c.BuildSetPortRanges()
 
 	return nil
 }
@@ -449,6 +450,84 @@ func (cfg *Config) BuildTCPPortMap() {
 			}
 		}
 	}
+}
+
+type PortRange struct {
+	Min uint16
+	Max uint16
+}
+
+func (set *SetConfig) HasIPOrDomainTargets() bool {
+	return len(set.Targets.IpsToMatch) > 0 || len(set.Targets.DomainsToMatch) > 0
+}
+
+func (set *SetConfig) MatchesTCPDPort(port uint16) bool {
+	if len(set.TCPPortRanges) == 0 {
+		return true
+	}
+	for _, r := range set.TCPPortRanges {
+		if port >= r.Min && port <= r.Max {
+			return true
+		}
+	}
+	return false
+}
+
+func (set *SetConfig) MatchesUDPDPort(port uint16) bool {
+	if len(set.UDPPortRanges) == 0 {
+		return true
+	}
+	for _, r := range set.UDPPortRanges {
+		if port >= r.Min && port <= r.Max {
+			return true
+		}
+	}
+	return false
+}
+
+func (cfg *Config) BuildSetPortRanges() {
+	for _, set := range cfg.Sets {
+		set.TCPPortRanges = nil
+		set.UDPPortRanges = nil
+
+		if set.TCP.DPortFilter != "" {
+			for _, part := range strings.Split(set.TCP.DPortFilter, ",") {
+				if pr, ok := parsePortRangeStr(part); ok {
+					set.TCPPortRanges = append(set.TCPPortRanges, pr)
+				}
+			}
+		}
+		if set.UDP.DPortFilter != "" {
+			for _, part := range strings.Split(set.UDP.DPortFilter, ",") {
+				if pr, ok := parsePortRangeStr(part); ok {
+					set.UDPPortRanges = append(set.UDPPortRanges, pr)
+				}
+			}
+		}
+	}
+}
+
+func parsePortRangeStr(part string) (PortRange, bool) {
+	part = strings.TrimSpace(part)
+	if part == "" {
+		return PortRange{}, false
+	}
+	if strings.Contains(part, "-") {
+		bounds := strings.SplitN(part, "-", 2)
+		if len(bounds) == 2 {
+			min, err1 := strconv.Atoi(bounds[0])
+			max, err2 := strconv.Atoi(bounds[1])
+			if err1 == nil && err2 == nil && min >= 0 && max >= 0 && min <= max {
+				return PortRange{Min: uint16(min), Max: uint16(max)}, true
+			}
+		}
+	} else {
+		port, err := strconv.Atoi(part)
+		if err == nil && port >= 0 {
+			return PortRange{Min: uint16(port), Max: uint16(port)}, true
+		}
+	}
+	return PortRange{}, false
 }
 
 // IsTCPPort checks if a port is in the configured TCP port set.

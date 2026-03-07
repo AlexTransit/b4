@@ -567,6 +567,152 @@ func containsSubstr(s, substr string) bool {
 	return false
 }
 
+func TestBuildSetPortRanges(t *testing.T) {
+	t.Run("parses TCP port filter", func(t *testing.T) {
+		cfg := NewConfig()
+		set := NewSetConfig()
+		set.Id = "test"
+		set.TCP.DPortFilter = "80,443,5222-5225"
+		cfg.Sets = []*SetConfig{&set}
+
+		cfg.BuildSetPortRanges()
+
+		if len(set.TCPPortRanges) != 3 {
+			t.Fatalf("expected 3 TCP port ranges, got %d", len(set.TCPPortRanges))
+		}
+		if set.TCPPortRanges[0].Min != 80 || set.TCPPortRanges[0].Max != 80 {
+			t.Errorf("expected port 80, got %d-%d", set.TCPPortRanges[0].Min, set.TCPPortRanges[0].Max)
+		}
+		if set.TCPPortRanges[1].Min != 443 || set.TCPPortRanges[1].Max != 443 {
+			t.Errorf("expected port 443, got %d-%d", set.TCPPortRanges[1].Min, set.TCPPortRanges[1].Max)
+		}
+		if set.TCPPortRanges[2].Min != 5222 || set.TCPPortRanges[2].Max != 5225 {
+			t.Errorf("expected range 5222-5225, got %d-%d", set.TCPPortRanges[2].Min, set.TCPPortRanges[2].Max)
+		}
+	})
+
+	t.Run("parses UDP port filter", func(t *testing.T) {
+		cfg := NewConfig()
+		set := NewSetConfig()
+		set.Id = "test"
+		set.UDP.DPortFilter = "443,1000-2000"
+		cfg.Sets = []*SetConfig{&set}
+
+		cfg.BuildSetPortRanges()
+
+		if len(set.UDPPortRanges) != 2 {
+			t.Fatalf("expected 2 UDP port ranges, got %d", len(set.UDPPortRanges))
+		}
+	})
+
+	t.Run("empty filter produces no ranges", func(t *testing.T) {
+		cfg := NewConfig()
+		set := NewSetConfig()
+		set.Id = "test"
+		cfg.Sets = []*SetConfig{&set}
+
+		cfg.BuildSetPortRanges()
+
+		if len(set.TCPPortRanges) != 0 || len(set.UDPPortRanges) != 0 {
+			t.Error("expected no port ranges for empty filters")
+		}
+	})
+}
+
+func TestMatchesTCPDPort(t *testing.T) {
+	t.Run("no filter matches all ports", func(t *testing.T) {
+		set := &SetConfig{}
+		if !set.MatchesTCPDPort(443) {
+			t.Error("expected match when no port filter set")
+		}
+		if !set.MatchesTCPDPort(80) {
+			t.Error("expected match when no port filter set")
+		}
+	})
+
+	t.Run("exact port match", func(t *testing.T) {
+		set := &SetConfig{
+			TCPPortRanges: []PortRange{{Min: 443, Max: 443}},
+		}
+		if !set.MatchesTCPDPort(443) {
+			t.Error("expected match for port 443")
+		}
+		if set.MatchesTCPDPort(80) {
+			t.Error("expected no match for port 80")
+		}
+	})
+
+	t.Run("port range match", func(t *testing.T) {
+		set := &SetConfig{
+			TCPPortRanges: []PortRange{{Min: 5222, Max: 5225}},
+		}
+		if !set.MatchesTCPDPort(5222) {
+			t.Error("expected match for port 5222")
+		}
+		if !set.MatchesTCPDPort(5224) {
+			t.Error("expected match for port 5224")
+		}
+		if set.MatchesTCPDPort(5226) {
+			t.Error("expected no match for port 5226")
+		}
+	})
+}
+
+func TestMatchesUDPDPort(t *testing.T) {
+	t.Run("no filter matches all ports", func(t *testing.T) {
+		set := &SetConfig{}
+		if !set.MatchesUDPDPort(443) {
+			t.Error("expected match when no port filter set")
+		}
+	})
+
+	t.Run("exact port match", func(t *testing.T) {
+		set := &SetConfig{
+			UDPPortRanges: []PortRange{{Min: 443, Max: 443}},
+		}
+		if !set.MatchesUDPDPort(443) {
+			t.Error("expected match for port 443")
+		}
+		if set.MatchesUDPDPort(80) {
+			t.Error("expected no match for port 80")
+		}
+	})
+}
+
+func TestHasIPOrDomainTargets(t *testing.T) {
+	t.Run("no targets", func(t *testing.T) {
+		set := &SetConfig{}
+		if set.HasIPOrDomainTargets() {
+			t.Error("expected false when no targets")
+		}
+	})
+
+	t.Run("has IPs", func(t *testing.T) {
+		set := &SetConfig{}
+		set.Targets.IpsToMatch = []string{"1.1.1.1"}
+		if !set.HasIPOrDomainTargets() {
+			t.Error("expected true when IPs set")
+		}
+	})
+
+	t.Run("has domains", func(t *testing.T) {
+		set := &SetConfig{}
+		set.Targets.DomainsToMatch = []string{"example.com"}
+		if !set.HasIPOrDomainTargets() {
+			t.Error("expected true when domains set")
+		}
+	})
+
+	t.Run("port-only set has no targets", func(t *testing.T) {
+		set := &SetConfig{
+			TCPPortRanges: []PortRange{{Min: 443, Max: 443}},
+		}
+		if set.HasIPOrDomainTargets() {
+			t.Error("expected false for port-only set")
+		}
+	})
+}
+
 func TestResetToDefaults(t *testing.T) {
 	set := NewSetConfig()
 	set.Id = "custom"

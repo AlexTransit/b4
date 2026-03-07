@@ -210,6 +210,8 @@ type SetConfig struct {
 	Targets       TargetsConfig       `json:"targets" bson:"targets"`
 	Enabled       bool                `json:"enabled" bson:"enabled"`
 	DNS           DNSConfig           `json:"dns" bson:"dns"`
+	TCPPortRanges []PortRange         `json:"-" bson:"-"`
+	UDPPortRanges []PortRange         `json:"-" bson:"-"`
 }
 
 type GeoDatConfig struct {

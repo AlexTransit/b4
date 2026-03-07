@@ -211,6 +211,12 @@ func (w *Worker) Start() error {
 					return w.HandleIncoming(q, id, v, raw, ihl, src, dstStr, dport, srcStr, sport, payload)
 				}
 
+				// If IP matched but set has a port filter, verify port matches (AND logic)
+				if matched && !set.MatchesTCPDPort(dport) {
+					matched = false
+					set = nil
+				}
+
 				// If IP matching didn't find a set, try TCP port-based set matching
 				if !matched && cfg.IsTCPPort(dport) {
 					if portMatched, portSet := matcher.MatchTCPPort(dport); portMatched {
@@ -318,10 +324,13 @@ func (w *Worker) Start() error {
 
 					if host != "" {
 						if mSNI, stSNI := matcher.MatchSNIWithSource(host, srcMac); mSNI {
-							matchedSNI = true
-							matched = true
-							set = stSNI
-							matcher.LearnIPToDomain(dst, host, stSNI)
+							// If SNI-matched set has a port filter, verify port matches (AND logic)
+							if stSNI.MatchesTCPDPort(dport) {
+								matchedSNI = true
+								matched = true
+								set = stSNI
+								matcher.LearnIPToDomain(dst, host, stSNI)
+							}
 						}
 					}
 				}
@@ -423,18 +432,28 @@ func (w *Worker) Start() error {
 				ipTarget := ""
 				sniTarget := ""
 
+				// If IP matched but set has a port filter, verify port matches (AND logic)
+				if matchedIP && !st.MatchesUDPDPort(dport) {
+					matchedIP = false
+					matched = false
+					set = nil
+				}
+
 				if matchedIP {
 					ipTarget = st.Name
 				}
 
 				if !matchedIP {
 					if mLearned, learnedSet, learnedDomain := matcher.MatchLearnedIPWithSource(dst, srcMac); mLearned {
-						matchedIP = true
-						matched = true
-						set = learnedSet
-						host = learnedDomain
-						sniTarget = learnedSet.Name
-						ipTarget = learnedSet.Name
+						// If learned IP set has a port filter, verify port matches (AND logic)
+						if learnedSet.MatchesUDPDPort(dport) {
+							matchedIP = true
+							matched = true
+							set = learnedSet
+							host = learnedDomain
+							sniTarget = learnedSet.Name
+							ipTarget = learnedSet.Name
+						}
 					}
 				}
 
@@ -459,10 +478,13 @@ func (w *Worker) Start() error {
 
 				if host != "" {
 					if mSNI, sniSet := matcher.MatchSNIWithSource(host, srcMac); mSNI {
-						matchedQUIC = true
-						set = sniSet
-						sniTarget = sniSet.Name
-						matcher.LearnIPToDomain(dst, host, sniSet)
+						// If SNI-matched set has a port filter, verify port matches (AND logic)
+						if sniSet.MatchesUDPDPort(dport) {
+							matchedQUIC = true
+							set = sniSet
+							sniTarget = sniSet.Name
+							matcher.LearnIPToDomain(dst, host, sniSet)
+						}
 					}
 				}
 
