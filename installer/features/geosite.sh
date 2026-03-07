@@ -40,7 +40,7 @@ feature_geosite_run() {
 
         # Check if config already has a geosite path
         if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-            existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+            existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null) || true
             if [ -n "$existing" ] && [ "$existing" != "null" ]; then
                 save_dir=$(dirname "$existing")
                 log_info "Found existing geosite path: $save_dir"
@@ -121,7 +121,7 @@ _geo_remove_file() {
     for cfg in "$B4_CONFIG_FILE" /etc/b4/b4.json /opt/etc/b4/b4.json; do
         [ -f "$cfg" ] || continue
         if command_exists jq; then
-            fpath=$(jq -r ".system.geo.${config_key} // empty" "$cfg" 2>/dev/null)
+            fpath=$(jq -r ".system.geo.${config_key} // empty" "$cfg" 2>/dev/null) || true
             if [ -n "$fpath" ] && [ -f "$fpath" ]; then
                 log_info "Found ${filename}: ${fpath}"
                 if [ "$QUIET_MODE" -eq 1 ] || confirm "Remove ${filename}?" "y"; then

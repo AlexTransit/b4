@@ -2,7 +2,8 @@
 # Action: Update b4 to latest version
 
 action_update() {
-    force_arch="$1"
+    target_ver="$1"
+    force_arch="$2"
 
     check_root
 
@@ -19,6 +20,7 @@ action_update() {
     # Find existing binary
     existing_bin=""
     for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin; do
+        [ -z "$dir" ] && continue
         if [ -f "${dir}/${BINARY_NAME}" ]; then
             existing_bin="${dir}/${BINARY_NAME}"
             B4_BIN_DIR="$dir"
@@ -32,7 +34,9 @@ action_update() {
     fi
 
     # Get current version
-    current_ver=$("$existing_bin" --version 2>&1 | head -1) || current_ver="unknown"
+    _ver_full=$("$existing_bin" --version 2>&1) || _ver_full=""
+    current_ver=$(echo "$_ver_full" | grep -i "version" | head -1)
+    [ -z "$current_ver" ] && current_ver="unknown"
     log_info "Current: ${current_ver}"
 
     # Detect arch from existing binary or system
@@ -42,10 +46,15 @@ action_update() {
         B4_ARCH=$(detect_architecture)
     fi
 
-    # Get latest version
-    log_info "Checking for updates..."
-    latest_ver=$(get_latest_version)
-    log_info "Latest: ${latest_ver}"
+    # Get target version
+    if [ -n "$target_ver" ]; then
+        latest_ver="$target_ver"
+        log_info "Target: ${latest_ver}"
+    else
+        log_info "Checking for updates..."
+        latest_ver=$(get_latest_version)
+        log_info "Latest: ${latest_ver}"
+    fi
 
     if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -q "$latest_ver"; then
         log_ok "Already up to date"

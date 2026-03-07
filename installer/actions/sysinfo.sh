@@ -34,7 +34,11 @@ action_sysinfo() {
     _saved_platform="$B4_PLATFORM"
     _saved_bin_dir="$B4_BIN_DIR"
     _saved_data_dir="$B4_DATA_DIR"
+    _saved_config_file="$B4_CONFIG_FILE"
     _saved_service_type="$B4_SERVICE_TYPE"
+    _saved_service_dir="$B4_SERVICE_DIR"
+    _saved_service_name="$B4_SERVICE_NAME"
+    _saved_pkg_manager="$B4_PKG_MANAGER"
     platform_auto_detect 2>/dev/null || true
     if [ -n "$B4_PLATFORM" ]; then
         pname=$(platform_dispatch "$B4_PLATFORM" name 2>/dev/null)
@@ -155,10 +159,10 @@ action_sysinfo() {
 
     # Config-derived info (queue number, worker threads, geodat paths)
     if [ -n "$cfg_file" ] && command_exists jq; then
-        queue_num=$(jq -r '.system.queue_num // empty' "$cfg_file" 2>/dev/null)
-        workers=$(jq -r '.system.workers // empty' "$cfg_file" 2>/dev/null)
-        geosite=$(jq -r '.system.geo.sitedat_path // empty' "$cfg_file" 2>/dev/null)
-        geoip=$(jq -r '.system.geo.ipdat_path // empty' "$cfg_file" 2>/dev/null)
+        queue_num=$(jq -r '.system.queue_num // empty' "$cfg_file" 2>/dev/null) || true
+        workers=$(jq -r '.system.workers // empty' "$cfg_file" 2>/dev/null) || true
+        geosite=$(jq -r '.system.geo.sitedat_path // empty' "$cfg_file" 2>/dev/null) || true
+        geoip=$(jq -r '.system.geo.ipdat_path // empty' "$cfg_file" 2>/dev/null) || true
 
         [ -n "$queue_num" ] && [ "$queue_num" != "null" ] && log_detail "Queue number" "$queue_num"
         [ -n "$workers" ] && [ "$workers" != "null" ] && log_detail "Worker threads" "$workers"
@@ -294,7 +298,11 @@ action_sysinfo() {
     B4_PLATFORM="$_saved_platform"
     B4_BIN_DIR="$_saved_bin_dir"
     B4_DATA_DIR="$_saved_data_dir"
+    B4_CONFIG_FILE="$_saved_config_file"
     B4_SERVICE_TYPE="$_saved_service_type"
+    B4_SERVICE_DIR="$_saved_service_dir"
+    B4_SERVICE_NAME="$_saved_service_name"
+    B4_PKG_MANAGER="$_saved_pkg_manager"
 }
 
 _sysinfo_show_storage() {

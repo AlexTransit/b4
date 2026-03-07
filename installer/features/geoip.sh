@@ -41,7 +41,7 @@ feature_geoip_run() {
 
         # Check if config already has a geoip path
         if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-            existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+            existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null) || true
             if [ -n "$existing" ] && [ "$existing" != "null" ]; then
                 save_dir=$(dirname "$existing")
                 log_info "Found existing geoip path: $save_dir"

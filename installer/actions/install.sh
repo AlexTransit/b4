@@ -10,8 +10,15 @@ action_install() {
     # --- Wizard ---
     if [ "$QUIET_MODE" -eq 1 ]; then
         WIZARD_MODE="auto"
+        # Preserve user overrides (--bin-dir, --data-dir) before platform defaults
+        _user_bin_dir="$B4_BIN_DIR"
+        _user_data_dir="$B4_DATA_DIR"
         platform_auto_detect
         platform_call info
+        # Re-apply user overrides
+        [ -n "$_user_bin_dir" ] && B4_BIN_DIR="$_user_bin_dir"
+        [ -n "$_user_data_dir" ] && B4_DATA_DIR="$_user_data_dir"
+        [ -n "$_user_data_dir" ] && B4_CONFIG_FILE="${_user_data_dir}/b4.json"
         B4_ARCH="${force_arch:-$(detect_architecture)}"
         detect_pkg_manager
         # Enable all default features in quiet mode
@@ -174,8 +181,8 @@ _show_web_info() {
     protocol="http"
 
     if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-        web_port=$(jq -r '.system.web_server.port // 7000' "$B4_CONFIG_FILE" 2>/dev/null)
-        tls=$(jq -r '.system.web_server.tls_cert // ""' "$B4_CONFIG_FILE" 2>/dev/null)
+        web_port=$(jq -r '.system.web_server.port // 7000' "$B4_CONFIG_FILE" 2>/dev/null) || true
+        tls=$(jq -r '.system.web_server.tls_cert // ""' "$B4_CONFIG_FILE" 2>/dev/null) || true
         [ -n "$tls" ] && protocol="https"
     fi
 

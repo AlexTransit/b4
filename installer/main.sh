@@ -39,7 +39,7 @@ main() {
     case "$ACTION" in
     install) action_install "$VERSION" "$FORCE_ARCH" ;;
     remove)  action_remove ;;
-    update)  action_update "$FORCE_ARCH" ;;
+    update)  action_update "$VERSION" "$FORCE_ARCH" ;;
     sysinfo) action_sysinfo ;;
     esac
 }

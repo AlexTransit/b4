@@ -25,9 +25,13 @@ append() {
         cat "$file" >>"$OUTPUT"
     else
         echo "" >>"$OUTPUT"
-        echo "# ======== ${basename} ========" >>"$OUTPUT"
-        # Skip shebang line, strip leading blank lines
-        tail -n +2 "$file" | sed '/./,$!d' >>"$OUTPUT"
+        # Skip shebang, strip comment-only lines (outside heredocs), collapse leading blanks
+        tail -n +2 "$file" | awk '
+            /<<[[:space:]]*EOF/ || /<<[[:space:]]*'\''EOF'\''/ { heredoc=1 }
+            heredoc { print; if (/^EOF$/) heredoc=0; next }
+            /^[[:space:]]*#/ { next }
+            { print }
+        ' | sed '/./,$!d' >>"$OUTPUT"
     fi
 
     echo "" >>"$OUTPUT"
@@ -78,6 +82,9 @@ done
 
 # 7. Main entry point
 append "${SCRIPT_DIR}/main.sh"
+
+# Collapse multiple consecutive blank lines
+sed -i '/^$/N;/^\n$/d' "$OUTPUT"
 
 chmod +x "$OUTPUT"
 echo "Built: $OUTPUT ($(wc -l <"$OUTPUT") lines)"

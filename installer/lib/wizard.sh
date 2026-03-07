@@ -50,8 +50,13 @@ wizard_auto_detect() {
         exit 1
     fi
 
-    # 2. Load platform defaults
+    # 2. Load platform defaults (preserve user overrides)
+    _user_bin_dir="$B4_BIN_DIR"
+    _user_data_dir="$B4_DATA_DIR"
     platform_call info
+    [ -n "$_user_bin_dir" ] && B4_BIN_DIR="$_user_bin_dir"
+    [ -n "$_user_data_dir" ] && B4_DATA_DIR="$_user_data_dir"
+    [ -n "$_user_data_dir" ] && B4_CONFIG_FILE="${_user_data_dir}/b4.json"
 
     # 3. Detect architecture
     B4_ARCH=$(detect_architecture)

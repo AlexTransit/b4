@@ -90,8 +90,10 @@ _remove_config_dirs() {
     for cfg_dir in "$B4_DATA_DIR" /etc/b4 /opt/etc/b4 /etc/storage/b4; do
         [ -z "$cfg_dir" ] && continue
         [ -d "$cfg_dir" ] || continue
-        # Skip if already checked
-        echo "$checked" | grep -q "$cfg_dir" && continue
+        # Skip if already checked (exact match to avoid substring false positives)
+        case " $checked " in
+        *" $cfg_dir "*) continue ;;
+        esac
         checked="${checked} ${cfg_dir}"
 
         # Show remaining contents
