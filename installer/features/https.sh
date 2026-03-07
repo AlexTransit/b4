@@ -16,7 +16,7 @@ feature_https_default_enabled() {
 }
 
 feature_https_run() {
-    cert_info=$(_https_detect_certs)
+    cert_info=$(_https_detect_certs) || true
     if [ -z "$cert_info" ]; then
         log_info "No TLS certificates found on this system"
         log_info "You can configure HTTPS later in B4 Web UI > Settings > Web Server"

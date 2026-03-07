@@ -459,6 +459,11 @@ _INPUT=""
 read_input() {
     prompt="$1"
     default="$2"
+    # In quiet mode, always use default without prompting
+    if [ "$QUIET_MODE" -eq 1 ] 2>/dev/null; then
+        _INPUT="$default"
+        return 0
+    fi
     printf "${CYAN}%b${NC}" "$prompt" >&2
     read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
     # Strip carriage returns (some terminals/SSH clients send \r)
@@ -567,23 +572,31 @@ wizard_manual_configure() {
     echo ""
 
     # 1. Platform selection
-    echo "  Available platforms:"
-    idx=1
-    for p in $REGISTERED_PLATFORMS; do
-        pname=$(platform_dispatch "$p" name)
-        printf "    ${BOLD}%d${NC}) %s\n" "$idx" "$pname"
-        idx=$((idx + 1))
-    done
-    echo ""
+    while true; do
+        echo "  Available platforms:"
+        idx=1
+        for p in $REGISTERED_PLATFORMS; do
+            pname=$(platform_dispatch "$p" name)
+            printf "    ${BOLD}%d${NC}) %s\n" "$idx" "$pname"
+            idx=$((idx + 1))
+        done
+        echo ""
 
-    read_input "Select platform [1]: " "1"
-    idx=1
-    for p in $REGISTERED_PLATFORMS; do
-        if [ "$idx" = "$_INPUT" ]; then
-            B4_PLATFORM="$p"
+        read_input "Select platform [1]: " "1"
+        idx=1
+        for p in $REGISTERED_PLATFORMS; do
+            if [ "$idx" = "$_INPUT" ]; then
+                B4_PLATFORM="$p"
+                break
+            fi
+            idx=$((idx + 1))
+        done
+
+        if [ -n "$B4_PLATFORM" ]; then
             break
         fi
-        idx=$((idx + 1))
+        log_warn "Invalid selection, please try again"
+        echo ""
     done
 
     # Load platform defaults first
@@ -1461,38 +1474,38 @@ feature_geoip_default_enabled() {
 }
 
 feature_geoip_run() {
-    log_sep
-    echo ""
-
-    # Select source
-    echo "  Available geoip sources:"
-    echo "$GEOIP_SOURCES" | while IFS='|' read -r num name _url; do
-        [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
-    done
-    echo ""
-
-    read_input "Select source [3]: " "3"
-
-    base_url=$(echo "$GEOIP_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
-    if [ -z "$base_url" ]; then
-        log_warn "Invalid selection, using default"
-        base_url=$(echo "$GEOIP_SOURCES" | grep "^3|" | cut -d'|' -f3)
-    fi
-
-    # Destination directory
+    # Default source (B4 GeoIP = 3)
+    base_url=$(echo "$GEOIP_SOURCES" | grep "^3|" | cut -d'|' -f3)
     save_dir="$B4_DATA_DIR"
 
-    # Check if config already has a geoip path
-    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-        existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
-        if [ -n "$existing" ] && [ "$existing" != "null" ]; then
-            save_dir=$(dirname "$existing")
-            log_info "Found existing geoip path: $save_dir"
-        fi
-    fi
+    if [ "$QUIET_MODE" -ne 1 ]; then
+        log_sep
+        echo ""
 
-    read_input "Save directory [${save_dir}]: " "$save_dir"
-    save_dir="$_INPUT"
+        # Select source
+        echo "  Available geoip sources:"
+        echo "$GEOIP_SOURCES" | while IFS='|' read -r num name _url; do
+            [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
+        done
+        echo ""
+
+        read_input "Select source [3]: " "3"
+
+        _sel_url=$(echo "$GEOIP_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3) || true
+        [ -n "$_sel_url" ] && base_url="$_sel_url" || log_warn "Invalid selection, using default"
+
+        # Check if config already has a geoip path
+        if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+            existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+            if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+                save_dir=$(dirname "$existing")
+                log_info "Found existing geoip path: $save_dir"
+            fi
+        fi
+
+        read_input "Save directory [${save_dir}]: " "$save_dir"
+        save_dir="$_INPUT"
+    fi
 
     ensure_dir "$save_dir" "GeoIP directory" || return 1
 
@@ -1537,38 +1550,38 @@ feature_geosite_default_enabled() {
 }
 
 feature_geosite_run() {
-    log_sep
-    echo ""
-
-    # Select source
-    echo "  Available geosite sources:"
-    echo "$GEOSITE_SOURCES" | while IFS='|' read -r num name _url; do
-        [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
-    done
-    echo ""
-
-    read_input "Select source [2]: " "2"
-
-    base_url=$(echo "$GEOSITE_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
-    if [ -z "$base_url" ]; then
-        log_warn "Invalid selection, using default"
-        base_url=$(echo "$GEOSITE_SOURCES" | grep "^2|" | cut -d'|' -f3)
-    fi
-
-    # Destination directory
+    # Default source (RUNET Freedom = 2)
+    base_url=$(echo "$GEOSITE_SOURCES" | grep "^2|" | cut -d'|' -f3)
     save_dir="$B4_DATA_DIR"
 
-    # Check if config already has a geosite path
-    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-        existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
-        if [ -n "$existing" ] && [ "$existing" != "null" ]; then
-            save_dir=$(dirname "$existing")
-            log_info "Found existing geosite path: $save_dir"
-        fi
-    fi
+    if [ "$QUIET_MODE" -ne 1 ]; then
+        log_sep
+        echo ""
 
-    read_input "Save directory [${save_dir}]: " "$save_dir"
-    save_dir="$_INPUT"
+        # Select source
+        echo "  Available geosite sources:"
+        echo "$GEOSITE_SOURCES" | while IFS='|' read -r num name _url; do
+            [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
+        done
+        echo ""
+
+        read_input "Select source [2]: " "2"
+
+        _sel_url=$(echo "$GEOSITE_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3) || true
+        [ -n "$_sel_url" ] && base_url="$_sel_url" || log_warn "Invalid selection, using default"
+
+        # Check if config already has a geosite path
+        if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+            existing=$(jq -r '.system.geo.sitedat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+            if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+                save_dir=$(dirname "$existing")
+                log_info "Found existing geosite path: $save_dir"
+            fi
+        fi
+
+        read_input "Save directory [${save_dir}]: " "$save_dir"
+        save_dir="$_INPUT"
+    fi
 
     ensure_dir "$save_dir" "GeoSite directory" || return 1
 
@@ -1686,7 +1699,7 @@ feature_https_default_enabled() {
 }
 
 feature_https_run() {
-    cert_info=$(_https_detect_certs)
+    cert_info=$(_https_detect_certs) || true
     if [ -z "$cert_info" ]; then
         log_info "No TLS certificates found on this system"
         log_info "You can configure HTTPS later in B4 Web UI > Settings > Web Server"
@@ -2069,20 +2082,20 @@ EOF
 
     systemctl daemon-reload
     log_ok "Systemd service created: ${B4_SERVICE_NAME}"
-    log_info "  systemctl start b4"
-    log_info "  systemctl enable b4  # auto-start on boot"
+    log_info "  systemctl start ${B4_SERVICE_NAME}"
+    log_info "  systemctl enable ${B4_SERVICE_NAME}  # auto-start on boot"
 }
 
 service_systemd_remove() {
-    systemctl stop b4 2>/dev/null || true
-    systemctl disable b4 2>/dev/null || true
+    systemctl stop "${B4_SERVICE_NAME}" 2>/dev/null || true
+    systemctl disable "${B4_SERVICE_NAME}" 2>/dev/null || true
     rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
     systemctl daemon-reload
     log_info "Removed systemd service: ${B4_SERVICE_NAME}"
 }
 
 service_systemd_start() {
-    if systemctl restart b4 2>/dev/null; then
+    if systemctl restart "${B4_SERVICE_NAME}" 2>/dev/null; then
         log_ok "Service started"
         return 0
     fi
@@ -2091,7 +2104,7 @@ service_systemd_start() {
 }
 
 service_systemd_stop() {
-    systemctl stop b4 2>/dev/null || true
+    systemctl stop "${B4_SERVICE_NAME}" 2>/dev/null || true
 }
 
 register_service "systemd"
@@ -2259,7 +2272,15 @@ action_install() {
 
     # Verify checksum
     sha_url="${download_url}.sha256"
-    verify_checksum "$archive_path" "$sha_url" || true
+    _cs_ret=0
+    verify_checksum "$archive_path" "$sha_url" || _cs_ret=$?
+    # exit code 2 = actual SHA256 mismatch (corrupted/tampered download)
+    if [ "$_cs_ret" -eq 2 ]; then
+        log_warn "Checksum mismatch — download may be corrupted"
+        if ! confirm "Continue anyway?"; then
+            exit 1
+        fi
+    fi
 
     # Extract
     log_info "Extracting..."
@@ -2561,7 +2582,14 @@ action_update() {
 
     # Verify
     sha_url="${download_url}.sha256"
-    verify_checksum "$archive_path" "$sha_url" || true
+    _cs_ret=0
+    verify_checksum "$archive_path" "$sha_url" || _cs_ret=$?
+    if [ "$_cs_ret" -eq 2 ]; then
+        log_warn "Checksum mismatch — download may be corrupted"
+        if ! confirm "Continue anyway?"; then
+            exit 1
+        fi
+    fi
 
     # Extract
     cd "$TEMP_DIR"

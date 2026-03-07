@@ -76,23 +76,31 @@ wizard_manual_configure() {
     echo ""
 
     # 1. Platform selection
-    echo "  Available platforms:"
-    idx=1
-    for p in $REGISTERED_PLATFORMS; do
-        pname=$(platform_dispatch "$p" name)
-        printf "    ${BOLD}%d${NC}) %s\n" "$idx" "$pname"
-        idx=$((idx + 1))
-    done
-    echo ""
+    while true; do
+        echo "  Available platforms:"
+        idx=1
+        for p in $REGISTERED_PLATFORMS; do
+            pname=$(platform_dispatch "$p" name)
+            printf "    ${BOLD}%d${NC}) %s\n" "$idx" "$pname"
+            idx=$((idx + 1))
+        done
+        echo ""
 
-    read_input "Select platform [1]: " "1"
-    idx=1
-    for p in $REGISTERED_PLATFORMS; do
-        if [ "$idx" = "$_INPUT" ]; then
-            B4_PLATFORM="$p"
+        read_input "Select platform [1]: " "1"
+        idx=1
+        for p in $REGISTERED_PLATFORMS; do
+            if [ "$idx" = "$_INPUT" ]; then
+                B4_PLATFORM="$p"
+                break
+            fi
+            idx=$((idx + 1))
+        done
+
+        if [ -n "$B4_PLATFORM" ]; then
             break
         fi
-        idx=$((idx + 1))
+        log_warn "Invalid selection, please try again"
+        echo ""
     done
 
     # Load platform defaults first

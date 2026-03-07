@@ -387,6 +387,11 @@ _INPUT=""
 read_input() {
     prompt="$1"
     default="$2"
+    # In quiet mode, always use default without prompting
+    if [ "$QUIET_MODE" -eq 1 ] 2>/dev/null; then
+        _INPUT="$default"
+        return 0
+    fi
     printf "${CYAN}%b${NC}" "$prompt" >&2
     read _INPUT </dev/tty 2>/dev/null || _INPUT="$default"
     # Strip carriage returns (some terminals/SSH clients send \r)

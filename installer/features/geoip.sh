@@ -19,38 +19,38 @@ feature_geoip_default_enabled() {
 }
 
 feature_geoip_run() {
-    log_sep
-    echo ""
-
-    # Select source
-    echo "  Available geoip sources:"
-    echo "$GEOIP_SOURCES" | while IFS='|' read -r num name _url; do
-        [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
-    done
-    echo ""
-
-    read_input "Select source [3]: " "3"
-
-    base_url=$(echo "$GEOIP_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3)
-    if [ -z "$base_url" ]; then
-        log_warn "Invalid selection, using default"
-        base_url=$(echo "$GEOIP_SOURCES" | grep "^3|" | cut -d'|' -f3)
-    fi
-
-    # Destination directory
+    # Default source (B4 GeoIP = 3)
+    base_url=$(echo "$GEOIP_SOURCES" | grep "^3|" | cut -d'|' -f3)
     save_dir="$B4_DATA_DIR"
 
-    # Check if config already has a geoip path
-    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
-        existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
-        if [ -n "$existing" ] && [ "$existing" != "null" ]; then
-            save_dir=$(dirname "$existing")
-            log_info "Found existing geoip path: $save_dir"
-        fi
-    fi
+    if [ "$QUIET_MODE" -ne 1 ]; then
+        log_sep
+        echo ""
 
-    read_input "Save directory [${save_dir}]: " "$save_dir"
-    save_dir="$_INPUT"
+        # Select source
+        echo "  Available geoip sources:"
+        echo "$GEOIP_SOURCES" | while IFS='|' read -r num name _url; do
+            [ -n "$num" ] && printf "    ${BOLD}%s${NC}) %s\n" "$num" "$name"
+        done
+        echo ""
+
+        read_input "Select source [3]: " "3"
+
+        _sel_url=$(echo "$GEOIP_SOURCES" | grep "^${_INPUT}|" | cut -d'|' -f3) || true
+        [ -n "$_sel_url" ] && base_url="$_sel_url" || log_warn "Invalid selection, using default"
+
+        # Check if config already has a geoip path
+        if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+            existing=$(jq -r '.system.geo.ipdat_path // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+            if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+                save_dir=$(dirname "$existing")
+                log_info "Found existing geoip path: $save_dir"
+            fi
+        fi
+
+        read_input "Save directory [${save_dir}]: " "$save_dir"
+        save_dir="$_INPUT"
+    fi
 
     ensure_dir "$save_dir" "GeoIP directory" || return 1
 

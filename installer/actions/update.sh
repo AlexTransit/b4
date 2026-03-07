@@ -71,7 +71,14 @@ action_update() {
 
     # Verify
     sha_url="${download_url}.sha256"
-    verify_checksum "$archive_path" "$sha_url" || true
+    _cs_ret=0
+    verify_checksum "$archive_path" "$sha_url" || _cs_ret=$?
+    if [ "$_cs_ret" -eq 2 ]; then
+        log_warn "Checksum mismatch — download may be corrupted"
+        if ! confirm "Continue anyway?"; then
+            exit 1
+        fi
+    fi
 
     # Extract
     cd "$TEMP_DIR"

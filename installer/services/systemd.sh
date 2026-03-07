@@ -24,20 +24,20 @@ EOF
 
     systemctl daemon-reload
     log_ok "Systemd service created: ${B4_SERVICE_NAME}"
-    log_info "  systemctl start b4"
-    log_info "  systemctl enable b4  # auto-start on boot"
+    log_info "  systemctl start ${B4_SERVICE_NAME}"
+    log_info "  systemctl enable ${B4_SERVICE_NAME}  # auto-start on boot"
 }
 
 service_systemd_remove() {
-    systemctl stop b4 2>/dev/null || true
-    systemctl disable b4 2>/dev/null || true
+    systemctl stop "${B4_SERVICE_NAME}" 2>/dev/null || true
+    systemctl disable "${B4_SERVICE_NAME}" 2>/dev/null || true
     rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
     systemctl daemon-reload
     log_info "Removed systemd service: ${B4_SERVICE_NAME}"
 }
 
 service_systemd_start() {
-    if systemctl restart b4 2>/dev/null; then
+    if systemctl restart "${B4_SERVICE_NAME}" 2>/dev/null; then
         log_ok "Service started"
         return 0
     fi
@@ -46,7 +46,7 @@ service_systemd_start() {
 }
 
 service_systemd_stop() {
-    systemctl stop b4 2>/dev/null || true
+    systemctl stop "${B4_SERVICE_NAME}" 2>/dev/null || true
 }
 
 register_service "systemd"

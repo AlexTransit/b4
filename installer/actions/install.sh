@@ -71,7 +71,15 @@ action_install() {
 
     # Verify checksum
     sha_url="${download_url}.sha256"
-    verify_checksum "$archive_path" "$sha_url" || true
+    _cs_ret=0
+    verify_checksum "$archive_path" "$sha_url" || _cs_ret=$?
+    # exit code 2 = actual SHA256 mismatch (corrupted/tampered download)
+    if [ "$_cs_ret" -eq 2 ]; then
+        log_warn "Checksum mismatch — download may be corrupted"
+        if ! confirm "Continue anyway?"; then
+            exit 1
+        fi
+    fi
 
     # Extract
     log_info "Extracting..."
