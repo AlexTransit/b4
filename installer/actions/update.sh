@@ -93,12 +93,20 @@ action_update() {
     cd "$TEMP_DIR"
     tar -xzf "$archive_path" || { log_err "Extraction failed"; exit 1; }
 
-    # Stop, backup, replace
-    stop_b4
+    # Stop service properly (prevents systemd/procd auto-restart race condition)
+    if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
+        log_info "Stopping service..."
+        service_call stop 2>/dev/null || true
+        sleep 1
+    else
+        stop_b4
+    fi
 
     ts=$(date '+%Y%m%d_%H%M%S')
     cp "$existing_bin" "${existing_bin}.backup.${ts}"
 
+    # Remove old binary first to avoid ETXTBSY if process is still running
+    rm -f "$existing_bin"
     mv "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" 2>/dev/null || \
         cp "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" || \
         { log_err "Failed to replace binary"; exit 1; }
