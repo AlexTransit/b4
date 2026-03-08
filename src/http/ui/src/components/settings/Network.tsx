@@ -51,7 +51,7 @@ export const NetworkSettings = ({ config, onChange }: NetworkSettingsProps) => {
           helperText="Number of worker threads for processing packets simultaneously (default 4)"
         />
         <B4Slider
-          label="TCP Connection Bytes Limit"
+          label="TCP Connection Packets Limit"
           value={config.queue.tcp_conn_bytes_limit}
           onChange={(value) => onChange("queue.tcp_conn_bytes_limit", value)}
           min={1}
@@ -60,7 +60,7 @@ export const NetworkSettings = ({ config, onChange }: NetworkSettingsProps) => {
           helperText="Max TCP packets per connection to inspect (default 19). Sets cannot exceed this value."
         />
         <B4Slider
-          label="UDP Connection Bytes Limit"
+          label="UDP Connection Packets Limit"
           value={config.queue.udp_conn_bytes_limit}
           onChange={(value) => onChange("queue.udp_conn_bytes_limit", value)}
           min={1}

@@ -47,6 +47,7 @@ import { B4SetConfig, GeoConfig } from "@models/config";
 import { useDevices } from "@b4.devices";
 import { colors } from "@design";
 import { SetStats } from "./Manager";
+import { sortDevices } from "@utils";
 
 interface TargetSettingsProps {
   config: B4SetConfig;
@@ -690,15 +691,7 @@ export const TargetSettings = ({
                             </TableCell>
                           </TableRow>
                         ) : (
-                          [...devices]
-                            .sort((a, b) => {
-                              const aSelected = isSourceDeviceSelected(a.mac);
-                              const bSelected = isSourceDeviceSelected(b.mac);
-                              if (aSelected !== bSelected) return aSelected ? -1 : 1;
-                              const aName = (a.alias || a.vendor || a.hostname || "").toLowerCase();
-                              const bName = (b.alias || b.vendor || b.hostname || "").toLowerCase();
-                              return aName.localeCompare(bName);
-                            })
+                          sortDevices(devices, isSourceDeviceSelected)
                             .map((device) => (
                             <TableRow
                               key={device.mac}

@@ -116,6 +116,17 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.Queue.TCPConnBytesLimit < DefaultConfig.Queue.TCPConnBytesLimit {
+		c.Queue.TCPConnBytesLimit = DefaultConfig.Queue.TCPConnBytesLimit
+	} else if c.Queue.TCPConnBytesLimit > 100 {
+		c.Queue.TCPConnBytesLimit = 100
+	}
+	if c.Queue.UDPConnBytesLimit < DefaultConfig.Queue.UDPConnBytesLimit {
+		c.Queue.UDPConnBytesLimit = DefaultConfig.Queue.UDPConnBytesLimit
+	} else if c.Queue.UDPConnBytesLimit > 30 {
+		c.Queue.UDPConnBytesLimit = 30
+	}
+
 	for _, set := range c.Sets {
 
 		if len(set.Fragmentation.SeqOverlapPattern) > 0 {

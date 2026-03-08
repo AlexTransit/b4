@@ -506,7 +506,7 @@ func (w *Worker) Start() error {
 					log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s", sniTarget, host, srcStr, sport, ipTarget, dstStr, dport, srcMac)
 				}
 
-				if isSTUN && set.UDP.FilterSTUN {
+				if isSTUN && set != nil && set.UDP.FilterSTUN {
 					if err := q.SetVerdict(id, nfqueue.NfAccept); err != nil {
 						log.Tracef("failed to set verdict on packet %d: %v", id, err)
 					}

@@ -51,6 +51,8 @@ func (w *Worker) sendDisorderFragmentsV6(cfg *config.SetConfig, packet []byte, d
 	fakePerSegCount := disorder.FakePerSegCount
 	if fakePerSegCount <= 0 {
 		fakePerSegCount = 1
+	} else if fakePerSegCount > 11 {
+		fakePerSegCount = 11
 	}
 
 	seg2d := config.ResolveSeg2Delay(cfg.TCP.Seg2Delay, cfg.TCP.Seg2DelayMax)

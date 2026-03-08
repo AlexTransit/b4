@@ -72,6 +72,8 @@ func (w *Worker) sendComboFragmentsV6(cfg *config.SetConfig, packet []byte, dst 
 	fakePerSegCount := combo.FakePerSegCount
 	if fakePerSegCount <= 0 {
 		fakePerSegCount = 1
+	} else if fakePerSegCount > 11 {
+		fakePerSegCount = 11
 	}
 
 	for i, seg := range segments {

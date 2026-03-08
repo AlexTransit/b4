@@ -31,6 +31,7 @@ import {
   B4InlineEdit,
 } from "@b4.elements";
 import { useDevices, DeviceInfo, DevicesSettingsProps } from "@b4.devices";
+import { sortDevices } from "@utils";
 
 const DeviceNameCell = ({
   device,
@@ -289,15 +290,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        [...devices]
-                          .sort((a, b) => {
-                            const aSelected = isSelected(a.mac);
-                            const bSelected = isSelected(b.mac);
-                            if (aSelected !== bSelected) return aSelected ? -1 : 1;
-                            const aName = (a.alias || a.vendor || a.hostname || "").toLowerCase();
-                            const bName = (b.alias || b.vendor || b.hostname || "").toLowerCase();
-                            return aName.localeCompare(bName);
-                          })
+                        sortDevices(devices, isSelected)
                           .map((device) => (
                           <TableRow
                             key={device.mac}

@@ -88,6 +88,13 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Destination path required", http.StatusBadRequest)
 		return
 	}
+
+	if err := validateDestinationPath(req.DestinationPath); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	req.DestinationPath = filepath.Clean(req.DestinationPath)
+
 	if req.GeositeURL == "" && req.GeoipURL == "" {
 		http.Error(w, "At least one of geosite_url or geoip_url is required", http.StatusBadRequest)
 		return
@@ -167,6 +174,17 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+func validateDestinationPath(destPath string) error {
+	cleaned := filepath.Clean(destPath)
+	if !filepath.IsAbs(cleaned) {
+		return fmt.Errorf("destination path must be absolute")
+	}
+	if strings.Contains(cleaned, "..") {
+		return fmt.Errorf("destination path must not contain '..'")
+	}
+	return nil
+}
+
 func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -174,9 +192,12 @@ func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	const maxUploadSize = 500 * 1024 * 1024 // 500MB
+	const maxMemory = 32 << 20              // 32MB in-memory limit for multipart parsing
 
-	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
-		http.Error(w, "Failed to parse upload", http.StatusBadRequest)
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+
+	if err := r.ParseMultipartForm(maxMemory); err != nil {
+		http.Error(w, "Failed to parse upload or file too large", http.StatusBadRequest)
 		return
 	}
 
@@ -198,6 +219,12 @@ func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Destination path required", http.StatusBadRequest)
 		return
 	}
+
+	if err := validateDestinationPath(destPath); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	destPath = filepath.Clean(destPath)
 
 	ext := strings.ToLower(filepath.Ext(header.Filename))
 	if ext != ".dat" && ext != ".db" {

@@ -27,7 +27,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Slider
-            label="Connection Bytes Limit"
+            label="Connection Packets Limit"
             value={config.tcp.conn_bytes_limit}
             onChange={(value: number) =>
               onChange("tcp.conn_bytes_limit", value)
