@@ -114,7 +114,26 @@ service_entware_remove() {
 
 service_entware_start() {
     if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null && log_ok "Service started" && return 0
+        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null || {
+            log_warn "Could not start service"
+            return 1
+        }
+        sleep 2
+        if pidof b4 >/dev/null 2>&1 || pgrep -x b4 >/dev/null 2>&1; then
+            log_ok "Service started"
+            return 0
+        fi
+        log_error "Service crashed immediately after start"
+        for _logf in /var/log/b4/errors.log /opt/var/log/b4.log; do
+            if [ -s "$_logf" ]; then
+                log_info "Last log entries from $_logf:"
+                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
+                    log_info "  $_line"
+                done
+                break
+            fi
+        done
+        return 1
     fi
     log_warn "Could not start service"
     return 1

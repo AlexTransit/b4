@@ -38,8 +38,17 @@ service_systemd_remove() {
 
 service_systemd_start() {
     if systemctl restart "${B4_SERVICE_NAME}" 2>/dev/null; then
-        log_ok "Service started"
-        return 0
+        sleep 2
+        if systemctl is-active --quiet "${B4_SERVICE_NAME}" 2>/dev/null; then
+            log_ok "Service started"
+            return 0
+        fi
+        log_error "Service crashed immediately after start"
+        log_info "Check logs with: journalctl -u ${B4_SERVICE_NAME} --no-pager -n 10"
+        journalctl -u "${B4_SERVICE_NAME}" --no-pager -n 5 2>/dev/null | while IFS= read -r _line; do
+            log_info "  $_line"
+        done
+        return 1
     fi
     log_warn "Could not start service"
     return 1
