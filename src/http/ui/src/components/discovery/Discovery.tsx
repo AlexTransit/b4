@@ -267,6 +267,19 @@ export const DiscoveryRunner = () => {
     setExpandedDomains(new Set());
   }, [resetDiscovery]);
 
+  const getDomainStatusBadge = (domainResult: { best_success: boolean; dns_result?: { transport_blocked?: boolean } }) => {
+    if (domainResult.best_success) {
+      return <B4Badge label="Success" size="small" variant="filled" color="primary" />;
+    }
+    if (running) {
+      return <B4Badge label="Testing..." size="small" variant="outlined" color="primary" />;
+    }
+    if (domainResult.dns_result?.transport_blocked) {
+      return <B4Badge label="Blocked" size="small" color="info" />;
+    }
+    return <B4Badge label="Failed" size="small" color="error" />;
+  };
+
   const groupResultsByPhase = (results: Record<string, DomainPresetResult>) => {
     const grouped: Record<DiscoveryPhase, DomainPresetResult[]> = {
       baseline: [],
@@ -512,23 +525,7 @@ export const DiscoveryRunner = () => {
                         >
                           {domainResult.domain}
                         </Typography>
-                        {domainResult.best_success ? (
-                          <B4Badge
-                            label="Success"
-                            size="small"
-                            variant="filled"
-                            color="primary"
-                          />
-                        ) : running ? (
-                          <B4Badge
-                            label="Testing..."
-                            size="small"
-                            variant="outlined"
-                            color="primary"
-                          />
-                        ) : (
-                          <B4Badge label="Failed" size="small" color="error" />
-                        )}
+                        {getDomainStatusBadge(domainResult)}
                         <B4Badge
                           label={`${successCount}/${totalCount} configs`}
                           size="small"
@@ -784,11 +781,21 @@ export const DiscoveryRunner = () => {
                     {/* Failed state */}
                     {!domainResult.best_success && !running && (
                       <Box sx={{ p: 3 }}>
-                        <B4Alert severity="error">
-                          All {Object.keys(domainResult.results).length} tested
-                          configurations failed for this domain. Check your
-                          network connection and domain accessibility.
-                        </B4Alert>
+                        {domainResult.dns_result?.transport_blocked ? (
+                          <B4Alert severity="warning">
+                            <strong>Transport blocked:</strong> This domain is
+                            blocked at the IP/network level — TCP connections
+                            cannot be established to any known IP address. DPI
+                            bypass strategies cannot help with IP-level blocking.
+                            A VPN or proxy is required for this domain.
+                          </B4Alert>
+                        ) : (
+                          <B4Alert severity="error">
+                            All {Object.keys(domainResult.results).length} tested
+                            configurations failed for this domain. Check your
+                            network connection and domain accessibility.
+                          </B4Alert>
+                        )}
                       </Box>
                     )}
                     {!domainResult.best_success && running && (
