@@ -122,7 +122,7 @@ wizard_manual_configure() {
 
     # 4. Service type
     echo ""
-    echo "  Service types: systemd, procd, sysv, entware, none"
+    echo "  Service types: systemd, openrc, procd, sysv, entware, none"
     read_input "Service type [${B4_SERVICE_TYPE}]: " "$B4_SERVICE_TYPE"
     B4_SERVICE_TYPE="$_INPUT"
 

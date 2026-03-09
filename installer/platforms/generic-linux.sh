@@ -37,6 +37,10 @@ platform_generic_linux_info() {
         B4_SERVICE_TYPE="systemd"
         B4_SERVICE_DIR="/etc/systemd/system"
         B4_SERVICE_NAME="b4.service"
+    elif [ -f /sbin/openrc-run ] || command_exists openrc-run; then
+        B4_SERVICE_TYPE="openrc"
+        B4_SERVICE_DIR="/etc/init.d"
+        B4_SERVICE_NAME="b4"
     elif [ -d /etc/init.d ]; then
         B4_SERVICE_TYPE="sysv"
         B4_SERVICE_DIR="/etc/init.d"
