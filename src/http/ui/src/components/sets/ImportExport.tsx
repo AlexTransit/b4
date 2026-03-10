@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Button, Stack } from "@mui/material";
+import { useState, useEffect, useMemo } from "react";
+import { Button, Stack, Typography } from "@mui/material";
 import { ImportExportIcon, CopyIcon, DownloadIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
@@ -85,6 +85,10 @@ function buildExportJson(config: B4SetConfig): Record<string, unknown> {
     }
   }
 
+  if (isPlainObject(result.targets)) {
+    delete result.targets.source_devices;
+  }
+
   return result;
 }
 
@@ -99,6 +103,10 @@ export const ImportExportSettings = ({
 }: ImportExportSettingsProps) => {
   const [jsonValue, setJsonValue] = useState("");
   const { showSuccess, showError } = useSnackbar();
+  const hasSourceDevices = useMemo(
+    () => (config.targets.source_devices ?? []).length > 0,
+    [config.targets.source_devices],
+  );
 
   useEffect(() => {
     setJsonValue(JSON.stringify(buildExportJson(config)));
@@ -171,7 +179,7 @@ export const ImportExportSettings = ({
       const defaults = createDefaultSet(0);
       const fullConfig = mergeWithDefaults(
         configFields,
-        defaults as unknown as Record<string, unknown>
+        defaults as unknown as Record<string, unknown>,
       ) as Record<string, unknown>;
 
       const parsed = migrateSetConfig(fullConfig);
@@ -232,7 +240,7 @@ export const ImportExportSettings = ({
           rows={10}
           helperText="Paste or type a set configuration JSON to import it."
         />
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} alignItems="center">
           <Button
             variant="outlined"
             startIcon={<CopyIcon />}
@@ -247,6 +255,12 @@ export const ImportExportSettings = ({
           >
             Import
           </Button>
+          {hasSourceDevices && (
+            <Typography variant="caption" color="warning.main">
+              This set has source device filters configured. They are excluded
+              from export as they are device-specific.
+            </Typography>
+          )}
         </Stack>
       </Stack>
     </B4Section>
