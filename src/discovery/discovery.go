@@ -1131,6 +1131,18 @@ func (ds *DiscoverySuite) fetchForDomain(di DomainInput, timeout time.Duration) 
 	return ds.fetchUsingIPForDomain(di, timeout, "")
 }
 
+// tlsFilterVersion converts the discovery TLS version setting to a config TLS filter value.
+func (ds *DiscoverySuite) tlsFilterVersion() string {
+	switch ds.tlsVersion {
+	case "tls12":
+		return "1.2"
+	case "tls13":
+		return "1.3"
+	default:
+		return ""
+	}
+}
+
 func (ds *DiscoverySuite) tlsConfig() *tls.Config {
 	cfg := &tls.Config{InsecureSkipVerify: true}
 	switch ds.tlsVersion {
@@ -1475,6 +1487,7 @@ func (ds *DiscoverySuite) buildTestConfig(preset ConfigPreset) *config.Config {
 		testSet.Enabled = true
 		testSet.Targets.SNIDomains = []string{ds.Domain}
 		testSet.Targets.DomainsToMatch = []string{ds.Domain}
+		testSet.Targets.TLSVersion = ds.tlsFilterVersion()
 
 		geoip, geosite := GetCDNCategories(ds.Domain)
 		if len(geoip) > 0 || len(geosite) > 0 {
@@ -1615,6 +1628,7 @@ func (ds *DiscoverySuite) buildTestConfigMulti(preset ConfigPreset) *config.Conf
 
 		testSet.Targets.SNIDomains = allDomains
 		testSet.Targets.DomainsToMatch = allDomains
+		testSet.Targets.TLSVersion = ds.tlsFilterVersion()
 
 		if len(allIPs) > 0 {
 			cidrIPs := make([]string, 0, len(allIPs))

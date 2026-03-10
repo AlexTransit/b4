@@ -109,6 +109,9 @@ const TableRowMemo = memo<{
           }
         >
           <Stack direction="row" spacing={1} alignItems="center">
+            {log.tls && (
+              <B4Badge variant="outlined" color="primary" label={log.tls} />
+            )}
             {log.domain && <Typography>{log.domain}</Typography>}
             <Box sx={{ flex: 1 }} />
             {log.domain && !log.hostSet && (

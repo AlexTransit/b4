@@ -195,7 +195,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if mLearned, learnedSet, _ := matcher.MatchLearnedIPWithSource(pkt.dst, pkt.srcMac); mLearned {
-		if learnedSet.MatchesTCPDPort(dport) {
+		if learnedSet.MatchesTCPDPort(dport) && learnedSet.Targets.TLSVersion == "" {
 			matched = true
 			set = learnedSet
 			st = learnedSet
@@ -277,6 +277,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	host := ""
+	var tlsVersion uint16
 	matchedIP := st != nil
 	matchedSNI := false
 	ipTarget := ""
@@ -295,14 +296,14 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 		connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 
-		host, _ = sni.ParseTLSClientHelloSNI(payload)
+		host, tlsVersion, _ = sni.ParseTLSClientHelloSNI(payload)
 
 		if captureManager := capture.GetManager(cfg); captureManager != nil {
 			captureManager.CapturePayload(connKey, host, "tls", payload)
 		}
 
 		if host != "" {
-			if mSNI, stSNI := matcher.MatchSNIWithSource(host, pkt.srcMac); mSNI {
+			if mSNI, stSNI := matcher.MatchSNIWithSourceTLS(host, pkt.srcMac, tlsVersion); mSNI {
 				// If SNI-matched set has a port filter, verify port matches (AND logic)
 				if stSNI.MatchesTCPDPort(dport) {
 					matchedSNI = true
@@ -312,17 +313,22 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 				}
 			}
 		}
+
+		// If IP-matched set has a TLS version filter that doesn't match, clear it
+		if matched && !matchedSNI && set != nil && !set.MatchesTLSVersion(tlsVersion) {
+			matched = false
+			set = nil
+		}
 	}
 
-	if matchedIP {
-		ipTarget = st.Name
-	}
 	if matchedSNI {
 		sniTarget = set.Name
+	} else if matchedIP {
+		ipTarget = st.Name
 	}
 
 	if !log.IsDiscoveryActive() {
-		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac)
+		log.Infof(",TCP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion))
 	}
 
 	{
@@ -474,7 +480,11 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	matched = shouldHandle
 
 	if !log.IsDiscoveryActive() {
-		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac)
+		udpTLS := ""
+		if host != "" {
+			udpTLS = "1.3" // QUIC is always TLS 1.3
+		}
+		log.Infof(",UDP,%s,%s,%s:%d,%s,%s:%d,%s,%s", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS)
 	}
 
 	if isSTUN && set != nil && set.UDP.FilterSTUN {

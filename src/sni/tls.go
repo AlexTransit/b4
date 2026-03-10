@@ -56,7 +56,9 @@ func contains(s string, char byte) bool {
 	return false
 }
 
-func ParseTLSClientHelloSNI(b []byte) (string, bool) {
+// ParseTLSClientHelloSNI extracts the SNI and max supported TLS version from a TLS ClientHello.
+// Returns (sni, maxTLSVersion, ok). maxTLSVersion uses TLS wire format: 0x0303=TLS1.2, 0x0304=TLS1.3.
+func ParseTLSClientHelloSNI(b []byte) (string, uint16, bool) {
 	i := 0
 	for i+5 <= len(b) {
 		if b[i] != 0x16 {
@@ -99,7 +101,7 @@ func ParseTLSClientHelloSNI(b []byte) (string, bool) {
 			}
 
 			ch := rec[4 : 4+hl]
-			sni, hasECH, _ := parseTLSClientHelloMeta(ch)
+			sni, hasECH, _, tlsVer := parseTLSClientHelloMeta(ch)
 			if sni == "" {
 				if hasECH {
 					log.Tracef("TLS: ECH present, no clear SNI")
@@ -116,15 +118,15 @@ func ParseTLSClientHelloSNI(b []byte) (string, bool) {
 				continue
 			}
 
-			return sni, true
+			return sni, tlsVer, true
 		}
 		i += 5 + recLen
 	}
-	return "", false
+	return "", 0, false
 }
 
 func ParseTLSClientHelloBodySNI(ch []byte) (string, bool) {
-	sni, _, _ := parseTLSClientHelloMeta(ch)
+	sni, _, _, _ := parseTLSClientHelloMeta(ch)
 	if sni == "" {
 		return "", false
 	}
@@ -136,70 +138,71 @@ func ParseTLSClientHelloBodySNI(ch []byte) (string, bool) {
 	return sni, true
 }
 
-func parseTLSClientHelloMeta(ch []byte) (string, bool, []string) {
+func parseTLSClientHelloMeta(ch []byte) (string, bool, []string, uint16) {
 	p := 0
 	chLen := len(ch)
 
-	// Version (2 bytes)
+	// Version (2 bytes) - legacy version field
 	if p+2 > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
+	legacyVersion := uint16(ch[p])<<8 | uint16(ch[p+1])
 	p += 2
 
 	// Random (32 bytes)
 	if p+32 > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	p += 32
 
 	// Session ID
 	if p+1 > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	sidLen := int(ch[p])
 	p++
 	if p+sidLen > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	p += sidLen
 
 	// Cipher suites
 	if p+2 > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	csLen := int(ch[p])<<8 | int(ch[p+1])
 	p += 2
 	if p+csLen > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	p += csLen
 
 	// Compression methods
 	if p+1 > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	cmLen := int(ch[p])
 	p++
 	if p+cmLen > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	p += cmLen
 
 	// Extensions - be tolerant if truncated
 	if p+2 > chLen {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 	extLen := int(ch[p])<<8 | int(ch[p+1])
 	p += 2
 	if extLen == 0 {
-		return "", false, nil
+		return "", false, nil, 0
 	}
 
 	// Handle truncated extensions
 	if p+extLen > chLen {
 		extLen = chLen - p
 		if extLen <= 0 {
-			return "", false, nil
+			return "", false, nil, 0
 		}
 	}
 
@@ -209,6 +212,7 @@ func parseTLSClientHelloMeta(ch []byte) (string, bool, []string) {
 	var sni string
 	var hasECH bool
 	var alpns []string
+	var maxTLSVersion uint16
 
 	q := 0
 	for q+4 <= extEnd {
@@ -235,6 +239,9 @@ func parseTLSClientHelloMeta(ch []byte) (string, bool, []string) {
 		case 16: // ALPN extension
 			alpns = extractALPNFromExtension(ed)
 
+		case 43: // supported_versions extension (0x002B)
+			maxTLSVersion = extractMaxSupportedVersion(ed)
+
 		default:
 			if et == 0xfe0d || et == 0xfe0e || et == 0xfe0f {
 				hasECH = true
@@ -243,7 +250,38 @@ func parseTLSClientHelloMeta(ch []byte) (string, bool, []string) {
 		q += el
 	}
 
-	return sni, hasECH, alpns
+	// If supported_versions wasn't present, fall back to legacy version
+	if maxTLSVersion == 0 {
+		maxTLSVersion = legacyVersion
+	}
+
+	return sni, hasECH, alpns, maxTLSVersion
+}
+
+// extractMaxSupportedVersion parses the supported_versions extension data
+// from a ClientHello and returns the highest TLS version advertised.
+// Format: 1 byte length + N*2 bytes version entries.
+func extractMaxSupportedVersion(ed []byte) uint16 {
+	if len(ed) < 1 {
+		return 0
+	}
+	listLen := int(ed[0])
+	if listLen < 2 || 1+listLen > len(ed) {
+		return 0
+	}
+
+	var maxVer uint16
+	for i := 1; i+1 < 1+listLen; i += 2 {
+		ver := uint16(ed[i])<<8 | uint16(ed[i+1])
+		// Skip GREASE values (0x?A?A pattern)
+		if ver&0x0f0f == 0x0a0a {
+			continue
+		}
+		if ver > maxVer {
+			maxVer = ver
+		}
+	}
+	return maxVer
 }
 
 func extractSNIFromExtension(ed []byte) string {

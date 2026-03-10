@@ -101,6 +101,7 @@ export function createDefaultSet(setCount: number): B4SetConfig {
       geosite_categories: [],
       geoip_categories: [],
       source_devices: [],
+      tls: "",
     } as B4SetConfig["targets"],
   };
 }

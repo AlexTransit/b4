@@ -42,6 +42,16 @@ var migrationRegistry = map[int]MigrationFunc{
 	22: migrateV22to23, // Add TCP MSS clamping config
 	23: migrateV23to24, // Add multidisorder (fake per segment) and new payload types
 	24: migrateV24to25, // Remove main set, move ConnBytesLimit to queue config
+	25: migrateV25to26, // Add TLS version filter to targets
+}
+
+// Migration: v25 -> v26 (add TLS version filter to targets)
+func migrateV25to26(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v25->v26: Adding TLS version filter to targets")
+	for _, set := range c.Sets {
+		set.Targets.TLSVersion = ""
+	}
+	return nil
 }
 
 // Migration: v24 -> v25 (remove main set, move ConnBytesLimit to queue config)

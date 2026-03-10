@@ -146,6 +146,7 @@ type TargetsConfig struct {
 	GeoSiteCategories []string `json:"geosite_categories" bson:"geosite_categories"`
 	GeoIpCategories   []string `json:"geoip_categories" bson:"geoip_categories"`
 	SourceDevices     []string `json:"source_devices" bson:"source_devices"`
+	TLSVersion        string   `json:"tls" bson:"tls"` // "1.2", "1.3", or "" (match any)
 	DomainsToMatch    []string `json:"-" bson:"-"`
 	IpsToMatch        []string `json:"-" bson:"-"`
 }

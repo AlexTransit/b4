@@ -468,6 +468,52 @@ type PortRange struct {
 	Max uint16
 }
 
+// TLSVersionCode converts a TLS version filter string ("1.2", "1.3") to wire format.
+// Returns 0 if the filter is empty (match any).
+func TLSVersionCode(filter string) uint16 {
+	switch filter {
+	case "1.0":
+		return 0x0301
+	case "1.1":
+		return 0x0302
+	case "1.2":
+		return 0x0303
+	case "1.3":
+		return 0x0304
+	default:
+		return 0
+	}
+}
+
+// TLSVersionString converts a TLS wire version to a human-readable string.
+func TLSVersionString(ver uint16) string {
+	switch ver {
+	case 0x0301:
+		return "1.0"
+	case 0x0302:
+		return "1.1"
+	case 0x0303:
+		return "1.2"
+	case 0x0304:
+		return "1.3"
+	default:
+		return ""
+	}
+}
+
+// MatchesTLSVersion checks if the client's max TLS version matches this set's filter.
+// Returns true if no filter is configured or if tlsVersion is 0 (unknown).
+func (set *SetConfig) MatchesTLSVersion(tlsVersion uint16) bool {
+	if set.Targets.TLSVersion == "" || tlsVersion == 0 {
+		return true
+	}
+	filterVer := TLSVersionCode(set.Targets.TLSVersion)
+	if filterVer == 0 {
+		return true
+	}
+	return tlsVersion == filterVer
+}
+
 func (set *SetConfig) HasIPOrDomainTargets() bool {
 	return len(set.Targets.IpsToMatch) > 0 || len(set.Targets.DomainsToMatch) > 0
 }

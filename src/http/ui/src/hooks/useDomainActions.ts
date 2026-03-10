@@ -23,6 +23,7 @@ export interface ParsedLog {
   raw: string;
   sourceAlias: string;
   deviceName: string;
+  tls: string;
 }
 
 interface DomainModalState {
@@ -112,6 +113,7 @@ function parseSniLogLine(line: string): ParsedLog | null {
     ipSet,
     destination,
     sourceAlias,
+    tls,
   ] = tokens;
 
   const result: ParsedLog = {
@@ -123,8 +125,9 @@ function parseSniLogLine(line: string): ParsedLog | null {
     ipSet,
     destination,
     raw: line,
-    sourceAlias,
+    sourceAlias: sourceAlias ?? "",
     deviceName: "",
+    tls: tls ?? "",
   };
 
   parseCache.set(line, result);

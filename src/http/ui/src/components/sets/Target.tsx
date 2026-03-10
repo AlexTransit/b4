@@ -41,6 +41,7 @@ import {
   B4PlusButton,
   B4Badge,
   B4TooltipButton,
+  B4Select,
 } from "@b4.elements";
 import SettingAutocomplete from "@common/B4Autocomplete";
 import { B4SetConfig, GeoConfig, TargetsConfig } from "@models/config";
@@ -360,6 +361,21 @@ export const TargetSettings = ({
           description="Configure domain matching for DPI bypass and blocking"
           icon={<DomainIcon />}
         >
+          <Box sx={{ mb: 2, maxWidth: 200 }}>
+            <B4Select
+              label="TLS Version Filter"
+              value={config.targets.tls ?? ""}
+              options={[
+                { value: "", label: "Any" },
+                { value: "1.2", label: "TLS 1.2" },
+                { value: "1.3", label: "TLS 1.3" },
+              ]}
+              helperText="Match only specific TLS version"
+              onChange={(e) =>
+                onChange("targets.tls", e.target.value as string)
+              }
+            />
+          </Box>
           <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 0 }}>
             <B4Tabs
               value={tabValue}
