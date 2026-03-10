@@ -504,12 +504,15 @@ func TLSVersionString(ver uint16) string {
 // MatchesTLSVersion checks if the client's max TLS version matches this set's filter.
 // Returns true if no filter is configured or if tlsVersion is 0 (unknown).
 func (set *SetConfig) MatchesTLSVersion(tlsVersion uint16) bool {
-	if set.Targets.TLSVersion == "" || tlsVersion == 0 {
+	if set.Targets.TLSVersion == "" {
+		return true
+	}
+	if tlsVersion == 0 {
 		return true
 	}
 	filterVer := TLSVersionCode(set.Targets.TLSVersion)
 	if filterVer == 0 {
-		return true
+		return false // invalid filter value — don't silently match everything
 	}
 	return tlsVersion == filterVer
 }

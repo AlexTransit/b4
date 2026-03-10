@@ -480,7 +480,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	matched = shouldHandle
 
 	udpTLS := ""
-	if host != "" {
+	if matchedQUIC {
 		udpTLS = "1.3" // QUIC is always TLS 1.3
 	}
 
