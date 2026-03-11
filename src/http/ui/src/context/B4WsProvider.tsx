@@ -7,7 +7,7 @@ import {
   useCallback,
   useRef,
 } from "react";
-import { getAuthToken } from "@context/AuthProvider";
+import { wsUrl } from "@utils";
 
 const MAX_BUFFER_SIZE = 2000;
 const BATCH_INTERVAL_MS = 150; // Batch updates every 150ms
@@ -148,13 +148,7 @@ export const WebSocketProvider = ({
 
   // WebSocket connection
   useEffect(() => {
-    const token = getAuthToken();
-    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : "";
-    const wsUrl =
-      (location.protocol === "https:" ? "wss://" : "ws://") +
-      location.host +
-      "/api/ws/logs" +
-      tokenParam;
+    const url = wsUrl("/api/ws/logs");
 
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -163,7 +157,7 @@ export const WebSocketProvider = ({
     const connect = () => {
       if (isCleaningUp) return;
 
-      ws = new WebSocket(wsUrl);
+      ws = new WebSocket(url);
 
       ws.onopen = () => {
         console.log("WebSocket connected");
