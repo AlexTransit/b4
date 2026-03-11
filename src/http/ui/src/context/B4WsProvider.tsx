@@ -138,18 +138,14 @@ export const WebSocketProvider = ({
 
   // Schedule batch processing
   const scheduleBatch = useCallback(() => {
-    if (batchTimeoutRef.current === null) {
-      batchTimeoutRef.current = setTimeout(() => {
-        batchTimeoutRef.current = null;
-        processBatch();
-      }, BATCH_INTERVAL_MS);
-    }
+    batchTimeoutRef.current ??= setTimeout(() => {
+      batchTimeoutRef.current = null;
+      processBatch();
+    }, BATCH_INTERVAL_MS);
   }, [processBatch]);
 
   // WebSocket connection
   useEffect(() => {
-    const url = wsUrl("/api/ws/logs");
-
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let isCleaningUp = false;
@@ -157,6 +153,7 @@ export const WebSocketProvider = ({
     const connect = () => {
       if (isCleaningUp) return;
 
+      const url = wsUrl("/api/ws/logs");
       ws = new WebSocket(url);
 
       ws.onopen = () => {
@@ -243,11 +240,7 @@ export const WebSocketProvider = ({
     ],
   );
 
-  return (
-    <WebSocketContext value={contextValue}>
-      {children}
-    </WebSocketContext>
-  );
+  return <WebSocketContext value={contextValue}>{children}</WebSocketContext>;
 };
 
 export const useWebSocket = () => {

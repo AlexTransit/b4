@@ -47,6 +47,11 @@ func handleLogin(cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
+		if !authEnabled(cfg) {
+			writeAuthJSON(w, http.StatusOK, map[string]interface{}{"auth_required": false})
+			return
+		}
+
 		expectedUser := cfg.System.WebServer.Username
 		expectedPass := cfg.System.WebServer.Password
 
@@ -150,20 +155,29 @@ func authEnabled(cfg *config.Config) bool {
 	return cfg.System.WebServer.Username != "" && cfg.System.WebServer.Password != ""
 }
 
+func isWebSocketRequest(r *http.Request) bool {
+	return strings.Contains(strings.ToLower(r.Header.Get("Connection")), "upgrade") &&
+		strings.EqualFold(r.Header.Get("Upgrade"), "websocket")
+}
+
 func extractBearerToken(r *http.Request) string {
 	auth := r.Header.Get("Authorization")
 	if strings.HasPrefix(auth, "Bearer ") {
 		return strings.TrimPrefix(auth, "Bearer ")
 	}
-	// Fallback to query parameter (for WebSocket connections)
-	if t := r.URL.Query().Get("token"); t != "" {
-		return t
+	// Fallback to query parameter only for WebSocket connections
+	if isWebSocketRequest(r) || strings.HasPrefix(r.URL.Path, "/api/ws/") {
+		if t := r.URL.Query().Get("token"); t != "" {
+			return t
+		}
 	}
 	return ""
 }
 
 func writeAuthJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(data)
 }

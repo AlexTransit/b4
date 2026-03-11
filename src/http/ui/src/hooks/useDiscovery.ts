@@ -234,8 +234,6 @@ export function useDiscoveryLogs() {
   const logsRef = useRef<string[]>([]);
 
   useEffect(() => {
-    const url = wsUrl("/api/ws/discovery");
-
     let ws: WebSocket | null = null;
     let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let isCleaningUp = false;
@@ -243,6 +241,7 @@ export function useDiscoveryLogs() {
     const connect = () => {
       if (isCleaningUp) return;
 
+      const url = wsUrl("/api/ws/discovery");
       ws = new WebSocket(url);
       wsRef.current = ws;
 

@@ -81,8 +81,17 @@ export const WebServerSettings = ({
           autoComplete="new-password"
         />
       </B4FormGroup>
-      {(config.system.web_server.username ||
-        config.system.web_server.password) &&
+      {((config.system.web_server.username &&
+        !config.system.web_server.password) ||
+        (!config.system.web_server.username &&
+          config.system.web_server.password)) && (
+        <B4Alert severity="warning">
+          Authentication is only enabled when both username and password are
+          set. Partial credentials will be ignored.
+        </B4Alert>
+      )}
+      {config.system.web_server.username &&
+        config.system.web_server.password &&
         !config.system.web_server.tls_cert && (
           <B4Alert severity="warning">
             Authentication credentials will be sent over unencrypted HTTP.

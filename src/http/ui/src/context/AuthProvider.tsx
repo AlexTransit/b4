@@ -21,7 +21,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const [token, setToken] = useState<string | null>(() =>
     localStorage.getItem(TOKEN_KEY),
   );
@@ -40,29 +42,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const r = await fetch("/api/auth/check", { headers });
-        const data = await r.json();
+        const data = (await r.json()) as {
+          auth_required?: boolean;
+          authenticated?: boolean;
+        };
 
-        if (!data.auth_required) {
-          setAuthRequired(false);
-          setIsAuthenticated(true);
-        } else {
+        if (data.auth_required) {
           setAuthRequired(true);
           setIsAuthenticated(data.authenticated === true);
           if (!data.authenticated) {
             localStorage.removeItem(TOKEN_KEY);
             setToken(null);
           }
+        } else {
+          setAuthRequired(false);
+          setIsAuthenticated(true);
         }
       } catch {
-        // If check fails (server down etc.), allow through
-        setAuthRequired(false);
-        setIsAuthenticated(true);
+        // If check fails (server down etc.), fail closed
+        setAuthRequired(true);
+        setIsAuthenticated(false);
+        localStorage.removeItem(TOKEN_KEY);
+        setToken(null);
       } finally {
         setIsLoading(false);
       }
     };
 
-    checkAuth();
+    void checkAuth();
   }, []);
 
   const login = useCallback(
