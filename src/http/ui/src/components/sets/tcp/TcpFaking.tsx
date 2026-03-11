@@ -337,7 +337,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                   {captures.length === 0 &&
                     "No TLS payloads available. Generate optimized payloads (SNI-first for DPI bypass) or upload your own."}
 
-                  <Link to="/settings/capture">
+                  <Link to="/settings/payloads">
                     {" "}
                     Navigate to Settings to generate or upload TLS ClientHello
                     payloads.

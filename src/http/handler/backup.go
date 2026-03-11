@@ -140,6 +140,9 @@ func (api *API) handleRestore(w http.ResponseWriter, r *http.Request) {
 		// Prevent path traversal
 		cleanName := filepath.Clean(header.Name)
 		if strings.HasPrefix(cleanName, "..") || filepath.IsAbs(cleanName) {
+			if header.Typeflag == tar.TypeReg {
+				io.Copy(io.Discard, tr)
+			}
 			continue
 		}
 
@@ -158,7 +161,7 @@ func (api *API) handleRestore(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			outFile, err := os.Create(targetPath)
+			outFile, err := os.OpenFile(targetPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, header.FileInfo().Mode())
 			if err != nil {
 				// Skip files that can't be overwritten (e.g. running binary)
 				log.Warnf("Skipping file during restore (cannot write): %s: %v", cleanName, err)
@@ -170,6 +173,7 @@ func (api *API) handleRestore(w http.ResponseWriter, r *http.Request) {
 			if _, err := io.Copy(outFile, tr); err != nil {
 				outFile.Close()
 				log.Warnf("Skipping file during restore (write error): %s: %v", cleanName, err)
+				io.Copy(io.Discard, tr)
 				continue
 			}
 			outFile.Close()

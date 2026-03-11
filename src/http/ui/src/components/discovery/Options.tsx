@@ -272,7 +272,7 @@ export const DiscoveryOptionsPanel = ({
             {tlsCaptures.length === 0 && (
               <Typography variant="caption" color="text.secondary">
                 No captured payloads available.{" "}
-                <a href="/settings/capture" style={{ color: colors.secondary }}>
+                <a href="/settings/payloads" style={{ color: colors.secondary }}>
                   Capture payloads
                 </a>{" "}
                 to test with custom TLS ClientHello.

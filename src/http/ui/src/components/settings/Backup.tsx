@@ -4,7 +4,7 @@ import { BackupIcon, DownloadIcon, UploadIcon } from "@b4.icons";
 import { B4Section, B4Alert } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { RestartDialog } from "./RestartDialog";
-import { colors, spacing } from "@design";
+import { colors } from "@design";
 import { getAuthToken } from "@context/AuthProvider";
 
 export const BackupSettings = () => {
@@ -46,7 +46,7 @@ export const BackupSettings = () => {
       showSuccess("Backup downloaded successfully");
     } catch (error) {
       showError(
-        error instanceof Error ? error.message : "Failed to download backup"
+        error instanceof Error ? error.message : "Failed to download backup",
       );
     } finally {
       setDownloading(false);
@@ -75,7 +75,8 @@ export const BackupSettings = () => {
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
         throw new Error(
-          (data as { error?: string }).error || `Restore failed: ${response.statusText}`
+          (data as { error?: string }).error ||
+            `Restore failed: ${response.statusText}`,
         );
       }
 
@@ -83,7 +84,7 @@ export const BackupSettings = () => {
       setShowRestartDialog(true);
     } catch (error) {
       showError(
-        error instanceof Error ? error.message : "Failed to restore backup"
+        error instanceof Error ? error.message : "Failed to restore backup",
       );
     } finally {
       setRestoring(false);
@@ -125,7 +126,9 @@ export const BackupSettings = () => {
                 <Button
                   variant="contained"
                   startIcon={<DownloadIcon />}
-                  onClick={() => { void handleDownload(); }}
+                  onClick={() => {
+                    void handleDownload();
+                  }}
                   disabled={downloading}
                 >
                   {downloading ? "Generating..." : "Download Backup"}
