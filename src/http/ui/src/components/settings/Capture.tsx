@@ -80,7 +80,7 @@ export const CaptureSettings = () => {
       await deleteCapture(capture.protocol, capture.domain);
       showSuccess(`Deleted ${capture.domain}`);
     } catch {
-      showError("Failed to delete capture");
+      showError("Failed to delete payload");
     }
   };
 
@@ -88,9 +88,9 @@ export const CaptureSettings = () => {
     if (!confirm("Delete all captured payloads?")) return;
     try {
       await clearAll();
-      showSuccess("All captures cleared");
+      showSuccess("All payloads cleared");
     } catch {
-      showError("Failed to clear captures");
+      showError("Failed to clear payloads");
     }
   };
 
@@ -107,7 +107,7 @@ export const CaptureSettings = () => {
       showSuccess(`Uploaded payload for ${uploadForm.domain}`);
       setUploadForm({ domain: "", file: null });
     } catch {
-      showError("Failed to upload file");
+      showError("Failed to upload payload");
     }
   };
 

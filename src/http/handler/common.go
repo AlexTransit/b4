@@ -112,6 +112,7 @@ func (api *API) RegisterEndpoints(mux *http.ServeMux, cfg *config.Config) {
 	api.RegisterDevicesApi()
 	api.RegisterSocks5Api()
 	api.RegisterDetectorApi()
+	api.RegisterBackupApi()
 }
 
 func sendResponse(w http.ResponseWriter, response interface{}) {

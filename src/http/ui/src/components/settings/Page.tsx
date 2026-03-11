@@ -18,6 +18,7 @@ import { useLocation, useNavigate } from "react-router";
 
 import {
   ApiIcon,
+  BackupIcon,
   CaptureIcon,
   CoreIcon,
   DiscoveryIcon,
@@ -38,6 +39,7 @@ import { LoggingSettings } from "./Logging";
 import { MSSClampingSettings } from "./MSSClamping";
 import { QueueSettings } from "./Queue";
 import { Socks5Settings } from "./Socks5";
+import { BackupSettings } from "./Backup";
 import { WebServerSettings } from "./WebServer";
 
 import { B4Alert, B4Dialog, B4Tab, B4Tabs } from "@b4.elements";
@@ -77,7 +79,8 @@ enum TABS {
   DOMAINS,
   DISCOVERY,
   API,
-  CAPTURE,
+  PAYLOADS,
+  BACKUP,
 }
 
 // Settings categories with route paths
@@ -115,11 +118,19 @@ const SETTING_CATEGORIES = [
     requiresRestart: false,
   },
   {
-    id: TABS.CAPTURE,
-    path: "capture",
-    label: "Capture",
+    id: TABS.PAYLOADS,
+    path: "payloads",
+    label: "Payloads",
     icon: <CaptureIcon />,
     description: "Capture real payloads from live traffic",
+    requiresRestart: false,
+  },
+  {
+    id: TABS.BACKUP,
+    path: "backup",
+    label: "Backup",
+    icon: <BackupIcon />,
+    description: "Backup and restore configuration",
     requiresRestart: false,
   },
 ];
@@ -201,8 +212,11 @@ export function SettingsPage() {
         JSON.stringify(config.system.api) !==
         JSON.stringify(originalConfig.system.api),
 
-      // Capture
-      [TABS.CAPTURE]: false,
+      // PAYLOADS
+      [TABS.PAYLOADS]: false,
+
+      // Backup
+      [TABS.BACKUP]: false,
     };
   }, [config, originalConfig, hasChanges]);
 
@@ -390,15 +404,17 @@ export function SettingsPage() {
 
           {/* Tabs */}
           <B4Tabs value={validTab} onChange={handleTabChange}>
-            {[...SETTING_CATEGORIES].sort((a, b) => a.id - b.id).map((cat) => (
-              <B4Tab
-                key={cat.id}
-                icon={cat.icon}
-                label={cat.label}
-                inline
-                hasChanges={categoryHasChanges[cat.id]}
-              />
-            ))}
+            {[...SETTING_CATEGORIES]
+              .sort((a, b) => a.id - b.id)
+              .map((cat) => (
+                <B4Tab
+                  key={cat.id}
+                  icon={cat.icon}
+                  label={cat.label}
+                  inline
+                  hasChanges={categoryHasChanges[cat.id]}
+                />
+              ))}
           </B4Tabs>
         </Box>
       </Paper>
@@ -408,7 +424,11 @@ export function SettingsPage() {
           <Grid container spacing={spacing.lg} alignItems="stretch">
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
               <Box sx={{ width: "100%" }}>
-                <ControlSettings loadConfig={() => { loadConfig().catch(() => {}); }} />
+                <ControlSettings
+                  loadConfig={() => {
+                    loadConfig().catch(() => {});
+                  }}
+                />
               </Box>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
@@ -469,8 +489,12 @@ export function SettingsPage() {
           <CheckerSettings config={config} onChange={handleChange} />
         </TabPanel>
 
-        <TabPanel value={validTab} index={TABS.CAPTURE}>
+        <TabPanel value={validTab} index={TABS.PAYLOADS}>
           <CaptureSettings />
+        </TabPanel>
+
+        <TabPanel value={validTab} index={TABS.BACKUP}>
+          <BackupSettings />
         </TabPanel>
       </Box>
 

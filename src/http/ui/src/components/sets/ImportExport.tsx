@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Button, Stack, Typography } from "@mui/material";
-import { ImportExportIcon, CopyIcon, DownloadIcon } from "@b4.icons";
+import { ImportExportIcon, CopyIcon, DownloadIcon, CheckCircleIcon } from "@b4.icons";
 import { B4Alert, B4Section, B4TextField } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
 
@@ -102,6 +102,7 @@ export const ImportExportSettings = ({
   onImport,
 }: ImportExportSettingsProps) => {
   const [jsonValue, setJsonValue] = useState("");
+  const [importSuccess, setImportSuccess] = useState(false);
   const { showSuccess, showError } = useSnackbar();
   const hasSourceDevices = useMemo(
     () => (config.targets.source_devices ?? []).length > 0,
@@ -198,7 +199,7 @@ export const ImportExportSettings = ({
 
       parsed.id = config.id;
       onImport(parsed);
-      showSuccess("Set configuration imported");
+      setImportSuccess(true);
       return true;
     } catch {
       showError("Invalid JSON format");
@@ -227,14 +228,24 @@ export const ImportExportSettings = ({
       title="Import/Export Set configuration"
       icon={<ImportExportIcon />}
     >
-      <B4Alert severity="info" sx={{ mb: 2 }}>
-        Copy JSON to share this set, or paste a configuration to import it.
-      </B4Alert>
+      {importSuccess ? (
+        <B4Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
+          Configuration imported successfully! Review your changes in the other
+          tabs, then click <strong>Save</strong> to apply.
+        </B4Alert>
+      ) : (
+        <B4Alert severity="info" sx={{ mb: 2 }}>
+          Copy JSON to share this set, or paste a configuration to import it.
+        </B4Alert>
+      )}
       <Stack spacing={2}>
         <B4TextField
           label="Set Configuration JSON"
           value={jsonValue}
-          onChange={(e) => setJsonValue(e.target.value)}
+          onChange={(e) => {
+            setJsonValue(e.target.value);
+            setImportSuccess(false);
+          }}
           onPaste={handlePaste}
           multiline
           rows={10}

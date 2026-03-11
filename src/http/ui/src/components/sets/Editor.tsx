@@ -141,7 +141,6 @@ export const SetEditorPage = ({
 
   const handleApplyImport = (importedSet: B4SetConfig) => {
     setEditedSet(importedSet);
-    setActiveTab(TABS.TARGETS);
   };
 
   const handleBack = () => {

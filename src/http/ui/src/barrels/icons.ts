@@ -72,4 +72,5 @@ export {
   History as HistoryIcon,
   Delete as DeleteIcon,
   Logout as LogoutIcon,
+  Inventory2 as BackupIcon,
 } from "@mui/icons-material";
