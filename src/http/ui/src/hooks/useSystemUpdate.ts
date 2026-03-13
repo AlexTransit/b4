@@ -81,9 +81,10 @@ export const useSystemUpdate = () => {
       let attempts = 0;
 
       while (attempts < maxAttempts) {
-        try {
-          await new Promise((resolve) => setTimeout(resolve, 3000));
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        attempts++;
 
+        try {
           const response = await fetch("/api/version", {
             method: "GET",
             cache: "no-cache",
@@ -93,14 +94,8 @@ export const useSystemUpdate = () => {
             setLoading(false);
             return true;
           }
-        } catch (err) {
-          // Service not yet available
-          attempts++;
-          if (err instanceof Error) {
-            console.warn("Reconnection attempt failed:", err.message);
-          } else {
-            console.warn("Unknown error during reconnection attempt:", err);
-          }
+        } catch {
+          // Service not yet available (network error)
         }
       }
 

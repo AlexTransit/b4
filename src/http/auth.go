@@ -125,6 +125,12 @@ func authMiddleware(cfg *config.Config, next http.Handler) http.Handler {
 			return
 		}
 
+		// Allow version endpoint without token (used as health check after updates)
+		if r.URL.Path == "/api/version" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Allow non-API requests (SPA static files) without token —
 		// the SPA itself will check auth and show the login page
 		if !strings.HasPrefix(r.URL.Path, "/api/") {
