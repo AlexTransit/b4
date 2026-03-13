@@ -22,7 +22,7 @@ RUN cd src && go mod download
 
 COPY src/ ./src/
 COPY --from=ui-builder /app/src/http/ui/dist ./src/http/ui/dist
-COPY makefile ./
+COPY Makefile ./
 
 ARG VERSION=dev
 ARG TARGETARCH
