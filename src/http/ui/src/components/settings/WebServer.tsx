@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ApiIcon } from "@b4.icons";
 import { B4Alert, B4FormGroup, B4Section, B4TextField } from "@b4.elements";
 import { B4Config } from "@models/config";
@@ -14,70 +15,72 @@ export const WebServerSettings = ({
   config,
   onChange,
 }: WebServerSettingsProps) => {
+  const { t } = useTranslation();
+
   return (
     <B4Section
-      title="Web Server"
-      description="Configure the web UI server binding and TLS"
+      title={t("settings.WebServer.title")}
+      description={t("settings.WebServer.description")}
       icon={<ApiIcon />}
     >
-      <B4FormGroup label="Server Settings" columns={2}>
+      <B4FormGroup label={t("settings.WebServer.serverSettings")} columns={2}>
         <B4TextField
-          label="Bind Address"
+          label={t("settings.WebServer.bindAddress")}
           value={config.system.web_server.bind_address || "0.0.0.0"}
           onChange={(e) =>
             onChange("system.web_server.bind_address", e.target.value)
           }
-          placeholder="0.0.0.0"
-          helperText="IP to bind (0.0.0.0 = all, 127.0.0.1 = localhost only, :: = all IPv6)"
+          placeholder={t("settings.WebServer.bindAddressPlaceholder")}
+          helperText={t("settings.WebServer.bindAddressHelp")}
         />
         <B4TextField
-          label="Port"
+          label={t("settings.WebServer.port")}
           type="number"
           value={config.system.web_server.port}
           onChange={(e) =>
             onChange("system.web_server.port", Number(e.target.value))
           }
-          helperText="Web UI port (default: 7000)"
+          helperText={t("settings.WebServer.portHelp")}
         />
         <B4TextField
-          label="TLS Certificate"
+          label={t("settings.WebServer.tlsCert")}
           value={config.system.web_server.tls_cert || ""}
           onChange={(e) =>
             onChange("system.web_server.tls_cert", e.target.value)
           }
-          placeholder="/path/to/server.crt"
-          helperText="Path to TLS certificate file (empty = HTTP mode)"
+          placeholder={t("settings.WebServer.tlsCertPlaceholder")}
+          helperText={t("settings.WebServer.tlsCertHelp")}
         />
         <B4TextField
-          label="TLS Key"
+          label={t("settings.WebServer.tlsKey")}
           value={config.system.web_server.tls_key || ""}
           onChange={(e) =>
             onChange("system.web_server.tls_key", e.target.value)
           }
-          placeholder="/path/to/server.key"
-          helperText="Path to TLS private key file (empty = HTTP mode)"
+          placeholder={t("settings.WebServer.tlsKeyPlaceholder")}
+          helperText={t("settings.WebServer.tlsKeyHelp")}
         />
       </B4FormGroup>
-      <B4FormGroup label="Authentication" columns={2}>
+      <B4FormGroup label={t("settings.WebServer.authentication")} columns={2}>
         <B4TextField
-          label="Username"
+          label={t("settings.WebServer.username")}
           value={config.system.web_server.username || ""}
           onChange={(e) =>
             onChange("system.web_server.username", e.target.value)
           }
           placeholder=""
-          helperText="Leave both empty to disable authentication"
+          helperText={t("settings.WebServer.usernameHelp")}
           autoComplete="new-password"
         />
         <B4TextField
-          label="Password"
+          label={t("settings.WebServer.password")}
           type="password"
           value={config.system.web_server.password || ""}
           onChange={(e) =>
             onChange("system.web_server.password", e.target.value)
           }
           placeholder=""
-          helperText="Password for logging into the web UI"
+          helperText={t("settings.WebServer.passwordHelp")}
           autoComplete="new-password"
         />
       </B4FormGroup>
@@ -86,16 +89,14 @@ export const WebServerSettings = ({
         (!config.system.web_server.username &&
           config.system.web_server.password)) && (
         <B4Alert severity="warning">
-          Authentication is only enabled when both username and password are
-          set. Partial credentials will be ignored.
+          {t("settings.WebServer.authPartialWarning")}
         </B4Alert>
       )}
       {config.system.web_server.username &&
         config.system.web_server.password &&
         !config.system.web_server.tls_cert && (
           <B4Alert severity="warning">
-            Authentication credentials will be sent over unencrypted HTTP.
-            Configure TLS certificates above for secure HTTPS transport.
+            {t("settings.WebServer.authHttpWarning")}
           </B4Alert>
         )}
     </B4Section>

@@ -10,6 +10,7 @@ import {
   ListItemText,
   CircularProgress,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 import { SecurityIcon, ErrorIcon, CheckIcon, RestoreIcon } from "@b4.icons";
 import { B4Alert } from "@b4.elements";
@@ -29,23 +30,24 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
   const [state, setState] = useState<ResetState>("confirm");
   const [message, setMessage] = useState("");
   const { resetConfig } = useConfigReset();
+  const { t } = useTranslation();
 
   const handleReset = async () => {
     setState("resetting");
-    setMessage("Resetting configuration...");
+    setMessage(t("settings.ResetDialog.resetting"));
 
     const response = await resetConfig();
 
     if (response?.success) {
       setState("success");
-      setMessage("Configuration reset successfully!");
+      setMessage(t("settings.ResetDialog.success"));
       setTimeout(() => {
         handleClose();
         onSuccess();
       }, 2000);
     } else {
       setState("error");
-      setMessage("Failed to reset configuration");
+      setMessage(t("settings.ResetDialog.failed"));
     }
   };
 
@@ -58,8 +60,8 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
   };
 
   const defaultProps = {
-    title: "Reset Configuration",
-    subtitle: "Restore default settings",
+    title: t("settings.ResetDialog.title"),
+    subtitle: t("settings.ResetDialog.subtitle"),
     icon: <RestoreIcon />,
   };
 
@@ -69,27 +71,25 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
       case "confirm":
         return {
           ...defaultProps,
-          title: "Restart B4 Service",
-          subtitle: "System Service Management",
         };
       case "resetting":
         return {
           ...defaultProps,
-          title: "Resetting Configuration",
-          subtitle: "Please wait...",
+          title: t("settings.ResetDialog.resettingTitle"),
+          subtitle: t("settings.ResetDialog.pleaseWait"),
           icon: <CircularProgress size={24} />,
         };
       case "success":
         return {
           ...defaultProps,
-          title: "Restart Successful",
-          subtitle: "Service is back online",
+          title: t("settings.ResetDialog.successTitle"),
+          subtitle: t("settings.ResetDialog.successSubtitle"),
         };
       case "error":
         return {
           ...defaultProps,
-          title: "Restart Failed",
-          subtitle: "An error occurred",
+          title: t("settings.ResetDialog.failedTitle"),
+          subtitle: t("settings.ResetDialog.failedSubtitle"),
           icon: <ErrorIcon />,
         };
       default:
@@ -104,7 +104,7 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
       case "confirm":
         return (
           <>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleClose}>{t("core.cancel")}</Button>
             <Box sx={{ flex: 1 }} />
             <Button
               onClick={() => {
@@ -113,14 +113,14 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
               variant="contained"
               startIcon={<RestoreIcon />}
             >
-              Reset to Defaults
+              {t("settings.ResetDialog.resetButton")}
             </Button>
           </>
         );
       case "error":
         return (
           <Button onClick={handleClose} variant="contained">
-            Close
+            {t("core.close")}
           </Button>
         );
 
@@ -136,12 +136,10 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
         return (
           <>
             <B4Alert>
-              Network, DPI bypass, protocol, and logging settings will be reset
-              to defaults. You may need to restart B4 for some changes to take
-              effect.
+              {t("settings.ResetDialog.warning")}
             </B4Alert>
             <B4Alert severity="warning">
-              This will reset all configuration to default values except:
+              {t("settings.ResetDialog.preserveWarning")}
             </B4Alert>
             <List dense>
               <ListItem>
@@ -149,8 +147,8 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
                   <SecurityIcon sx={{ color: colors.secondary }} />
                 </ListItemIcon>
                 <ListItemText
-                  primary="Domain Configuration"
-                  secondary="All domain filters and geodata settings will be preserved"
+                  primary={t("settings.ResetDialog.domainConfig")}
+                  secondary={t("settings.ResetDialog.domainConfigDesc")}
                 />
               </ListItem>
               <ListItem>
@@ -158,8 +156,8 @@ export const ResetDialog = ({ open, onClose, onSuccess }: ResetDialogProps) => {
                   <SecurityIcon sx={{ color: colors.secondary }} />
                 </ListItemIcon>
                 <ListItemText
-                  primary="Testing Configuration"
-                  secondary="Checker settings and test domains will be preserved"
+                  primary={t("settings.ResetDialog.testingConfig")}
+                  secondary={t("settings.ResetDialog.testingConfigDesc")}
                 />
               </ListItem>
             </List>

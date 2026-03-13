@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { FragIcon } from "@b4.icons";
 import {
   B4FormGroup,
@@ -20,26 +21,27 @@ export const MSSClampingSettings = ({
   config,
   onChange,
 }: MSSClampingSettingsProps) => {
+  const { t } = useTranslation();
   const mss = config.queue.mss_clamp ?? { enabled: false, size: 88 };
 
   return (
     <B4Section
-      title="Global MSS Clamping"
-      description="Clamp TCP Maximum Segment Size to force data fragmentation"
+      title={t("settings.MSSClamping.title")}
+      description={t("settings.MSSClamping.description")}
       icon={<FragIcon />}
     >
-      <B4FormGroup label="MSS Settings" columns={2}>
+      <B4FormGroup label={t("settings.MSSClamping.settings")} columns={2}>
         <B4Switch
-          label="Enable Global MSS Clamping"
+          label={t("settings.MSSClamping.enable")}
           checked={mss.enabled}
           onChange={(checked: boolean) =>
             onChange("queue.mss_clamp.enabled", checked)
           }
-          description="Clamp MSS on all SYN packets via firewall rules (nftables/iptables)"
+          description={t("settings.MSSClamping.enableDesc")}
         />
         {mss.enabled && (
           <B4Slider
-            label="MSS Size"
+            label={t("settings.MSSClamping.mssSize")}
             value={mss.size}
             onChange={(value: number) =>
               onChange("queue.mss_clamp.size", value)
@@ -47,15 +49,12 @@ export const MSSClampingSettings = ({
             min={10}
             max={1460}
             step={1}
-            helperText="Lower values = more fragmentation. 88 is commonly used for YouTube bypass."
+            helperText={t("settings.MSSClamping.mssSizeHelp")}
           />
         )}
       </B4FormGroup>
       <B4Alert>
-        Reduces the TCP Maximum Segment Size on SYN/SYN-ACK packets for all TCP
-        port 443 traffic, forcing data fragmentation. Most DPI systems cannot
-        reassemble fragmented ClientHello. For per-device MSS clamping, use the
-        Device Filtering settings.
+        {t("settings.MSSClamping.info")}
       </B4Alert>
     </B4Section>
   );

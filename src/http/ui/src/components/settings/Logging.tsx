@@ -1,4 +1,5 @@
 import { Grid } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { LogsIcon } from "@b4.icons";
 import { B4Section, B4Select, B4Switch, B4TextField } from "@b4.elements";
 import { B4Config, LogLevel } from "@models/config";
@@ -11,57 +12,59 @@ interface LoggingSettingsProps {
   ) => void;
 }
 
-const LOG_LEVELS: Array<{ value: LogLevel; label: string }> = [
-  { value: LogLevel.ERROR, label: "Error" },
-  { value: LogLevel.INFO, label: "Info" },
-  { value: LogLevel.TRACE, label: "Trace" },
-  { value: LogLevel.DEBUG, label: "Debug" },
-] as const;
-
 export const LoggingSettings = ({ config, onChange }: LoggingSettingsProps) => {
+  const { t } = useTranslation();
+
+  const LOG_LEVELS: Array<{ value: LogLevel; label: string }> = [
+    { value: LogLevel.ERROR, label: t("settings.Logging.levelError") },
+    { value: LogLevel.INFO, label: t("settings.Logging.levelInfo") },
+    { value: LogLevel.TRACE, label: t("settings.Logging.levelTrace") },
+    { value: LogLevel.DEBUG, label: t("settings.Logging.levelDebug") },
+  ];
+
   return (
     <B4Section
-      title="Logging Configuration"
-      description="Configure logging behavior and output"
+      title={t("settings.Logging.title")}
+      description={t("settings.Logging.description")}
       icon={<LogsIcon />}
     >
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Select
-            label="Log Level"
+            label={t("settings.Logging.logLevel")}
             value={config.system.logging.level}
             options={LOG_LEVELS}
             onChange={(e) =>
               onChange("system.logging.level", Number(e.target.value))
             }
-            helperText="Set the verbosity of logging output"
+            helperText={t("settings.Logging.logLevelHelp")}
           />
           <B4TextField
-            label="Error File Path"
+            label={t("settings.Logging.errorFilePath")}
             value={config.system.logging.error_file}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               onChange("system.logging.error_file", e.target.value)
             }
-            placeholder="/var/log/b4/errors.log"
-            helperText="Full path to error log file"
+            placeholder={t("settings.Logging.errorFilePathPlaceholder")}
+            helperText={t("settings.Logging.errorFilePathHelp")}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Switch
-            label="Instant Flush"
+            label={t("settings.Logging.instantFlush")}
             checked={config?.system?.logging?.instaflush}
             onChange={(checked: boolean) =>
               onChange("system.logging.instaflush", Boolean(checked))
             }
-            description="Flush logs immediately (may impact performance)"
+            description={t("settings.Logging.instantFlushDesc")}
           />
           <B4Switch
-            label="Syslog"
+            label={t("settings.Logging.syslog")}
             checked={config?.system?.logging?.syslog}
             onChange={(checked: boolean) =>
               onChange("system.logging.syslog", Boolean(checked))
             }
-            description="Enable syslog output"
+            description={t("settings.Logging.syslogDesc")}
           />
         </Grid>
       </Grid>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Button, Grid } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import SettingSection from "@common/B4Section";
 import { ControlIcon, RestartIcon, RestoreIcon } from "@b4.icons";
 import { RestartDialog } from "./RestartDialog";
@@ -14,6 +15,7 @@ export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
   const [saving] = useState(false);
   const [showRestartDialog, setShowRestartDialog] = useState(false);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const { t } = useTranslation();
 
   const handleResetSuccess = () => {
     loadConfig();
@@ -21,8 +23,8 @@ export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
 
   return (
     <SettingSection
-      title="Core Controls"
-      description="Control core service and config operations"
+      title={t("settings.Control.title")}
+      description={t("settings.Control.description")}
       icon={<ControlIcon />}
     >
       <Grid container spacing={spacing.lg}>
@@ -33,7 +35,7 @@ export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
           onClick={() => setShowRestartDialog(true)}
           disabled={saving}
         >
-          Restart B4 System Service
+          {t("settings.Control.restartService")}
         </Button>
         <Button
           size="small"
@@ -42,7 +44,7 @@ export const ControlSettings = ({ loadConfig }: ControlSettingsProps) => {
           onClick={() => setShowResetDialog(true)}
           disabled={saving}
         >
-          Reset the configuration to default settings
+          {t("settings.Control.resetConfig")}
         </Button>
       </Grid>
 

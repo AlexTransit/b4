@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ToggleOnIcon } from "@b4.icons";
 import { B4Config } from "@models/config";
 import {
@@ -19,6 +20,8 @@ interface FeatureSettingsProps {
 }
 
 export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
+  const { t } = useTranslation();
+
   const handleInterfaceToggle = (iface: string) => {
     const current = config.queue.interfaces || [];
     const updated = current.includes(iface)
@@ -29,35 +32,35 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
 
   return (
     <B4Section
-      title="Feature Flags"
-      description="Enable or disable advanced features"
+      title={t("settings.Feature.title")}
+      description={t("settings.Feature.description")}
       icon={<ToggleOnIcon />}
     >
-      <B4FormGroup label="Proto Features" columns={2}>
+      <B4FormGroup label={t("settings.Feature.protoFeatures")} columns={2}>
         <B4Switch
-          label="Enable IPv4 Support"
+          label={t("settings.Feature.enableIPv4")}
           checked={config.queue.ipv4}
           onChange={(checked: boolean) => onChange("queue.ipv4", checked)}
-          description="Enable IPv4 support"
+          description={t("settings.Feature.enableIPv4Desc")}
         />
         <B4Switch
-          label="Enable IPv6 Support"
+          label={t("settings.Feature.enableIPv6")}
           checked={config.queue.ipv6}
           onChange={(checked: boolean) => onChange("queue.ipv6", checked)}
-          description="Enable IPv6 support"
+          description={t("settings.Feature.enableIPv6Desc")}
         />
       </B4FormGroup>
-      <B4FormGroup label="Firewall Features" columns={2}>
+      <B4FormGroup label={t("settings.Feature.firewallFeatures")} columns={2}>
         <B4Switch
-          label="Skip IPTables/NFTables Setup"
+          label={t("settings.Feature.skipIptables")}
           checked={config.system.tables.skip_setup}
           onChange={(checked: boolean) =>
             onChange("system.tables.skip_setup", checked)
           }
-          description="Skip automatic IPTables/NFTables rules configuration"
+          description={t("settings.Feature.skipIptablesDesc")}
         />
         <B4Slider
-          label="Firewall Monitor Interval in seconds (default 10s)"
+          label={t("settings.Feature.firewallMonitorInterval")}
           value={config.system.tables.monitor_interval}
           onChange={(value: number) =>
             onChange("system.tables.monitor_interval", value)
@@ -65,30 +68,29 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
           min={0}
           max={120}
           step={5}
-          helperText="Interval for monitoring B4 iptables/nftables rules"
+          helperText={t("settings.Feature.firewallMonitorHelp")}
           alert={
             config.system.tables.monitor_interval <= 0 && (
               <B4Alert severity="warning">
-                Warning: This <strong>disables</strong> automatic monitoring of
-                B4 iptables/nftables
+                {t("settings.Feature.firewallMonitorWarning")}
               </B4Alert>
             )
           }
         />
         <B4Switch
-          label="NAT Masquerade"
+          label={t("settings.Feature.natMasquerade")}
           checked={config.system.tables.masquerade}
           onChange={(checked: boolean) =>
             onChange("system.tables.masquerade", checked)
           }
-          description="Enable NAT masquerade for container/gateway setups"
+          description={t("settings.Feature.natMasqueradeDesc")}
         />
       </B4FormGroup>
       {config.system.tables.masquerade && (
-        <B4FormGroup label="Masquerade Interface" columns={1}>
+        <B4FormGroup label={t("settings.Feature.masqueradeInterface")} columns={1}>
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Select output interface for masquerade (empty = all interfaces)
+              {t("settings.Feature.masqueradeInterfaceDesc")}
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
               {(config.available_ifaces ?? []).map((iface) => {
@@ -112,22 +114,21 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
             </Box>
             {(config.available_ifaces ?? []).length === 0 && (
               <B4Alert severity="warning" sx={{ mt: 1 }}>
-                No interfaces detected
+                {t("settings.Feature.noInterfacesDetected")}
               </B4Alert>
             )}
             {!config.system.tables.masquerade_interface && (
               <B4Alert severity="info" sx={{ mt: 1 }}>
-                Masquerade will apply to all output interfaces if none is
-                selected.
+                {t("settings.Feature.masqueradeAllInterfaces")}
               </B4Alert>
             )}
           </Box>
         </B4FormGroup>
       )}
-      <B4FormGroup label="Network Interfaces" columns={1}>
+      <B4FormGroup label={t("settings.Feature.networkInterfaces")} columns={1}>
         <Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Select interfaces to monitor (empty = all interfaces)
+            {t("settings.Feature.networkInterfacesDesc")}
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
             {(config.available_ifaces ?? []).map((iface) => {
@@ -147,12 +148,12 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
           </Box>
           {(config.available_ifaces ?? []).length === 0 && (
             <B4Alert severity="warning" sx={{ mt: 1 }}>
-              No interfaces detected
+              {t("settings.Feature.noInterfacesDetected")}
             </B4Alert>
           )}
           {config.queue.interfaces?.length === 0 && (
             <B4Alert severity="info" sx={{ mt: 1 }}>
-              B4 will listen on all available interfaces if none are selected.
+              {t("settings.Feature.listenAllInterfaces")}
             </B4Alert>
           )}
         </Box>

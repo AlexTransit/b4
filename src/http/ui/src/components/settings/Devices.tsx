@@ -17,6 +17,7 @@ import {
   Tooltip,
   TextField,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { DeviceMSSClamp } from "@models/config";
 import { DeviceUnknowIcon, RefreshIcon } from "@b4.icons";
 import EditIcon from "@mui/icons-material/Edit";
@@ -41,6 +42,7 @@ const DeviceNameCell = ({
   onSaveAlias,
   onResetAlias,
   onCancelEdit,
+  t,
 }: {
   device: DeviceInfo;
   isSelected: boolean;
@@ -49,6 +51,7 @@ const DeviceNameCell = ({
   onSaveAlias: (alias: string) => Promise<void>;
   onResetAlias: () => Promise<void>;
   onCancelEdit: () => void;
+  t: (key: string) => string;
 }) => {
   const displayName = device.alias || device.vendor;
 
@@ -72,10 +75,10 @@ const DeviceNameCell = ({
         />
       ) : (
         <Typography variant="caption" color="text.secondary">
-          Unknown
+          {t("settings.Devices.unknown")}
         </Typography>
       )}
-      <Tooltip title="Edit name">
+      <Tooltip title={t("settings.Devices.editName")}>
         <IconButton
           size="small"
           onClick={onStartEdit}
@@ -85,7 +88,7 @@ const DeviceNameCell = ({
         </IconButton>
       </Tooltip>
       {device.alias && (
-        <Tooltip title="Reset to vendor name">
+        <Tooltip title={t("settings.Devices.resetToVendor")}>
           <IconButton
             size="small"
             onClick={() => void onResetAlias()}
@@ -101,6 +104,7 @@ const DeviceNameCell = ({
 
 export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
   const [editingMac, setEditingMac] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const selectedMacs = config.queue.devices?.mac || [];
   const enabled = config.queue.devices?.enabled || false;
@@ -160,10 +164,17 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
   const someSelected =
     selectedMacs.length > 0 && selectedMacs.length < devices.length;
 
+  const tableHeaders = [
+    t("settings.Devices.macAddress"),
+    t("settings.Devices.ip"),
+    t("settings.Devices.name"),
+    t("settings.Devices.mss"),
+  ];
+
   return (
     <B4Section
-      title="Device Filtering"
-      description="Filter traffic by source device MAC address"
+      title={t("settings.Devices.title")}
+      description={t("settings.Devices.description")}
       icon={<DeviceUnknowIcon />}
     >
       <Grid container spacing={2}>
@@ -177,25 +188,25 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
             }}
           >
             <B4Switch
-              label="Enable Device Filtering"
+              label={t("settings.Devices.enable")}
               checked={enabled}
               onChange={(checked) => onChange("queue.devices.enabled", checked)}
-              description="Only process traffic from selected devices"
+              description={t("settings.Devices.enableDesc")}
             />
             <B4Switch
-              label="Vendor Lookup"
+              label={t("settings.Devices.vendorLookup")}
               checked={vendorLookup}
               onChange={(checked) =>
                 onChange("queue.devices.vendor_lookup", checked)
               }
-              description="Download vendor database to identify device manufacturers (~6MB)"
+              description={t("settings.Devices.vendorLookupDesc")}
             />
             <B4Switch
-              label="Invert Selection (Blacklist)"
+              label={t("settings.Devices.invertSelection")}
               checked={wisb}
               onChange={(checked) => onChange("queue.devices.wisb", checked)}
               description={
-                wisb ? "Block selected devices" : "Allow only selected devices"
+                wisb ? t("settings.Devices.invertBlacklist") : t("settings.Devices.invertWhitelist")
               }
               disabled={!enabled}
             />
@@ -206,8 +217,8 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
           <>
             <B4Alert severity={wisb ? "warning" : "info"}>
               {wisb
-                ? "Blacklist mode: Selected devices will be EXCLUDED from DPI bypass"
-                : "Whitelist mode: Only selected devices will use DPI bypass"}
+                ? t("settings.Devices.blacklistAlert")
+                : t("settings.Devices.whitelistAlert")}
             </B4Alert>
 
             {available ? (
@@ -221,7 +232,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                   }}
                 >
                   <Typography variant="subtitle2">
-                    Available Devices
+                    {t("settings.Devices.availableDevices")}
                     {source && (
                       <Chip
                         label={source}
@@ -235,7 +246,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                     )}
                   </Typography>
                   <B4TooltipButton
-                    title="Refresh devices"
+                    title={t("settings.Devices.refreshDevices")}
                     icon={
                       loading ? <CircularProgress size={18} /> : <RefreshIcon />
                     }
@@ -274,7 +285,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                             }
                           />
                         </TableCell>
-                        {["MAC Address", "IP", "Name", "MSS"].map((label) => (
+                        {tableHeaders.map((label) => (
                           <TableCell
                             key={label}
                             sx={{
@@ -292,8 +303,8 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                         <TableRow>
                           <TableCell colSpan={5} align="center">
                             {loading
-                              ? "Loading devices..."
-                              : "No devices found"}
+                              ? t("settings.Devices.loadingDevices")
+                              : t("settings.Devices.noDevices")}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -344,6 +355,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                                   if (result.success) setEditingMac(null);
                                 }}
                                 onCancelEdit={() => setEditingMac(null)}
+                                t={t}
                               />
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
@@ -382,7 +394,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
               </Grid>
             ) : (
               <B4Alert severity="warning">
-                ARP table not available. Device discovery unavailable.
+                {t("settings.Devices.arpUnavailable")}
               </B4Alert>
             )}
           </>

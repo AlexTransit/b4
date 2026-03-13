@@ -7,6 +7,7 @@ import {
   LinearProgress,
   Box,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { RestartIcon, CheckIcon, ErrorIcon } from "@b4.icons";
 import { useSystemRestart } from "@hooks/useSystemRestart";
 import { colors } from "@design";
@@ -23,26 +24,27 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
   const [state, setState] = useState<RestartState>("confirm");
   const [message, setMessage] = useState("");
   const { restart, waitForReconnection, error } = useSystemRestart();
+  const { t } = useTranslation();
 
   const handleRestart = async () => {
     setState("restarting");
-    setMessage("Initiating restart...");
+    setMessage(t("settings.RestartDialog.initiating"));
 
     const response = await restart();
 
     if (response?.success) {
       setState("waiting");
-      setMessage("Service is restarting, waiting for reconnection...");
+      setMessage(t("settings.RestartDialog.restarting"));
 
       const reconnected = await waitForReconnection(30);
 
       if (reconnected) {
         setState("success");
-        setMessage("Service restarted successfully!");
+        setMessage(t("settings.RestartDialog.success"));
         setTimeout(() => globalThis.window.location.reload(), 5000);
       } else {
         setState("error");
-        setMessage("Service restart timed out. Please check manually.");
+        setMessage(t("settings.RestartDialog.timeout"));
       }
     } else {
       setState("error");
@@ -60,8 +62,8 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
 
   // Dynamic dialog props based on state
   const defaultDeailgoProps = {
-    title: "Restart B4 Service",
-    subtitle: "System Service Management",
+    title: t("settings.RestartDialog.title"),
+    subtitle: t("settings.RestartDialog.subtitle"),
     icon: <RestartIcon />,
   };
 
@@ -70,27 +72,25 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
       case "confirm":
         return {
           ...defaultDeailgoProps,
-          title: "Restart B4 Service",
-          subtitle: "System Service Management",
         };
       case "restarting":
       case "waiting":
         return {
           ...defaultDeailgoProps,
-          title: "Restarting Service",
-          subtitle: "Please wait...",
+          title: t("settings.RestartDialog.restartingTitle"),
+          subtitle: t("settings.RestartDialog.pleaseWait"),
         };
       case "success":
         return {
           ...defaultDeailgoProps,
-          title: "Restart Successful",
-          subtitle: "Service is back online",
+          title: t("settings.RestartDialog.successTitle"),
+          subtitle: t("settings.RestartDialog.successSubtitle"),
         };
       case "error":
         return {
           ...defaultDeailgoProps,
-          title: "Restart Failed",
-          subtitle: "An error occurred",
+          title: t("settings.RestartDialog.failedTitle"),
+          subtitle: t("settings.RestartDialog.failedSubtitle"),
         };
       default:
         return {
@@ -106,11 +106,10 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
         return (
           <B4Alert>
             <Typography variant="body2" sx={{ mb: 1 }}>
-              This will restart the B4 service. The web interface will be
-              temporarily unavailable during the restart.
+              {t("settings.RestartDialog.warning")}
             </Typography>
             <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-              Expected downtime: 5-10 seconds
+              {t("settings.RestartDialog.downtime")}
             </Typography>
           </B4Alert>
         );
@@ -142,7 +141,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
                 variant="caption"
                 sx={{ color: colors.text.secondary }}
               >
-                Please wait, do not close this window...
+                {t("settings.RestartDialog.doNotClose")}
               </Typography>
             </Box>
             <Box sx={{ width: "100%", px: 2 }}>
@@ -184,7 +183,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
                 {message}
               </Typography>
               <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-                Reloading interface...
+                {t("settings.RestartDialog.reloading")}
               </Typography>
             </Box>
           </Stack>
@@ -210,7 +209,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
                 variant="h6"
                 sx={{ color: colors.text.primary, mb: 2 }}
               >
-                Restart Failed
+                {t("settings.RestartDialog.failedTitle")}
               </Typography>
               <B4Alert severity="error">{message}</B4Alert>
             </Box>
@@ -225,7 +224,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
       case "confirm":
         return (
           <>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={handleClose}>{t("core.cancel")}</Button>
             <Box sx={{ flex: 1 }} />
             <Button
               onClick={() => {
@@ -234,7 +233,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
               variant="contained"
               startIcon={<RestartIcon />}
             >
-              Restart Service
+              {t("settings.RestartDialog.restartButton")}
             </Button>
           </>
         );
@@ -250,7 +249,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
               "&:hover": { bgcolor: colors.primary },
             }}
           >
-            Close
+            {t("core.close")}
           </Button>
         );
 

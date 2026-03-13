@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ConnectionIcon } from "@b4.icons";
 import {
   B4FormGroup,
@@ -17,62 +18,63 @@ interface Socks5SettingsProps {
 }
 
 export const Socks5Settings = ({ config, onChange }: Socks5SettingsProps) => {
+  const { t } = useTranslation();
+
   return (
     <B4Section
-      title="SOCKS5 Proxy"
-      description="Built-in SOCKS5 proxy that routes traffic through DPI bypass engine"
+      title={t("settings.Socks5.title")}
+      description={t("settings.Socks5.description")}
       icon={<ConnectionIcon />}
     >
-      <B4FormGroup label="SOCKS5 Settings" columns={2}>
+      <B4FormGroup label={t("settings.Socks5.settings")} columns={2}>
         <B4Switch
-          label="Enable SOCKS5 Proxy"
+          label={t("settings.Socks5.enable")}
           checked={config.system.socks5?.enabled ?? false}
           onChange={(checked: boolean) =>
             onChange("system.socks5.enabled", checked)
           }
-          description="Built-in SOCKS5 proxy that routes traffic through DPI bypass engine"
+          description={t("settings.Socks5.enableDesc")}
         />
         <B4TextField
-          label="Bind Address"
+          label={t("settings.Socks5.bindAddress")}
           value={config.system.socks5?.bind_address || "0.0.0.0"}
           onChange={(e) =>
             onChange("system.socks5.bind_address", e.target.value)
           }
-          placeholder="0.0.0.0"
+          placeholder={t("settings.Socks5.bindAddressPlaceholder")}
           disabled={!config.system.socks5?.enabled}
-          helperText="IP to bind (0.0.0.0 = all, 127.0.0.1 = localhost only)"
+          helperText={t("settings.Socks5.bindAddressHelp")}
         />
         <B4TextField
-          label="Port"
+          label={t("settings.Socks5.port")}
           type="number"
           value={config.system.socks5?.port ?? 1080}
           onChange={(e) =>
             onChange("system.socks5.port", Number(e.target.value))
           }
           disabled={!config.system.socks5?.enabled}
-          helperText="SOCKS5 listen port (default: 1080)"
+          helperText={t("settings.Socks5.portHelp")}
         />
         <B4TextField
-          label="Username"
+          label={t("settings.Socks5.username")}
           value={config.system.socks5?.username || ""}
           onChange={(e) => onChange("system.socks5.username", e.target.value)}
           disabled={!config.system.socks5?.enabled}
-          helperText="Leave empty for no authentication"
+          helperText={t("settings.Socks5.usernameHelp")}
           autoComplete="new-password"
         />
         <B4TextField
-          label="Password"
+          label={t("settings.Socks5.password")}
           type="password"
           value={config.system.socks5?.password || ""}
           onChange={(e) => onChange("system.socks5.password", e.target.value)}
           disabled={!config.system.socks5?.enabled}
-          helperText="Leave empty for no authentication"
+          helperText={t("settings.Socks5.passwordHelp")}
           autoComplete="new-password"
         />
         {config.system.socks5?.enabled && (
           <B4Alert severity="info">
-            Restart B4 after changing SOCKS5 settings for changes to take
-            effect.
+            {t("settings.Socks5.restartNote")}
           </B4Alert>
         )}
       </B4FormGroup>
