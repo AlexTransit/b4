@@ -271,7 +271,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     void (async () => {
       const result = await deleteSets(Array.from(selectedIds));
       if (result.success) {
-        showSuccess(`${selectedIds.size} ${t("sets.manager.setsDeleted")}`);
+        showSuccess(t("sets.manager.setsDeleted", { count: selectedIds.size }));
         setBatchDeleteDialog(false);
         handleExitSelectionMode();
         onRefresh();

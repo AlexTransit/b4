@@ -7,6 +7,7 @@
     "reload": "Обновить",
     "delete": "Удалить",
     "upload": "Загрузить",
+    "uploading": "Загрузка...",
     "download": "Скачать",
     "generate": "Сгенерировать",
     "discard": "Отменить изменения",
@@ -368,6 +369,7 @@
       "successTitle": "Сброс успешен",
       "successSubtitle": "Настройки по умолчанию восстановлены",
       "failedTitle": "Ошибка сброса",
+      "failedSubtitle": "Произошла ошибка",
       "resetButton": "Сбросить настройки"
     }
   },
@@ -430,7 +432,9 @@
       "failedToDelete": "Не удалось удалить",
       "setDuplicated": "Сет дублирован",
       "failedToDuplicate": "Не удалось дублировать",
-      "setsDeleted": "сет(ов) удалено",
+      "setsDeleted_one": "{{count}} сет удалён",
+      "setsDeleted_few": "{{count}} сета удалено",
+      "setsDeleted_many": "{{count}} сетов удалено",
       "failedToDeleteSets": "Не удалось удалить сеты",
       "failedToUpdate": "Не удалось обновить"
     },

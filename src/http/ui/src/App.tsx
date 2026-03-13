@@ -102,7 +102,7 @@ export default function App() {
     if (path.startsWith("/logs")) return t("core.nav.logs");
     if (path.startsWith("/detector")) return t("core.nav.detector");
     if (path.startsWith("/settings")) return t("core.nav.settings");
-    return t("core.nav.discovery");
+    return t("core.nav.dashboard");
   };
 
   const isNavItemSelected = (navPath: string) => {

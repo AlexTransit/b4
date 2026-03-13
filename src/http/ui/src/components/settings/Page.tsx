@@ -241,7 +241,7 @@ export function SettingsPage() {
       }
     } catch (error) {
       console.error("Error loading configuration:", error);
-      showErrorRef.current("Failed to load configuration");
+      showErrorRef.current(t("core.configLoadError"));
     } finally {
       setLoading(false);
     }

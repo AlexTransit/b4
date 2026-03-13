@@ -184,7 +184,7 @@ export const CaptureSettings = () => {
                   }}
                   disabled={loading || !uploadForm.file || !uploadForm.domain}
                 >
-                  {loading ? t("settings.Geo.uploading") : t("core.upload")}
+                  {loading ? t("core.uploading") : t("core.upload")}
                 </Button>
               </Stack>
             </Stack>

@@ -7,6 +7,7 @@
     "reload": "Reload",
     "delete": "Delete",
     "upload": "Upload",
+    "uploading": "Uploading...",
     "download": "Download",
     "generate": "Generate",
     "discard": "Discard Changes",
@@ -368,6 +369,7 @@
       "successTitle": "Reset Successful",
       "successSubtitle": "Default settings restored",
       "failedTitle": "Reset Failed",
+      "failedSubtitle": "An error occurred",
       "resetButton": "Reset to Defaults"
     }
   },
@@ -430,7 +432,8 @@
       "failedToDelete": "Failed to delete",
       "setDuplicated": "Set duplicated",
       "failedToDuplicate": "Failed to duplicate",
-      "setsDeleted": "set(s) deleted",
+      "setsDeleted_one": "{{count}} set deleted",
+      "setsDeleted_other": "{{count}} sets deleted",
       "failedToDeleteSets": "Failed to delete sets",
       "failedToUpdate": "Failed to update"
     },

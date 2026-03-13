@@ -61,7 +61,7 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
   };
 
   // Dynamic dialog props based on state
-  const defaultDeailgoProps = {
+  const defaultDialogProps = {
     title: t("settings.RestartDialog.title"),
     subtitle: t("settings.RestartDialog.subtitle"),
     icon: <RestartIcon />,
@@ -71,30 +71,30 @@ export const RestartDialog = ({ open, onClose }: RestartDialogProps) => {
     switch (state) {
       case "confirm":
         return {
-          ...defaultDeailgoProps,
+          ...defaultDialogProps,
         };
       case "restarting":
       case "waiting":
         return {
-          ...defaultDeailgoProps,
+          ...defaultDialogProps,
           title: t("settings.RestartDialog.restartingTitle"),
           subtitle: t("settings.RestartDialog.pleaseWait"),
         };
       case "success":
         return {
-          ...defaultDeailgoProps,
+          ...defaultDialogProps,
           title: t("settings.RestartDialog.successTitle"),
           subtitle: t("settings.RestartDialog.successSubtitle"),
         };
       case "error":
         return {
-          ...defaultDeailgoProps,
+          ...defaultDialogProps,
           title: t("settings.RestartDialog.failedTitle"),
           subtitle: t("settings.RestartDialog.failedSubtitle"),
         };
       default:
         return {
-          ...defaultDeailgoProps,
+          ...defaultDialogProps,
         };
     }
   };
