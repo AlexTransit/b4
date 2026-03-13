@@ -219,8 +219,30 @@ export const ImportExportSettings = ({
   };
 
   const handleCopy = () => {
-    void navigator.clipboard.writeText(jsonValue);
-    showSuccess("Copied to clipboard");
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(jsonValue).then(
+        () => showSuccess("Copied to clipboard"),
+        () => fallbackCopy(jsonValue),
+      );
+    } else {
+      fallbackCopy(jsonValue);
+    }
+  };
+
+  const fallbackCopy = (text: string) => {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      document.execCommand("copy");
+      showSuccess("Copied to clipboard");
+    } catch {
+      showError("Failed to copy to clipboard");
+    }
+    document.body.removeChild(textarea);
   };
 
   return (
@@ -242,6 +264,9 @@ export const ImportExportSettings = ({
         <B4TextField
           label="Set Configuration JSON"
           value={jsonValue}
+          onFocus={(e) =>
+            (e.target as HTMLTextAreaElement).select()
+          }
           onChange={(e) => {
             setJsonValue(e.target.value);
             setImportSuccess(false);
