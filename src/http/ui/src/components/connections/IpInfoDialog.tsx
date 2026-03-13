@@ -10,6 +10,7 @@ import { InfoIcon, AddIcon } from "@b4.icons";
 import { B4Dialog } from "@common/B4Dialog";
 import { B4Badge } from "@common/B4Badge";
 import { B4Alert } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface IpInfo {
   ip: string;
@@ -38,6 +39,7 @@ export const IpInfoModal = ({
   onClose,
   onAddHostname,
 }: IpInfoModalProps) => {
+  const { t } = useTranslation();
   const [ipInfo, setIpInfo] = useState<IpInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +77,7 @@ export const IpInfoModal = ({
 
   return (
     <B4Dialog
-      title="IP Information"
+      title={t("connections.ipInfo.title")}
       icon={<InfoIcon />}
       open={open}
       onClose={onClose}
@@ -87,12 +89,12 @@ export const IpInfoModal = ({
               variant="contained"
               startIcon={<AddIcon />}
             >
-              Add Hostname
+              {t("connections.ipInfo.addHostname")}
             </Button>
           )}
           <Box sx={{ flex: 1 }} />
           <Button onClick={onClose} variant="outlined">
-            Close
+            {t("connections.ipInfo.close")}
           </Button>
         </>
       }
@@ -115,7 +117,7 @@ export const IpInfoModal = ({
             {ipInfo.org && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Organization
+                  {t("connections.ipInfo.organization")}
                 </Typography>
                 <Typography variant="body1">
                   <a
@@ -132,7 +134,7 @@ export const IpInfoModal = ({
             {ipInfo.hostname && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Hostname
+                  {t("connections.ipInfo.hostname")}
                 </Typography>
                 <Typography variant="body1" fontFamily="monospace">
                   <B4Badge label={ipInfo.hostname} color="secondary" />
@@ -142,7 +144,7 @@ export const IpInfoModal = ({
 
             <Box>
               <Typography variant="caption" color="text.secondary">
-                IP Address
+                {t("connections.ipInfo.ipAddress")}
               </Typography>
               <Typography variant="body1" fontFamily="monospace">
                 <a
@@ -158,7 +160,7 @@ export const IpInfoModal = ({
             {(ipInfo.city || ipInfo.region || ipInfo.country) && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Location
+                  {t("connections.ipInfo.location")}
                 </Typography>
                 <Typography variant="body1">
                   {[ipInfo.city, ipInfo.region, ipInfo.country]
@@ -171,7 +173,7 @@ export const IpInfoModal = ({
             {ipInfo.loc && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Coordinates
+                  {t("connections.ipInfo.coordinates")}
                 </Typography>
                 <Typography variant="body1" fontFamily="monospace">
                   {ipInfo.loc}
@@ -182,7 +184,7 @@ export const IpInfoModal = ({
             {ipInfo.timezone && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Timezone
+                  {t("connections.ipInfo.timezone")}
                 </Typography>
                 <Typography variant="body1">{ipInfo.timezone}</Typography>
               </Box>
@@ -191,7 +193,7 @@ export const IpInfoModal = ({
             {ipInfo.postal && (
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Postal Code
+                  {t("connections.ipInfo.postalCode")}
                 </Typography>
                 <Typography variant="body1">{ipInfo.postal}</Typography>
               </Box>

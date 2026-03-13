@@ -18,6 +18,7 @@ import { colors } from "@design";
 import { B4Badge } from "@common/B4Badge";
 import { asnStorage } from "@utils";
 import { ParsedLog } from "@b4.connections";
+import { useTranslation } from "react-i18next";
 
 export type SortColumn =
   | "timestamp"
@@ -209,6 +210,7 @@ export const DomainsTable = ({
   onIpClick,
   onScrollStateChange,
 }: DomainsTableProps) => {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
@@ -279,37 +281,37 @@ export const DomainsTable = ({
         <TableHead>
           <TableRow>
             <SortableTableCell
-              label="Time"
+              label={t("connections.table.time")}
               active={sortColumn === "timestamp"}
               direction={sortColumn === "timestamp" ? sortDirection : null}
               onSort={() => onSort("timestamp")}
             />
             <SortableTableCell
-              label="Protocol"
+              label={t("connections.table.protocol")}
               active={sortColumn === "protocol"}
               direction={sortColumn === "protocol" ? sortDirection : null}
               onSort={() => onSort("protocol")}
             />
             <SortableTableCell
-              label="Set"
+              label={t("connections.table.set")}
               active={sortColumn === "set"}
               direction={sortColumn === "set" ? sortDirection : null}
               onSort={() => onSort("set")}
             />
             <SortableTableCell
-              label="Domain"
+              label={t("connections.table.domain")}
               active={sortColumn === "domain"}
               direction={sortColumn === "domain" ? sortDirection : null}
               onSort={() => onSort("domain")}
             />
             <SortableTableCell
-              label="Source"
+              label={t("connections.table.source")}
               active={sortColumn === "source"}
               direction={sortColumn === "source" ? sortDirection : null}
               onSort={() => onSort("source")}
             />
             <SortableTableCell
-              label="Destination"
+              label={t("connections.table.destination")}
               active={sortColumn === "destination"}
               direction={sortColumn === "destination" ? sortDirection : null}
               onSort={() => onSort("destination")}
@@ -330,7 +332,7 @@ export const DomainsTable = ({
                   borderBottom: "none",
                 }}
               >
-                Waiting for connections...
+                {t("connections.table.waitingForConnections")}
               </TableCell>
             </TableRow>
           ) : (

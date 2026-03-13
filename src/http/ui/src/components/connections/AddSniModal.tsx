@@ -17,6 +17,7 @@ import { B4Dialog } from "@common/B4Dialog";
 import { B4Badge } from "@common/B4Badge";
 import { B4SetConfig, NEW_SET_ID } from "@models/config";
 import { SetSelector } from "@common/SetSelector";
+import { useTranslation } from "react-i18next";
 
 interface AddSniModalProps {
   open: boolean;
@@ -41,6 +42,7 @@ export const AddSniModal = ({
   onSelectVariant,
   onAdd,
 }: AddSniModalProps) => {
+  const { t } = useTranslation();
   const [selectedSetId, setSelectedSetId] = useState<string>("");
   const [setName, setSetName] = useState<string>("");
 
@@ -61,13 +63,13 @@ export const AddSniModal = ({
 
   return (
     <B4Dialog
-      title="Add Domain to Manual List"
+      title={t("connections.addDomain.title")}
       icon={<DomainIcon />}
       open={open}
       onClose={onClose}
       actions={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("core.cancel")}</Button>
           <Box sx={{ flex: 1 }} />
           <Button
             onClick={handleAdd}
@@ -75,19 +77,17 @@ export const AddSniModal = ({
             startIcon={<AddIcon />}
             disabled={!selected || !selectedSetId}
           >
-            Add Domain
+            {t("connections.addDomain.addDomain")}
           </Button>
         </>
       }
     >
       <>
         <B4Alert severity="info" sx={{ mb: 2 }}>
-          Select which domain pattern to add to the manual domains list. More
-          specific patterns will only match exact subdomains, while broader
-          patterns will match all subdomains.
+          {t("connections.addDomain.alert")}
         </B4Alert>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-          Original domain: <B4Badge label={domain} color="primary" />
+          {t("connections.addDomain.originalDomain")} <B4Badge label={domain} color="primary" />
         </Typography>
         {!createNewSet && sets.length > 0 && (
           <SetSelector
@@ -130,11 +130,11 @@ export const AddSniModal = ({
                 {(() => {
                   let secondaryText: string;
                   if (index === 0) {
-                    secondaryText = "Most specific - exact match only";
+                    secondaryText = t("connections.addDomain.mostSpecific");
                   } else if (index === variants.length - 1) {
-                    secondaryText = "Broadest - matches all subdomains";
+                    secondaryText = t("connections.addDomain.broadest");
                   } else {
-                    secondaryText = "Intermediate specificity";
+                    secondaryText = t("connections.addDomain.intermediate");
                   }
                   return (
                     <ListItemText primary={variant} secondary={secondaryText} />

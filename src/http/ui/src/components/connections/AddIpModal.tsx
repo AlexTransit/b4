@@ -18,6 +18,7 @@ import { SetSelector } from "@common/SetSelector";
 import { asnStorage } from "@utils";
 import { clearAsnLookupCache } from "@hooks/useDomainActions";
 import { B4Alert, B4Badge, B4Dialog } from "@b4.elements";
+import { useTranslation } from "react-i18next";
 
 interface IpInfo {
   ip: string;
@@ -58,6 +59,7 @@ export const AddIpModal = ({
   onAdd,
   onAddHostname,
 }: AddIpModalProps) => {
+  const { t } = useTranslation();
   const [selectedSetId, setSelectedSetId] = useState<string>("");
   const [ipInfo, setIpInfo] = useState<IpInfo | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
@@ -195,14 +197,14 @@ export const AddIpModal = ({
 
   return (
     <B4Dialog
-      title="Add IP/CIDR to Manual List"
+      title={t("connections.addIp.title")}
       icon={<DomainIcon />}
       open={open}
       onClose={onClose}
       maxWidth="md"
       actions={
         <>
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t("core.cancel")}</Button>
           <Box sx={{ flex: 1 }} />
           <Button
             onClick={handleAdd}
@@ -211,23 +213,22 @@ export const AddIpModal = ({
             disabled={!selected && prefixes.length === 0}
           >
             {addMode === "all" && prefixes.length > 0
-              ? `Add All ${prefixes.length} Prefixes`
-              : "Add IP/CIDR"}
+              ? t("connections.addIp.addAllPrefixes", { count: prefixes.length })
+              : t("connections.addIp.addIpCidr")}
           </Button>
         </>
       }
     >
       <>
         <B4Alert severity="info" sx={{ mb: 2 }}>
-          Select the desired IP or CIDR range. You can enrich with network
-          information to load all ASN prefixes.
+          {t("connections.addIp.alert")}
         </B4Alert>
 
         <Box sx={{ mb: 3 }}>
           {ipInfo ? (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                Original IP: <B4Badge label={ip} color="secondary" />
+                {t("connections.addIp.originalIp")} <B4Badge label={ip} color="secondary" />
               </Typography>
               <Box
                 sx={{
@@ -241,17 +242,17 @@ export const AddIpModal = ({
                   <Box sx={{ flex: 1 }}>
                     {ipInfo.org && (
                       <Typography variant="body2" color="text.primary">
-                        <strong>Org:</strong> {ipInfo.org}
+                        <strong>{t("connections.addIp.org")}</strong> {ipInfo.org}
                       </Typography>
                     )}
                     {ipInfo.hostname && (
                       <Typography variant="body2" color="text.secondary">
-                        <strong>Hostname:</strong> {ipInfo.hostname}
+                        <strong>{t("connections.addIp.hostname")}</strong> {ipInfo.hostname}
                       </Typography>
                     )}
                     {(ipInfo.city || ipInfo.region || ipInfo.country) && (
                       <Typography variant="body2" color="text.secondary">
-                        <strong>Location:</strong>{" "}
+                        <strong>{t("connections.addIp.location")}</strong>{" "}
                         {[ipInfo.city, ipInfo.region, ipInfo.country]
                           .filter(Boolean)
                           .join(", ")}
@@ -263,13 +264,13 @@ export const AddIpModal = ({
                         color={colors.secondary}
                         sx={{ mt: 1 }}
                       >
-                        Loading AS{asn} prefixes...
+                        {t("connections.addIp.loadingPrefixes", { asn })}
                       </Typography>
                     )}
                   </Box>
                   {ipInfo.hostname && onAddHostname && (
                     <Button size="small" onClick={handleAddHostname}>
-                      Add Hostname
+                      {t("connections.addIp.addHostname")}
                     </Button>
                   )}
                 </Stack>
@@ -278,7 +279,7 @@ export const AddIpModal = ({
           ) : (
             <Stack direction="row" spacing={2} alignItems="center">
               <Typography variant="body2" color="text.secondary">
-                Original IP: <B4Badge label={ip} color="primary" />
+                {t("connections.addIp.originalIp")} <B4Badge label={ip} color="primary" />
               </Typography>
               <Box sx={{ flex: 1 }} />
               {ipInfoToken && (
@@ -288,7 +289,7 @@ export const AddIpModal = ({
                   onClick={() => void loadIpInfo()}
                   disabled={loadingInfo}
                 >
-                  {loadingInfo ? "Loading..." : "Enrich with IPInfo"}
+                  {loadingInfo ? t("connections.addIp.loading") : t("connections.addIp.enrichWithIpInfo")}
                 </Button>
               )}
               <Button
@@ -297,7 +298,7 @@ export const AddIpModal = ({
                 onClick={() => void loadRipeNetworkInfo()}
                 disabled={loadingInfo}
               >
-                {loadingInfo ? "Loading..." : "Load Network Info"}
+                {loadingInfo ? t("connections.addIp.loading") : t("connections.addIp.loadNetworkInfo")}
               </Button>
             </Stack>
           )}
@@ -321,11 +322,11 @@ export const AddIpModal = ({
               color="text.secondary"
               sx={{ mb: 1, mt: 2 }}
             >
-              Loaded {prefixes.length} prefixes from AS{asn}
+              {t("connections.addIp.loadedPrefixes", { count: prefixes.length, asn })}
             </Typography>
             <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
               <B4Badge
-                label={`Add ${ip} only`}
+                label={t("connections.addIp.addIpOnly", { ip })}
                 onClick={() => {
                   setAddMode("single");
                   onSelectVariant(initialVariants[0]);
@@ -334,7 +335,7 @@ export const AddIpModal = ({
                 variant="outlined"
               />
               <B4Badge
-                label={`Add all ${prefixes.length} prefixes`}
+                label={t("connections.addIp.addAllPrefixesBadge", { count: prefixes.length })}
                 onClick={() => {
                   setAddMode("all");
                   onSelectVariant(prefixes);
@@ -351,7 +352,7 @@ export const AddIpModal = ({
               color="text.secondary"
               sx={{ mb: 1, mt: 2 }}
             >
-              CIDR variants:
+              {t("connections.addIp.cidrVariants")}
             </Typography>
             <List sx={{ maxHeight: 400, overflow: "auto" }}>
               {variants.map((variant) => (
@@ -381,13 +382,13 @@ export const AddIpModal = ({
                       primary={variant}
                       secondary={(() => {
                         const [, cidr] = variant.split("/");
-                        if (cidr === "32" || cidr === "128") return "Single IP";
-                        if (cidr === "24") return "~256 IPs - local subnet";
-                        if (cidr === "16") return "~65K IPs - network block";
-                        if (cidr === "8") return "~16M IPs - class A";
-                        if (cidr === "64") return "IPv6 subnet";
-                        if (cidr === "48") return "IPv6 site";
-                        return "IPv6 ISP range";
+                        if (cidr === "32" || cidr === "128") return t("connections.addIp.singleIp");
+                        if (cidr === "24") return t("connections.addIp.subnet256");
+                        if (cidr === "16") return t("connections.addIp.network65k");
+                        if (cidr === "8") return t("connections.addIp.classA");
+                        if (cidr === "64") return t("connections.addIp.ipv6Subnet");
+                        if (cidr === "48") return t("connections.addIp.ipv6Site");
+                        return t("connections.addIp.ipv6IspRange");
                       })()}
                     />
                   </ListItemButton>

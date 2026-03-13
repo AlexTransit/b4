@@ -2,6 +2,7 @@ import { Box, Stack, TextField } from "@mui/material";
 import { ClearIcon } from "@b4.icons";
 import { B4Badge, B4Switch, B4TooltipButton } from "@b4.elements";
 import { colors } from "@design";
+import { useTranslation } from "react-i18next";
 
 interface DomainsControlBarProps {
   filter: string;
@@ -26,6 +27,8 @@ export const DomainsControlBar = ({
   onClearSort,
   onReset,
 }: DomainsControlBarProps) => {
+  const { t } = useTranslation();
+
   return (
     <Box
       sx={{
@@ -38,7 +41,7 @@ export const DomainsControlBar = ({
       <Stack direction="row" spacing={2} alignItems="center">
         <TextField
           size="small"
-          placeholder="Filter (combine with +, exclude with !, e.g. tcp+!domain:google.com)"
+          placeholder={t("connections.controlBar.filterPlaceholder")}
           value={filter}
           onChange={(e) => onFilterChange(e.target.value)}
           sx={{ flex: 1 }}
@@ -54,13 +57,13 @@ export const DomainsControlBar = ({
           }}
         />
         <Stack direction="row" spacing={1} alignItems="center">
-          <B4Badge label={`${totalCount} connections`} />
+          <B4Badge label={t("connections.controlBar.connections", { count: totalCount })} />
           {filter && (
-            <B4Badge label={`${filteredCount} filtered`} variant="outlined" />
+            <B4Badge label={t("connections.controlBar.filtered", { count: filteredCount })} variant="outlined" />
           )}
           {sortColumn && (
             <B4Badge
-              label={`Sorted by ${sortColumn}`}
+              label={t("connections.controlBar.sortedBy", { column: sortColumn })}
               size="small"
               onDelete={onClearSort}
               variant="outlined"
@@ -69,12 +72,12 @@ export const DomainsControlBar = ({
           )}
         </Stack>
         <B4Switch
-          label={showAll ? "All packets" : "Domains only"}
+          label={showAll ? t("connections.controlBar.allPackets") : t("connections.controlBar.domainsOnly")}
           checked={showAll}
           onChange={(checked: boolean) => onShowAllChange(checked)}
         />
         <B4TooltipButton
-          title={"Clear Connections"}
+          title={t("connections.controlBar.clearConnections")}
           onClick={onReset}
           icon={<ClearIcon />}
         />

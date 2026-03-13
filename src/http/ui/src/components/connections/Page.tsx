@@ -25,10 +25,12 @@ import { AddIpModal } from "./AddIpModal";
 import { B4Config, B4SetConfig } from "@models/config";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { devicesApi } from "@b4.devices";
+import { useTranslation } from "react-i18next";
 
 const MAX_DISPLAY_ROWS = 1000;
 
 export function ConnectionsPage() {
+  const { t } = useTranslation();
   const {
     domains,
     pauseDomains,
@@ -190,11 +192,11 @@ export function ConnectionsPage() {
         e.preventDefault();
         clearDomains();
         resetDomainsBadge();
-        showSuccess("Cleared all domains");
+        showSuccess(t("connections.page.clearedAll"));
       } else if (e.key === "p" || e.key === "Pause") {
         e.preventDefault();
         setPauseDomains(!pauseDomains);
-        showSuccess(`Domains ${pauseDomains ? "resumed" : "paused"}`);
+        showSuccess(pauseDomains ? t("connections.page.resumed") : t("connections.page.paused"));
       }
     },
     [
@@ -263,7 +265,7 @@ export function ConnectionsPage() {
             onScrollStateChange={handleScrollStateChange}
           />
 
-          <Tooltip title={pauseDomains ? "Resume streaming" : "Pause streaming"} placement="left">
+          <Tooltip title={pauseDomains ? t("connections.page.resumeStreaming") : t("connections.page.pauseStreaming")} placement="left">
             <Fab
               size="small"
               onClick={() => setPauseDomains(!pauseDomains)}

@@ -42,6 +42,9 @@
     "noData": "No data",
     "clearAll": "Clear All",
     "unknown": "Unknown",
+    "targetSet": "Target Set",
+    "setName": "Set Name",
+    "createNewSet": "Create New Set",
 
     "nav": {
       "dashboard": "Dashboard",
@@ -1239,6 +1242,81 @@
       "minutesAgo": "{{count}}m ago",
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago"
+    }
+  },
+
+  "connections": {
+    "page": {
+      "clearedAll": "Cleared all domains",
+      "resumed": "Domains resumed",
+      "paused": "Domains paused",
+      "resumeStreaming": "Resume streaming",
+      "pauseStreaming": "Pause streaming"
+    },
+    "controlBar": {
+      "filterPlaceholder": "Filter (combine with +, exclude with !, e.g. tcp+!domain:google.com)",
+      "connections": "{{count}} connections",
+      "filtered": "{{count}} filtered",
+      "sortedBy": "Sorted by {{column}}",
+      "allPackets": "All packets",
+      "domainsOnly": "Domains only",
+      "clearConnections": "Clear Connections"
+    },
+    "table": {
+      "time": "Time",
+      "protocol": "Protocol",
+      "set": "Set",
+      "domain": "Domain",
+      "source": "Source",
+      "destination": "Destination",
+      "waitingForConnections": "Waiting for connections..."
+    },
+    "addDomain": {
+      "title": "Add Domain to Manual List",
+      "addDomain": "Add Domain",
+      "alert": "Select which domain pattern to add to the manual domains list. More specific patterns will only match exact subdomains, while broader patterns will match all subdomains.",
+      "originalDomain": "Original domain:",
+      "mostSpecific": "Most specific - exact match only",
+      "broadest": "Broadest - matches all subdomains",
+      "intermediate": "Intermediate specificity"
+    },
+    "addIp": {
+      "title": "Add IP/CIDR to Manual List",
+      "addIpCidr": "Add IP/CIDR",
+      "addAllPrefixes": "Add All {{count}} Prefixes",
+      "alert": "Select the desired IP or CIDR range. You can enrich with network information to load all ASN prefixes.",
+      "originalIp": "Original IP:",
+      "org": "Org:",
+      "hostname": "Hostname:",
+      "location": "Location:",
+      "loadingPrefixes": "Loading AS{{asn}} prefixes...",
+      "addHostname": "Add Hostname",
+      "loading": "Loading...",
+      "enrichWithIpInfo": "Enrich with IPInfo",
+      "loadNetworkInfo": "Load Network Info",
+      "loadedPrefixes": "Loaded {{count}} prefixes from AS{{asn}}",
+      "addIpOnly": "Add {{ip}} only",
+      "addAllPrefixesBadge": "Add all {{count}} prefixes",
+      "cidrVariants": "CIDR variants:",
+      "singleIp": "Single IP",
+      "subnet256": "~256 IPs - local subnet",
+      "network65k": "~65K IPs - network block",
+      "classA": "~16M IPs - class A",
+      "ipv6Subnet": "IPv6 subnet",
+      "ipv6Site": "IPv6 site",
+      "ipv6IspRange": "IPv6 ISP range"
+    },
+    "ipInfo": {
+      "title": "IP Information",
+      "addHostname": "Add Hostname",
+      "close": "Close",
+      "organization": "Organization",
+      "hostname": "Hostname",
+      "ipAddress": "IP Address",
+      "location": "Location",
+      "coordinates": "Coordinates",
+      "timezone": "Timezone",
+      "postalCode": "Postal Code"
     }
   }
 }

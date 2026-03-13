@@ -10,6 +10,7 @@ import { AddIcon } from "@b4.icons";
 import { B4TextField } from "@b4.fields";
 import { colors } from "@design";
 import { B4SetConfig, NEW_SET_ID } from "@models/config";
+import { useTranslation } from "react-i18next";
 
 interface SetSelectorProps {
   sets: B4SetConfig[];
@@ -23,9 +24,11 @@ export const SetSelector = ({
   sets,
   value,
   onChange,
-  label = "Target Set",
+  label,
   disabled = false,
 }: SetSelectorProps) => {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t("core.targetSet");
   const [isCreating, setIsCreating] = useState(false);
   const [newSetName, setNewSetName] = useState("");
 
@@ -37,7 +40,7 @@ export const SetSelector = ({
   if (isCreating) {
     return (
       <B4TextField
-        label="Set Name"
+        label={t("core.setName")}
         value={newSetName}
         onChange={(e) => {
           setNewSetName(e.target.value);
@@ -64,7 +67,7 @@ export const SetSelector = ({
                 }}
                 sx={{ minWidth: "auto" }}
               >
-                Cancel
+                {t("core.cancel")}
               </Button>
             ),
           },
@@ -83,10 +86,10 @@ export const SetSelector = ({
 
   return (
     <FormControl fullWidth disabled={disabled}>
-      <InputLabel>{label}</InputLabel>
+      <InputLabel>{resolvedLabel}</InputLabel>
       <Select
         value={value}
-        label={label}
+        label={resolvedLabel}
         onChange={(e) => {
           if (e.target.value === NEW_SET_ID) {
             setIsCreating(true);
@@ -113,7 +116,7 @@ export const SetSelector = ({
           }}
         >
           <AddIcon sx={{ mr: 1, fontSize: 18 }} />
-          Create New Set
+          {t("core.createNewSet")}
         </MenuItem>
         {sets
           .filter((set) => set.enabled)
