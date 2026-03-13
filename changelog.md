@@ -3,6 +3,7 @@
 ## [1.4x.x] - 2026-03-xx
 
 - FIXED: **Update stuck on "Waiting for service to restart"** — when login protection was enabled, the update process would get stuck polling forever after the service restarted.
+- FIXED: **Excessive logging under heavy traffic** — on busy routers, packet queue overflows could flood the log with repeated error messages, wasting CPU and potentially making the situation worse. These messages are now rate-limited.
 
 ## [1.42.1] - 2026-03-13
 

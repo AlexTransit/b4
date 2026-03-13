@@ -545,17 +545,17 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 // handleNfqError handles errors from the NFQueue subsystem.
 func (w *Worker) handleNfqError(e error) int {
-	if w.ctx.Err() != nil {
-		if errors.Is(e, syscall.ENOBUFS) {
-			now := time.Now().Unix()
-			last := atomic.LoadInt64(&w.lastOverflowLog)
-			if now-last >= 5 {
-				if atomic.CompareAndSwapInt64(&w.lastOverflowLog, last, now) {
-					log.Warnf("nfq queue %d overflow - packets dropped", w.qnum)
-				}
+	if errors.Is(e, syscall.ENOBUFS) {
+		now := time.Now().Unix()
+		last := atomic.LoadInt64(&w.lastOverflowLog)
+		if now-last >= 5 {
+			if atomic.CompareAndSwapInt64(&w.lastOverflowLog, last, now) {
+				log.Warnf("nfq queue %d overflow - packets dropped", w.qnum)
 			}
-			return 0
 		}
+		return 0
+	}
+	if w.ctx.Err() != nil {
 		return 0
 	}
 	if errors.Is(e, os.ErrClosed) || errors.Is(e, net.ErrClosed) || errors.Is(e, syscall.EBADF) {
