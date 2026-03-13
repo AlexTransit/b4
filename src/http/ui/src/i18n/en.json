@@ -250,15 +250,15 @@
       "title": "Testing Configuration",
       "description": "Configure testing behavior and output",
       "discoveryTimeout": "Discovery Timeout",
-      "discoveryTimeoutHelp": "Timeout per preset during discovery",
+      "discoveryTimeoutHelp": "Max time to wait for each connection attempt when testing presets during discovery. Increase if you have a slow or unstable connection.",
       "configPropagation": "Config Propagation Delay",
-      "configPropagationHelp": "Delay for config to propagate to workers (increase on slow devices)",
+      "configPropagationHelp": "Wait time after applying each preset before testing it. Allows the new configuration to reach all workers. Increase on slow or resource-constrained devices where config updates take longer to settle.",
       "referenceDomain": "Reference Domain",
-      "referenceDomainHelp": "Fast domain to measure your network baseline speed",
+      "referenceDomainHelp": "A known accessible domain used to measure your raw network speed without DPI bypass. Discovery compares preset results against this baseline to evaluate performance. Choose a fast, reliable domain that is not blocked in your region.",
       "dnsConfig": "DNS Configuration",
       "addDns": "Add DNS Server",
-      "addDnsHelp": "Additional DNS servers to test",
-      "activeDns": "Active DNS servers to test:"
+      "addDnsHelp": "DNS servers used during discovery to detect DNS poisoning and find a working bypass. Each server is tested with plain and fragmented queries to determine if it can resolve blocked domains correctly.",
+      "activeDns": "Active DNS servers for poisoning detection:"
     },
 
     "Geo": {
@@ -978,6 +978,151 @@
         "dns": "DNS",
         "importExport": "Import/Export"
       }
+    }
+  },
+
+  "discovery": {
+    "title": "Configuration Discovery",
+    "description": "Hierarchical testing: Strategy Detection → Optimization → Combination",
+    "alert": "<strong>Configuration Discovery:</strong> Automatically test multiple configuration presets to find the most effective DPI bypass settings for the domains you specify below. B4 will temporarily apply different configurations and measure their performance.",
+    "addDomainLabel": "Add domain or URL",
+    "addDomainPlaceholder": "youtube.com, https://discord.com/path",
+    "addDomainHelper": "Press Enter to add. Paste multiple URLs separated by commas or newlines.",
+    "noUrlsAdded": "No URLs added yet",
+    "startDiscovery": "Start Discovery",
+    "cancel": "Cancel",
+    "newDiscovery": "New Discovery",
+    "reconnecting": "Reconnecting to running discovery...",
+    "checkingDns": "Checking DNS...",
+    "checksProgress": "{{completed}} of {{total}} checks",
+    "cacheCleared": "Discovery cache cleared",
+    "cacheClearFailed": "Failed to clear cache",
+    "createdSet": "Created set \"{{name}}\"",
+    "createSetFailed": "Failed to create set",
+    "addedDomainToSet": "Added domain to set",
+    "addDomainToSetFailed": "Failed to add domain to set",
+    "currentBest": "Current Best",
+    "bestConfiguration": "Best Configuration",
+    "useCurrentBest": "Use Current Best",
+    "useThisStrategy": "Use This Strategy",
+    "useThisConfig": "Use this configuration",
+    "configs": "{{success}}/{{total}} configs",
+    "noWorkingConfig": "No working config",
+    "tested": "{{count}} tested...",
+    "moreConfigsToTest": "{{count}} more configurations to test...",
+    "testingConfigurations": "Testing configurations...",
+    "foundWorking": "Found a working configuration! Still testing {{remaining}} more configs — a faster option may be found.",
+    "transportBlocked": "<strong>Transport blocked:</strong> This domain is blocked at the IP/network level — TCP connections cannot be established to any known IP address. DPI bypass strategies cannot help with IP-level blocking. A VPN or proxy is required for this domain.",
+    "allFailed": "All {{count}} tested configurations failed for this domain. Check your network connection and domain accessibility.",
+    "failed": "Failed",
+
+    "history": {
+      "title": "Previous Results",
+      "domainsTested": "{{count}} domain tested",
+      "domainsTested_plural": "{{count}} domains tested",
+      "clearHistory": "Clear History",
+      "historyCleared": "History cleared",
+      "historyClearFailed": "Failed to clear history",
+      "removeFromHistory": "Remove from history",
+      "removedFromHistory": "Removed {{domain}} from history",
+      "dnsPoisoning": "DNS poisoning detected",
+      "dnsPoisoningServer": "DNS poisoning detected — best server: {{server}}",
+      "transportBlockedShort": "Transport blocked — IP-level blocking detected. A VPN or proxy is required.",
+      "baseline": "Baseline: {{speed}} MB/s",
+      "best": "Best: {{speed}} MB/s",
+      "improvement": "(+{{percent}}% improvement)",
+      "retest": "Re-test"
+    },
+
+    "familyNames": {
+      "none": "Baseline",
+      "tcp_frag": "TCP Fragmentation",
+      "tls_record": "TLS Record Split",
+      "oob": "Out-of-Band",
+      "ip_frag": "IP Fragmentation",
+      "fake_sni": "Fake SNI",
+      "sack": "SACK Drop",
+      "syn_fake": "SYN Fake",
+      "desync": "Desync",
+      "delay": "Delay",
+      "disorder": "Disorder",
+      "extsplit": "Extension Split",
+      "firstbyte": "First-Byte",
+      "combo": "Combo",
+      "hybrid": "Hybrid",
+      "window": "Window Manipulation",
+      "mutation": "Mutation",
+      "incoming": "Incoming"
+    },
+
+    "phaseNames": {
+      "baseline": "Baseline Test",
+      "cached": "Cached Strategies",
+      "strategy_detection": "Strategy Detection",
+      "optimization": "Optimization",
+      "combination": "Combination Test",
+      "dns_detection": "DNS Detection"
+    },
+
+    "timeAgo": {
+      "justNow": "just now",
+      "minutesAgo": "{{count}}m ago",
+      "hoursAgo": "{{count}}h ago",
+      "daysAgo": "{{count}}d ago",
+      "monthsAgo": "{{count}}mo ago"
+    },
+
+    "addDialog": {
+      "title": "Add Configuration",
+      "subtitle": "Strategy: {{name}}",
+      "domainPattern": "Domain Pattern",
+      "addTo": "Add to",
+      "createNewSet": "Create new set",
+      "addToExisting": "Add to existing similar set",
+      "setName": "Set Name",
+      "similarSets": "Similar Sets",
+      "nMore": "+{{count}} more",
+      "createSet": "Create Set",
+      "addToSet": "Add to Set"
+    },
+
+    "options": {
+      "title": "Discovery Options",
+      "skipDns": "Skip DNS Discovery",
+      "skipCache": "Skip Cached Strategies",
+      "cacheHint": "Previously successful configurations are tested first.",
+      "clearCache": "Clear Cache",
+      "tlsVersion": "TLS Version",
+      "tlsVersionHint": "TLS version used for discovery probes. Some DPI systems handle TLS 1.2 and 1.3 differently.",
+      "customPayloads": "Custom Payloads",
+      "customPayloadsHint": "Test with generated TLS ClientHello (SNI-first) instead of built-in payloads",
+      "selectPayloads": "Select captured payloads...",
+      "validationTries": "Validation Tries",
+      "validationTriesHint": "Number of successful connection attempts required to validate a preset",
+      "noPayloads": "No captured payloads available.",
+      "capturePayloads": "Capture payloads",
+      "noPayloadsSuffix": "to test with custom TLS ClientHello.",
+      "summarySkipDns": "Skip DNS",
+      "summarySkipCache": "Skip Cache",
+      "summaryTries": "{{count}} tries",
+      "summaryPayloads": "{{count}} payload",
+      "summaryPayloads_plural": "{{count}} payloads"
+    },
+
+    "logs": {
+      "title": "Discovery Logs",
+      "waiting": "Waiting for discovery logs...",
+      "clearLogs": "Clear logs",
+      "fullscreenLogs": "Fullscreen logs",
+      "lines": "{{count}} lines",
+      "clear": "Clear"
+    },
+
+    "badges": {
+      "success": "Success",
+      "testing": "Testing...",
+      "blocked": "Blocked",
+      "failed": "Failed"
     }
   }
 }

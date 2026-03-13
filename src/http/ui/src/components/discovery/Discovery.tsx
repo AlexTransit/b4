@@ -42,50 +42,56 @@ import {
 import { useSets } from "@hooks/useSets";
 import { useCaptures } from "@b4.capture";
 import { DiscoveryOptionsPanel, DiscoveryOptions } from "./Options";
-
-const familyNames: Record<StrategyFamily, string> = {
-  none: "Baseline",
-  tcp_frag: "TCP Fragmentation",
-  tls_record: "TLS Record Split",
-  oob: "Out-of-Band",
-  ip_frag: "IP Fragmentation",
-  fake_sni: "Fake SNI",
-  sack: "SACK Drop",
-  syn_fake: "SYN Fake",
-  desync: "Desync",
-  delay: "Delay",
-  disorder: "Disorder",
-  extsplit: "Extension Split",
-  firstbyte: "First-Byte",
-  combo: "Combo",
-  hybrid: "Hybrid",
-  window: "Window Manipulation",
-  mutation: "Mutation",
-  incoming: "Incoming",
-};
-
-const phaseNames: Record<DiscoveryPhase, string> = {
-  baseline: "Baseline Test",
-  cached: "Cached Strategies",
-  strategy_detection: "Strategy Detection",
-  optimization: "Optimization",
-  combination: "Combination Test",
-  dns_detection: "DNS Detection",
-};
-
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return `${Math.floor(days / 30)}mo ago`;
-}
+import { useTranslation, Trans } from "react-i18next";
 
 export const DiscoveryRunner = () => {
+  const { t } = useTranslation();
+
+  const familyNames: Record<StrategyFamily, string> = {
+    none: t("discovery.familyNames.none"),
+    tcp_frag: t("discovery.familyNames.tcp_frag"),
+    tls_record: t("discovery.familyNames.tls_record"),
+    oob: t("discovery.familyNames.oob"),
+    ip_frag: t("discovery.familyNames.ip_frag"),
+    fake_sni: t("discovery.familyNames.fake_sni"),
+    sack: t("discovery.familyNames.sack"),
+    syn_fake: t("discovery.familyNames.syn_fake"),
+    desync: t("discovery.familyNames.desync"),
+    delay: t("discovery.familyNames.delay"),
+    disorder: t("discovery.familyNames.disorder"),
+    extsplit: t("discovery.familyNames.extsplit"),
+    firstbyte: t("discovery.familyNames.firstbyte"),
+    combo: t("discovery.familyNames.combo"),
+    hybrid: t("discovery.familyNames.hybrid"),
+    window: t("discovery.familyNames.window"),
+    mutation: t("discovery.familyNames.mutation"),
+    incoming: t("discovery.familyNames.incoming"),
+  };
+
+  const phaseNames: Record<DiscoveryPhase, string> = {
+    baseline: t("discovery.phaseNames.baseline"),
+    cached: t("discovery.phaseNames.cached"),
+    strategy_detection: t("discovery.phaseNames.strategy_detection"),
+    optimization: t("discovery.phaseNames.optimization"),
+    combination: t("discovery.phaseNames.combination"),
+    dns_detection: t("discovery.phaseNames.dns_detection"),
+  };
+
+  function formatTimeAgo(dateStr: string): string {
+    const date = new Date(dateStr);
+    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return t("discovery.timeAgo.justNow");
+    const diff = Date.now() - date.getTime();
+    if (diff < 0) return t("discovery.timeAgo.justNow");
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return t("discovery.timeAgo.justNow");
+    if (minutes < 60) return t("discovery.timeAgo.minutesAgo", { count: minutes });
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return t("discovery.timeAgo.hoursAgo", { count: hours });
+    const days = Math.floor(hours / 24);
+    if (days < 30) return t("discovery.timeAgo.daysAgo", { count: days });
+    return t("discovery.timeAgo.monthsAgo", { count: Math.floor(days / 30) });
+  }
+
   const {
     startDiscovery,
     cancelDiscovery,
@@ -116,7 +122,7 @@ export const DiscoveryRunner = () => {
     skipDNS: localStorage.getItem("b4_discovery_skipdns") === "true",
     skipCache: localStorage.getItem("b4_discovery_skipcache") === "true",
     payloadFiles: [],
-    validationTries: Number.parseInt(localStorage.getItem("b4_discovery_validation_tries") || "1") || 1,
+    validationTries: Number(localStorage.getItem("b4_discovery_validation_tries")) || 1,
     tlsVersion: (localStorage.getItem("b4_discovery_tls_version") as DiscoveryOptions["tlsVersion"]) || "auto",
   }));
 
@@ -254,7 +260,7 @@ export const DiscoveryRunner = () => {
     };
     const res = await addPresetAsSet(configToAdd);
     if (res.success) {
-      showSuccess(`Created set "${name}"`);
+      showSuccess(t("discovery.createdSet", { name }));
       setAddDialog({
         open: false,
         domain: "",
@@ -262,7 +268,7 @@ export const DiscoveryRunner = () => {
         setConfig: null,
       });
     } else {
-      showError("Failed to create set");
+      showError(t("discovery.createSetFailed"));
     }
     setAddingPreset(false);
   };
@@ -271,7 +277,7 @@ export const DiscoveryRunner = () => {
     setAddingPreset(true);
     const res = await addDomainToSet(setId, domain);
     if (res.success) {
-      showSuccess(`Added domain to set`);
+      showSuccess(t("discovery.addedDomainToSet"));
       setAddDialog({
         open: false,
         domain: "",
@@ -279,7 +285,7 @@ export const DiscoveryRunner = () => {
         setConfig: null,
       });
     } else {
-      showError("Failed to add domain to set");
+      showError(t("discovery.addDomainToSetFailed"));
     }
     setAddingPreset(false);
   };
@@ -291,15 +297,15 @@ export const DiscoveryRunner = () => {
 
   const getDomainStatusBadge = (domainResult: { best_success: boolean; dns_result?: { transport_blocked?: boolean } }) => {
     if (domainResult.best_success) {
-      return <B4Badge label="Success" size="small" variant="filled" color="primary" />;
+      return <B4Badge label={t("discovery.badges.success")} size="small" variant="filled" color="primary" />;
     }
     if (running) {
-      return <B4Badge label="Testing..." size="small" variant="outlined" color="primary" />;
+      return <B4Badge label={t("discovery.badges.testing")} size="small" variant="outlined" color="primary" />;
     }
     if (domainResult.dns_result?.transport_blocked) {
-      return <B4Badge label="Blocked" size="small" color="info" />;
+      return <B4Badge label={t("discovery.badges.blocked")} size="small" color="info" />;
     }
-    return <B4Badge label="Failed" size="small" color="error" />;
+    return <B4Badge label={t("discovery.badges.failed")} size="small" color="error" />;
   };
 
   const groupResultsByPhase = (results: Record<string, DomainPresetResult>) => {
@@ -324,29 +330,26 @@ export const DiscoveryRunner = () => {
     <Stack spacing={3}>
       {/* Control Panel */}
       <B4Section
-        title="Configuration Discovery"
-        description="Hierarchical testing: Strategy Detection → Optimization → Combination"
+        title={t("discovery.title")}
+        description={t("discovery.description")}
         icon={<DiscoveryIcon />}
       >
         <B4Alert icon={<DiscoveryIcon />}>
-          <strong>Configuration Discovery:</strong> Automatically test multiple
-          configuration presets to find the most effective DPI bypass settings
-          for the domains you specify below. B4 will temporarily apply different
-          configurations and measure their performance.
+          <Trans i18nKey="discovery.alert" />
         </B4Alert>
 
         {/* URL input with chips */}
         <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}>
           <B4TextField
-            label="Add domain or URL"
+            label={t("discovery.addDomainLabel")}
             value={urlInput}
             onChange={(e) => setUrlInput(e.target.value)}
             onKeyDown={handleUrlKeyDown}
             onPaste={handleUrlPaste}
             inputRef={domainInputRef}
-            placeholder="youtube.com, https://discord.com/path"
+            placeholder={t("discovery.addDomainPlaceholder")}
             disabled={running || !!isReconnecting}
-            helperText="Press Enter to add. Paste multiple URLs separated by commas or newlines."
+            helperText={t("discovery.addDomainHelper")}
           />
           <B4PlusButton
             onClick={() => addUrls(urlInput)}
@@ -372,7 +375,7 @@ export const DiscoveryRunner = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                Start Discovery
+                {t("discovery.startDiscovery")}
               </Button>
             )}
             {(running || isReconnecting) && (
@@ -387,7 +390,7 @@ export const DiscoveryRunner = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                Cancel
+                {t("discovery.cancel")}
               </Button>
             )}
             {suite && !running && (
@@ -399,7 +402,7 @@ export const DiscoveryRunner = () => {
                   whiteSpace: "nowrap",
                 }}
               >
-                New Discovery
+                {t("discovery.newDiscovery")}
               </Button>
             )}
           </Box>
@@ -410,7 +413,7 @@ export const DiscoveryRunner = () => {
             getKey={(url) => url}
             getLabel={(url) => extractDomain(url)}
             onDelete={removeUrl}
-            emptyMessage="No URLs added yet"
+            emptyMessage={t("discovery.noUrlsAdded")}
             showEmpty
           />
         )}
@@ -420,8 +423,8 @@ export const DiscoveryRunner = () => {
           onClearCache={() => {
             void (async () => {
               const res = await clearCache();
-              if (res.success) showSuccess("Discovery cache cleared");
-              else showError("Failed to clear cache");
+              if (res.success) showSuccess(t("discovery.cacheCleared"));
+              else showError(t("discovery.cacheClearFailed"));
             })();
           }}
           captures={captures}
@@ -433,7 +436,7 @@ export const DiscoveryRunner = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <CircularProgress size={20} sx={{ color: colors.secondary }} />
             <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-              Reconnecting to running discovery...
+              {t("discovery.reconnecting")}
             </Typography>
           </Box>
         )}
@@ -454,8 +457,8 @@ export const DiscoveryRunner = () => {
                     />
                   )}
                   {suite.current_phase === "dns_detection"
-                    ? "Checking DNS..."
-                    : `${suite.completed_checks} of ${suite.total_checks} checks`}
+                    ? t("discovery.checkingDns")
+                    : t("discovery.checksProgress", { completed: suite.completed_checks, total: suite.total_checks })}
                   {suite.current_domain && (
                     <B4Badge
                       label={suite.current_domain}
@@ -549,7 +552,7 @@ export const DiscoveryRunner = () => {
                         </Typography>
                         {getDomainStatusBadge(domainResult)}
                         <B4Badge
-                          label={`${successCount}/${totalCount} configs`}
+                          label={t("discovery.configs", { success: successCount, total: totalCount })}
                           size="small"
                           variant="filled"
                           color="primary"
@@ -578,8 +581,8 @@ export const DiscoveryRunner = () => {
                               2
                             )} MB/s`
                           : running
-                          ? `${totalCount} tested...`
-                          : "No working config"}
+                          ? t("discovery.tested", { count: totalCount })
+                          : t("discovery.noWorkingConfig")}
                       </Typography>
                     </Box>
 
@@ -616,8 +619,8 @@ export const DiscoveryRunner = () => {
                                 sx={{ color: colors.text.secondary }}
                               >
                                 {running
-                                  ? "Current Best"
-                                  : "Best Configuration"}
+                                  ? t("discovery.currentBest")
+                                  : t("discovery.bestConfiguration")}
                               </Typography>
                               <Typography
                                 variant="body1"
@@ -669,7 +672,7 @@ export const DiscoveryRunner = () => {
                               "&:hover": { bgcolor: colors.primary },
                             }}
                           >
-                            {running ? "Use Current Best" : "Use This Strategy"}
+                            {running ? t("discovery.useCurrentBest") : t("discovery.useThisStrategy")}
                           </Button>
                         </Box>
                         {/* Info message while still running */}
@@ -683,9 +686,7 @@ export const DiscoveryRunner = () => {
                               borderBottom: `1px solid ${colors.border.default}`,
                             }}
                           >
-                            Found a working configuration! Still testing{" "}
-                            {suite ? suite.total_checks - totalCount : "..."}{" "}
-                            more configs — a faster option may be found.
+                            {t("discovery.foundWorking", { remaining: suite ? suite.total_checks - totalCount : "..." })}
                           </B4Alert>
                         )}
                       </Box>
@@ -755,7 +756,7 @@ export const DiscoveryRunner = () => {
                                                 1024 /
                                                 1024
                                               ).toFixed(2)} MB/s`
-                                            : "Failed"
+                                            : t("discovery.failed")
                                         }`}
                                         size="small"
                                         color={
@@ -767,7 +768,7 @@ export const DiscoveryRunner = () => {
                                       {result.status === "complete" &&
                                         result.preset_name !==
                                           domainResult.best_preset && (
-                                          <Tooltip title="Use this configuration">
+                                          <Tooltip title={t("discovery.useThisConfig")}>
                                             <IconButton
                                               size="small"
                                               onClick={() => {
@@ -805,17 +806,11 @@ export const DiscoveryRunner = () => {
                       <Box sx={{ p: 3 }}>
                         {domainResult.dns_result?.transport_blocked ? (
                           <B4Alert severity="warning">
-                            <strong>Transport blocked:</strong> This domain is
-                            blocked at the IP/network level — TCP connections
-                            cannot be established to any known IP address. DPI
-                            bypass strategies cannot help with IP-level blocking.
-                            A VPN or proxy is required for this domain.
+                            <Trans i18nKey="discovery.transportBlocked" />
                           </B4Alert>
                         ) : (
                           <B4Alert severity="error">
-                            All {Object.keys(domainResult.results).length} tested
-                            configurations failed for this domain. Check your
-                            network connection and domain accessibility.
+                            {t("discovery.allFailed", { count: Object.keys(domainResult.results).length })}
                           </B4Alert>
                         )}
                       </Box>
@@ -836,10 +831,8 @@ export const DiscoveryRunner = () => {
                             sx={{ color: colors.text.secondary }}
                           />
                           {suite && suite.total_checks > totalCount
-                            ? `${
-                                suite.total_checks - totalCount
-                              } more configurations to test...`
-                            : "Testing configurations..."}
+                            ? t("discovery.moreConfigsToTest", { count: suite.total_checks - totalCount })
+                            : t("discovery.testingConfigurations")}
                         </Typography>
                       </Box>
                     )}
@@ -852,8 +845,8 @@ export const DiscoveryRunner = () => {
       {/* Discovery History */}
       {history.length > 0 && (
         <B4Section
-          title="Previous Results"
-          description={`${history.length} domain${history.length !== 1 ? "s" : ""} tested`}
+          title={t("discovery.history.title")}
+          description={`${history.length} ${history.length !== 1 ? t("discovery.history.domainsTested_plural", { count: history.length }) : t("discovery.history.domainsTested", { count: history.length })}`}
           icon={<HistoryIcon />}
         >
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: -1 }}>
@@ -863,13 +856,13 @@ export const DiscoveryRunner = () => {
               onClick={() => {
                 void (async () => {
                   const res = await clearHistory();
-                  if (res.success) showSuccess("History cleared");
-                  else showError("Failed to clear history");
+                  if (res.success) showSuccess(t("discovery.history.historyCleared"));
+                  else showError(t("discovery.history.historyClearFailed"));
                 })();
               }}
               sx={{ color: colors.text.secondary, textTransform: "none" }}
             >
-              Clear History
+              {t("discovery.history.clearHistory")}
             </Button>
           </Box>
           <Stack spacing={1}>
@@ -924,11 +917,11 @@ export const DiscoveryRunner = () => {
                           {entry.domain}
                         </Typography>
                         {entry.best_success ? (
-                          <B4Badge label="Success" size="small" variant="filled" color="primary" />
+                          <B4Badge label={t("discovery.badges.success")} size="small" variant="filled" color="primary" />
                         ) : entry.dns_result?.transport_blocked ? (
-                          <B4Badge label="Blocked" size="small" color="info" />
+                          <B4Badge label={t("discovery.badges.blocked")} size="small" color="info" />
                         ) : (
-                          <B4Badge label="Failed" size="small" color="error" />
+                          <B4Badge label={t("discovery.badges.failed")} size="small" color="error" />
                         )}
                         {entry.best_family && entry.best_success && (
                           <B4Badge
@@ -948,19 +941,19 @@ export const DiscoveryRunner = () => {
                         >
                           {entry.best_success
                             ? `${(entry.best_speed / 1024 / 1024).toFixed(2)} MB/s`
-                            : "No working config"}
+                            : t("discovery.noWorkingConfig")}
                         </Typography>
                         <Typography variant="caption" sx={{ color: colors.text.secondary }}>
                           {formatTimeAgo(entry.end_time)}
                         </Typography>
-                        <Tooltip title="Remove from history">
+                        <Tooltip title={t("discovery.history.removeFromHistory")}>
                           <IconButton
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
                               void (async () => {
                                 const res = await deleteHistoryDomain(entry.domain);
-                                if (res.success) showSuccess(`Removed ${entry.domain} from history`);
+                                if (res.success) showSuccess(t("discovery.history.removedFromHistory", { domain: entry.domain }));
                               })();
                             }}
                             sx={{
@@ -995,7 +988,7 @@ export const DiscoveryRunner = () => {
                               <SpeedIcon sx={{ color: colors.secondary }} />
                               <Box>
                                 <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-                                  Best Configuration
+                                  {t("discovery.bestConfiguration")}
                                 </Typography>
                                 <Typography variant="body2" sx={{ color: colors.text.primary, fontWeight: 600 }}>
                                   {entry.best_preset}
@@ -1019,7 +1012,7 @@ export const DiscoveryRunner = () => {
                                   "&:hover": { bgcolor: colors.primary },
                                 }}
                               >
-                                Use This Strategy
+                                {t("discovery.useThisStrategy")}
                               </Button>
                             )}
                           </Box>
@@ -1028,24 +1021,25 @@ export const DiscoveryRunner = () => {
                         {/* DNS info */}
                         {entry.dns_result?.is_poisoned && (
                           <B4Alert severity="warning" sx={{ mb: 1 }}>
-                            DNS poisoning detected
-                            {entry.dns_result.best_server && ` — best server: ${entry.dns_result.best_server}`}
+                            {entry.dns_result.best_server
+                              ? t("discovery.history.dnsPoisoningServer", { server: entry.dns_result.best_server })
+                              : t("discovery.history.dnsPoisoning")}
                           </B4Alert>
                         )}
                         {entry.dns_result?.transport_blocked && (
                           <B4Alert severity="error" sx={{ mb: 1 }}>
-                            Transport blocked — IP-level blocking detected. A VPN or proxy is required.
+                            {t("discovery.history.transportBlockedShort")}
                           </B4Alert>
                         )}
 
                         {/* Improvement badge */}
                         {entry.improvement && entry.improvement > 0 && (
                           <Typography variant="body2" sx={{ color: colors.text.secondary, mb: 1 }}>
-                            Baseline: {(entry.baseline_speed! / 1024 / 1024).toFixed(2)} MB/s
+                            {t("discovery.history.baseline", { speed: (entry.baseline_speed! / 1024 / 1024).toFixed(2) })}
                             {" → "}
-                            Best: {(entry.best_speed / 1024 / 1024).toFixed(2)} MB/s
+                            {t("discovery.history.best", { speed: (entry.best_speed / 1024 / 1024).toFixed(2) })}
                             {" "}
-                            (+{entry.improvement.toFixed(0)}% improvement)
+                            {t("discovery.history.improvement", { percent: entry.improvement.toFixed(0) })}
                           </Typography>
                         )}
 
@@ -1096,7 +1090,7 @@ export const DiscoveryRunner = () => {
                                             label={`${result.preset_name}: ${
                                               result.status === "complete"
                                                 ? `${(result.speed / 1024 / 1024).toFixed(2)} MB/s`
-                                                : "Failed"
+                                                : t("discovery.failed")
                                             }`}
                                             size="small"
                                             color={result.status === "complete" ? "primary" : "error"}
@@ -1104,7 +1098,7 @@ export const DiscoveryRunner = () => {
                                           {result.status === "complete" &&
                                             result.preset_name !== entry.best_preset &&
                                             result.set && (
-                                              <Tooltip title="Use this configuration">
+                                              <Tooltip title={t("discovery.useThisConfig")}>
                                                 <IconButton
                                                   size="small"
                                                   onClick={() => {
@@ -1147,7 +1141,7 @@ export const DiscoveryRunner = () => {
                             }}
                             sx={{ textTransform: "none" }}
                           >
-                            Re-test
+                            {t("discovery.history.retest")}
                           </Button>
                         </Box>
                       </Box>

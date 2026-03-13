@@ -42,7 +42,10 @@ import { SNIResults } from "./results/SNIResults";
 import { testNames, statusColors } from "./constants";
 
 function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime()) || date.getFullYear() < 1970) return "just now";
+  const diff = Date.now() - date.getTime();
+  if (diff < 0) return "just now";
   const minutes = Math.floor(diff / 60000);
   if (minutes < 1) return "just now";
   if (minutes < 60) return `${minutes}m ago`;
@@ -296,84 +299,93 @@ export const DetectorRunner = () => {
         )}
       </AnimatePresence>
 
-      {/* DNS Results */}
-      {suite?.dns_result && (
-        <ResultSection
-          title="DNS Integrity Check"
-          icon={<DnsIcon />}
-          summary={suite.dns_result.summary}
-          ok={suite.dns_result.status === "OK"}
-        >
-          {suite.dns_result.doh_blocked && (
-            <B4Alert severity="error">
-              All DNS-over-HTTPS servers are blocked. Your ISP is filtering
-              encrypted DNS.
-            </B4Alert>
+      {/* Result sections in flexible layout */}
+      {hasAnyResult && (
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+          {suite?.dns_result && (
+            <Box sx={{ flex: "1 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title="DNS Integrity Check"
+                icon={<DnsIcon />}
+                summary={suite.dns_result.summary}
+                ok={suite.dns_result.status === "OK"}
+              >
+                {suite.dns_result.doh_blocked && (
+                  <B4Alert severity="error">
+                    All DNS-over-HTTPS servers are blocked. Your ISP is filtering
+                    encrypted DNS.
+                  </B4Alert>
+                )}
+                {suite.dns_result.udp_blocked && (
+                  <B4Alert severity="error">
+                    All UDP DNS servers (port 53) are blocked.
+                  </B4Alert>
+                )}
+                {suite.dns_result.stub_ips &&
+                  suite.dns_result.stub_ips.length > 0 && (
+                    <B4Alert severity="warning" icon={<WarningIcon />}>
+                      Stub/sinkhole IPs detected:{" "}
+                      {suite.dns_result.stub_ips.join(", ")}. Multiple blocked domains
+                      resolve to these IPs.
+                    </B4Alert>
+                  )}
+                {suite.dns_result.domains && suite.dns_result.domains.length > 0 && (
+                  <DNSResults domains={suite.dns_result.domains} />
+                )}
+              </ResultSection>
+            </Box>
           )}
-          {suite.dns_result.udp_blocked && (
-            <B4Alert severity="error">
-              All UDP DNS servers (port 53) are blocked.
-            </B4Alert>
-          )}
-          {suite.dns_result.stub_ips &&
-            suite.dns_result.stub_ips.length > 0 && (
-              <B4Alert severity="warning" icon={<WarningIcon />}>
-                Stub/sinkhole IPs detected:{" "}
-                {suite.dns_result.stub_ips.join(", ")}. Multiple blocked domains
-                resolve to these IPs.
-              </B4Alert>
-            )}
-          {suite.dns_result.domains && suite.dns_result.domains.length > 0 && (
-            <DNSResults domains={suite.dns_result.domains} />
-          )}
-        </ResultSection>
-      )}
 
-      {/* Domain Results */}
-      {suite?.domains_result && (
-        <ResultSection
-          title="Domain Accessibility"
-          icon={<DomainIcon />}
-          summary={suite.domains_result.summary}
-          ok={suite.domains_result.blocked_count === 0}
-        >
-          {suite.domains_result.domains &&
-            suite.domains_result.domains.length > 0 && (
-              <DomainsResults domains={suite.domains_result.domains} />
-            )}
-        </ResultSection>
-      )}
-
-      {/* TCP Results */}
-      {suite?.tcp_result && (
-        <ResultSection
-          title="TCP Fat Probe Test"
-          icon={<NetworkIcon />}
-          summary={suite.tcp_result.summary}
-          ok={suite.tcp_result.detected_count === 0}
-        >
-          {suite.tcp_result.targets && suite.tcp_result.targets.length > 0 && (
-            <TCPResults targets={suite.tcp_result.targets} />
+          {suite?.domains_result && (
+            <Box sx={{ flex: "2 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title="Domain Accessibility"
+                icon={<DomainIcon />}
+                summary={suite.domains_result.summary}
+                ok={suite.domains_result.blocked_count === 0}
+              >
+                {suite.domains_result.domains &&
+                  suite.domains_result.domains.length > 0 && (
+                    <DomainsResults domains={suite.domains_result.domains} />
+                  )}
+              </ResultSection>
+            </Box>
           )}
-        </ResultSection>
-      )}
 
-      {/* SNI Results */}
-      {suite?.sni_result && (
-        <ResultSection
-          title="SNI Whitelist Brute-Force"
-          icon={<SniIcon />}
-          summary={suite.sni_result.summary}
-          ok={
-            suite.sni_result.tested_count === 0 ||
-            suite.sni_result.found_count > 0
-          }
-        >
-          {suite.sni_result.asn_results &&
-            suite.sni_result.asn_results.length > 0 && (
-              <SNIResults results={suite.sni_result.asn_results} />
-            )}
-        </ResultSection>
+          {suite?.tcp_result && (
+            <Box sx={{ flex: "2 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title="TCP Fat Probe Test"
+                icon={<NetworkIcon />}
+                summary={suite.tcp_result.summary}
+                ok={suite.tcp_result.detected_count === 0}
+              >
+                {suite.tcp_result.targets && suite.tcp_result.targets.length > 0 && (
+                  <TCPResults targets={suite.tcp_result.targets} />
+                )}
+              </ResultSection>
+            </Box>
+          )}
+
+          {suite?.sni_result && (
+            <Box sx={{ flex: "1 1 480px", minWidth: 0 }}>
+              <ResultSection
+                title="SNI Whitelist Brute-Force"
+                icon={<SniIcon />}
+                summary={suite.sni_result.summary}
+                ok={
+                  suite.sni_result.tested_count === 0 ||
+                  suite.sni_result.found_count > 0
+                }
+              >
+                {suite.sni_result.asn_results &&
+                  suite.sni_result.asn_results.length > 0 && (
+                    <SNIResults results={suite.sni_result.asn_results} />
+                  )}
+              </ResultSection>
+            </Box>
+          )}
+        </Box>
       )}
 
       {/* Detection History */}

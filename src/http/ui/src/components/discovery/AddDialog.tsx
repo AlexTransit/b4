@@ -15,6 +15,7 @@ import { B4TextField, B4Dialog } from "@b4.elements";
 import { colors } from "@design";
 import { B4SetConfig } from "@models/config";
 import { generateDomainVariants } from "@utils";
+import { useTranslation } from "react-i18next";
 
 interface SimilarSet {
   id: string;
@@ -43,6 +44,7 @@ export const DiscoveryAddDialog = ({
   onAddToExisting,
   loading = false,
 }: DiscoveryAddDialogProps) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(presetName);
   const [variants, setVariants] = useState<string[]>([]);
   const [selectedVariant, setSelectedVariant] = useState(domain);
@@ -99,15 +101,15 @@ export const DiscoveryAddDialog = ({
     <B4Dialog
       open={open}
       onClose={onClose}
-      title="Add Configuration"
-      subtitle={`Strategy: ${presetName}`}
+      title={t("discovery.addDialog.title")}
+      subtitle={t("discovery.addDialog.subtitle", { name: presetName })}
       icon={<AddIcon />}
       maxWidth="sm"
       fullWidth
       actions={
         <Stack direction="row" spacing={2}>
           <Button onClick={onClose} disabled={loading}>
-            Cancel
+            {t("core.cancel")}
           </Button>
           <Button
             variant="contained"
@@ -116,7 +118,7 @@ export const DiscoveryAddDialog = ({
             startIcon={loading ? <CircularProgress size={18} /> : <AddIcon />}
             sx={{ bgcolor: colors.secondary }}
           >
-            {mode === "new" ? "Create Set" : "Add to Set"}
+            {mode === "new" ? t("discovery.addDialog.createSet") : t("discovery.addDialog.addToSet")}
           </Button>
         </Stack>
       }
@@ -128,7 +130,7 @@ export const DiscoveryAddDialog = ({
             variant="subtitle2"
             sx={{ mb: 1, color: colors.text.secondary }}
           >
-            Domain Pattern
+            {t("discovery.addDialog.domainPattern")}
           </Typography>
           <Stack direction="row" spacing={1} flexWrap="wrap" gap={1}>
             {variants.map((v) => (
@@ -159,7 +161,7 @@ export const DiscoveryAddDialog = ({
               variant="subtitle2"
               sx={{ mb: 1, color: colors.text.secondary }}
             >
-              Add to
+              {t("discovery.addDialog.addTo")}
             </Typography>
             <RadioGroup
               value={mode}
@@ -168,12 +170,12 @@ export const DiscoveryAddDialog = ({
               <FormControlLabel
                 value="new"
                 control={<Radio />}
-                label="Create new set"
+                label={t("discovery.addDialog.createNewSet")}
               />
               <FormControlLabel
                 value="existing"
                 control={<Radio />}
-                label="Add to existing similar set"
+                label={t("discovery.addDialog.addToExisting")}
               />
             </RadioGroup>
           </Box>
@@ -182,7 +184,7 @@ export const DiscoveryAddDialog = ({
         {/* New set name input */}
         {mode === "new" && (
           <B4TextField
-            label="Set Name"
+            label={t("discovery.addDialog.setName")}
             value={name}
             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
               setName(e.target.value)
@@ -198,7 +200,7 @@ export const DiscoveryAddDialog = ({
               variant="subtitle2"
               sx={{ mb: 1, color: colors.text.secondary }}
             >
-              Similar Sets
+              {t("discovery.addDialog.similarSets")}
             </Typography>
             <Stack spacing={1}>
               {similarSets.map((set) => (
@@ -226,7 +228,7 @@ export const DiscoveryAddDialog = ({
                   >
                     {set.domains.slice(0, 3).join(", ")}
                     {set.domains.length > 3 &&
-                      ` +${set.domains.length - 3} more`}
+                      ` ${t("discovery.addDialog.nMore", { count: set.domains.length - 3 })}`}
                   </Typography>
                 </Box>
               ))}

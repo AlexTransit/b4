@@ -1,4 +1,4 @@
-import { Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { colors } from "@design";
 import { B4Badge } from "@b4.elements";
 import type { TCPTargetResult } from "@models/detector";
@@ -9,11 +9,11 @@ function KVRow({
   label,
   value,
   mono,
-}: {
+}: Readonly<{
   label: string;
   value: React.ReactNode;
   mono?: boolean;
-}) {
+}>) {
   return (
     <Stack direction="row" spacing={2} alignItems="center">
       <Typography
@@ -49,7 +49,7 @@ export function TCPResults({
   targets,
 }: Readonly<{ targets: TCPTargetResult[] }>) {
   return (
-    <Stack spacing={1}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
       {targets.map((t, index) => {
         const status =
           t.status === "OK"
@@ -59,67 +59,68 @@ export function TCPResults({
               : "warning";
 
         return (
-          <ResultCard
-            key={t.target.id}
-            index={index}
-            status={status as "ok" | "error" | "warning"}
-            title={`${t.target.provider} (AS${t.target.asn})`}
-            subtitle={`${t.target.ip}:${t.target.port}`}
-            badge={
-              <Stack direction="row" alignItems="center" spacing={0.5}>
-                <B4Badge
-                  label={t.alive ? "Alive" : "Dead"}
-                  size="small"
-                  color={t.alive ? "primary" : "error"}
-                />
-                <StatusChip status={t.status} />
-              </Stack>
-            }
-            expandedContent={
-              <Stack spacing={1} sx={{ py: 0.5 }}>
-                <KVRow
-                  label="Endpoint"
-                  value={`${t.target.ip}:${t.target.port}`}
-                  mono
-                />
-                <KVRow label="ASN" value={`AS${t.target.asn}`} mono />
-                <KVRow
-                  label="Alive"
-                  value={
-                    <B4Badge
-                      label={t.alive ? "Yes" : "No"}
-                      size="small"
-                      color={t.alive ? "primary" : "error"}
-                    />
-                  }
-                />
-                {t.drop_at_kb != null && (
-                  <KVRow label="Drop at" value={`${t.drop_at_kb} KB`} mono />
-                )}
-                {t.rtt_ms != null && (
-                  <KVRow label="RTT" value={`${t.rtt_ms} ms`} mono />
-                )}
-                {t.target.sni && (
-                  <KVRow label="SNI" value={t.target.sni} mono />
-                )}
-                {t.detail && (
+          <Box key={t.target.id} sx={{ flex: "1 1 300px", minWidth: 0 }}>
+            <ResultCard
+              index={index}
+              status={status as "ok" | "error" | "warning"}
+              title={`${t.target.provider} (AS${t.target.asn})`}
+              subtitle={`${t.target.ip}:${t.target.port}`}
+              badge={
+                <Stack direction="row" alignItems="center" spacing={0.5}>
+                  <B4Badge
+                    label={t.alive ? "Alive" : "Dead"}
+                    size="small"
+                    color={t.alive ? "primary" : "error"}
+                  />
+                  <StatusChip status={t.status} />
+                </Stack>
+              }
+              expandedContent={
+                <Stack spacing={1} sx={{ py: 0.5 }}>
                   <KVRow
-                    label="Detail"
+                    label="Endpoint"
+                    value={`${t.target.ip}:${t.target.port}`}
+                    mono
+                  />
+                  <KVRow label="ASN" value={`AS${t.target.asn}`} mono />
+                  <KVRow
+                    label="Alive"
                     value={
-                      <Typography
-                        variant="caption"
-                        sx={{ color: colors.text.secondary }}
-                      >
-                        {t.detail}
-                      </Typography>
+                      <B4Badge
+                        label={t.alive ? "Yes" : "No"}
+                        size="small"
+                        color={t.alive ? "primary" : "error"}
+                      />
                     }
                   />
-                )}
-              </Stack>
-            }
-          />
+                  {t.drop_at_kb != null && (
+                    <KVRow label="Drop at" value={`${t.drop_at_kb} KB`} mono />
+                  )}
+                  {t.rtt_ms != null && (
+                    <KVRow label="RTT" value={`${t.rtt_ms} ms`} mono />
+                  )}
+                  {t.target.sni && (
+                    <KVRow label="SNI" value={t.target.sni} mono />
+                  )}
+                  {t.detail && (
+                    <KVRow
+                      label="Detail"
+                      value={
+                        <Typography
+                          variant="caption"
+                          sx={{ color: colors.text.secondary }}
+                        >
+                          {t.detail}
+                        </Typography>
+                      }
+                    />
+                  )}
+                </Stack>
+              }
+            />
+          </Box>
         );
       })}
-    </Stack>
+    </Box>
   );
 }

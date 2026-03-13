@@ -249,16 +249,16 @@
     "Checker": {
       "title": "Конфигурация тестирования",
       "description": "Настройка поведения и результатов тестирования",
-      "discoveryTimeout": "Таймаут обнаружения",
-      "discoveryTimeoutHelp": "Таймаут на пресет при обнаружении",
+      "discoveryTimeout": "Таймаут поиска",
+      "discoveryTimeoutHelp": "Максимальное время ожидания каждой попытки подключения при тестировании пресетов во время поиска. Увеличьте при медленном или нестабильном соединении.",
       "configPropagation": "Задержка распространения конфигурации",
-      "configPropagationHelp": "Задержка для распространения конфигурации на воркеры (увеличьте на медленных устройствах)",
+      "configPropagationHelp": "Время ожидания после применения каждого пресета перед его тестированием. Позволяет новой конфигурации дойти до всех воркеров. Увеличьте на медленных или слабых устройствах, где обновление конфигурации занимает больше времени.",
       "referenceDomain": "Эталонный домен",
-      "referenceDomainHelp": "Быстрый домен для измерения базовой скорости вашей сети",
+      "referenceDomainHelp": "Доступный домен для измерения реальной скорости сети без обхода DPI. Поиск сравнивает результаты пресетов с этим эталоном для оценки производительности. Выберите быстрый и надёжный домен, который не заблокирован в вашем регионе.",
       "dnsConfig": "Настройки DNS",
       "addDns": "Добавить DNS сервер",
-      "addDnsHelp": "Дополнительные DNS серверы для тестирования",
-      "activeDns": "Активные DNS серверы для тестирования:"
+      "addDnsHelp": "DNS серверы, используемые при поиске для обнаружения DNS-подмены и нахождения рабочего обхода. Каждый сервер тестируется обычным и фрагментированным запросом, чтобы определить, может ли он корректно разрешать заблокированные домены.",
+      "activeDns": "Активные DNS серверы для проверки подмены:"
     },
 
     "Geo": {
@@ -295,7 +295,7 @@
     },
 
     "Backup": {
-      "alert": "Создайте резервную копию директории конфигурации B4 или восстановите из предыдущей копии. Копия включает конфигурацию, историю обнаружения, историю детектора, псевдонимы устройств и захваченные пэйлоады. Файлы геоданных (.dat) и база OUI исключены.",
+      "alert": "Создайте резервную копию директории конфигурации B4 или восстановите из предыдущей копии. Копия включает конфигурацию, историю поиска, историю детектора, псевдонимы устройств и захваченные пэйлоады. Файлы геоданных (.dat) и база OUI исключены.",
       "downloadTitle": "Скачать резервную копию",
       "downloadDescription": "Создание и скачивание tar.gz архива конфигурации B4",
       "downloadInfo": "Копия будет включать все файлы из директории конфигурации, кроме файлов геоданных (.dat) и базы OUI.",
@@ -594,7 +594,7 @@
           "decoyHow": "КАК РАБОТАЕТ ОБМАНКА",
           "decoySent1st": "Отправлен 1-м:",
           "decoySent2nd": "Отправлен 2-м:",
-          "decoyFakePayload": "ФЕЙКОВАЯ нагрузка (низкий TTL)",
+          "decoyFakePayload": "ФЕЙКОВЫЙ payload (низкий TTL)",
           "decoyFakeNote": "→ DPI видит, умирает до сервера",
           "decoyRealPayload": "РЕАЛЬНЫЙ (фрагментированный)",
           "decoyRealNote": "→ Сервер получает",
@@ -698,10 +698,10 @@
           "packetStructViz": "ПРИМЕР СТРУКТУРЫ TCP-ПАКЕТА",
           "splitMode3seg": "3 сегмента: разделение на фиксированной позиции И в середине SNI",
           "splitModeSni": "2 сегмента: разделение в середине имени хоста SNI",
-          "splitModeFixed": "2 сегмента: разделение на байте {{pos}} TLS-нагрузки",
+          "splitModeFixed": "2 сегмента: разделение на байте {{pos}} TLS payload",
           "manualOverride": "Ручная настройка — используйте если умное разделение SNI не работает у вашего провайдера",
           "fixedSplitPos": "Фиксированная позиция разделения",
-          "fixedSplitPosHelper": "Байтов от начала TLS-нагрузки (0 = отключено)",
+          "fixedSplitPosHelper": "Байтов от начала TLS payload (0 = отключено)",
           "bothEnabled": "Оба включены → пакет разделяется на 3 сегмента"
         }
       }
@@ -720,23 +720,23 @@
         "strategyTcpCheck": "TCP Check",
         "strategyMd5sum": "MD5 Sum",
         "strategyTimestamp": "TCP Timestamp",
-        "payloadType": "Тип фейковой нагрузки",
+        "payloadType": "Тип фейкового payload",
         "payloadHelper": "Содержимое фейковых пакетов",
         "payloadRandom": "Случайное",
         "payloadGoogle": "Пресет: Google (классический)",
         "payloadDuckDuckGo": "Пресет: DuckDuckGo",
-        "payloadFile": "Свой файл нагрузки",
+        "payloadFile": "Свой файл payload",
         "payloadZeros": "Все нули",
         "payloadInverted": "Инвертированный оригинал",
-        "customPayload": "Пользовательская нагрузка (Hex)",
-        "customPayloadHelper": "Hex-кодированная нагрузка для фейковых пакетов (используйте функцию захвата для получения реальных нагрузок)",
-        "generatedPayload": "Сгенерированная нагрузка",
-        "selectPayload": "Выберите нагрузку...",
+        "customPayload": "Пользовательский payload (Hex)",
+        "customPayloadHelper": "Hex-кодированный payload для фейковых пакетов (используйте функцию захвата для получения реальных payloads)",
+        "generatedPayload": "Сгенерированный payload",
+        "selectPayload": "Выберите payload...",
         "payloadDomain": "{{domain}} ({{size}} байт)",
-        "noPayloads": "Нет доступных TLS-нагрузок. Сгенерируйте оптимизированные нагрузки (SNI-first для обхода DPI) или загрузите свои.",
-        "noPayloadsHelper": "Нет доступных нагрузок. Сначала сгенерируйте в Настройках.",
+        "noPayloads": "Нет доступных TLS payloads. Сгенерируйте оптимизированные payloads (SNI-first для обхода DPI) или загрузите свои.",
+        "noPayloadsHelper": "Нет доступных payloads. Сначала сгенерируйте в Настройках.",
         "selectPayloadHelper": "Выберите сгенерированный/загруженный TLS ClientHello (SNI-first)",
-        "navigateSettings": "Перейдите в Настройки для генерации или загрузки TLS ClientHello нагрузок.",
+        "navigateSettings": "Перейдите в Настройки для генерации или загрузки TLS ClientHello payloads.",
         "ttl": "TTL фейка",
         "ttlHelper": "TTL для фейковых пакетов (должен истечь до сервера)",
         "seqOffset": "Смещение Sequence",
@@ -760,8 +760,8 @@
         "enableDesc": "Отправлять фейковые SYN-пакеты во время хендшейка (агрессивная техника)",
         "md5Enable": "SYN MD5 Signature",
         "md5Desc": "Отправить фейковый SYN с опцией TCP MD5 перед реальным хендшейком",
-        "payloadLen": "Длина нагрузки SYN-фейка",
-        "payloadLenHelper": "0 = только заголовок, >0 = добавить фейковую TLS-нагрузку",
+        "payloadLen": "Длина payload SYN-фейка",
+        "payloadLenHelper": "0 = только заголовок, >0 = добавить фейковый TLS payload",
         "ttl": "TTL SYN-фейка",
         "ttlHelper": "Значение TTL для фейковых SYN-пакетов (по умолчанию 3)"
       },
@@ -925,7 +925,7 @@
       "fakeCount": "Количество фейковых пакетов",
       "fakeCountHelper": "Количество фейковых пакетов перед реальным",
       "fakeSize": "Размер фейкового пакета",
-      "fakeSizeHelper": "Размер нагрузки каждого фейкового UDP-пакета",
+      "fakeSizeHelper": "Размер payload каждого фейкового UDP-пакета",
       "seg2delay": "Задержка сегмента 2",
       "seg2delayHelper": "Задержка между сегментами. Используйте диапазон для случайной задержки."
     },
@@ -978,6 +978,151 @@
         "dns": "DNS",
         "importExport": "Импорт/Экспорт"
       }
+    }
+  },
+
+  "discovery": {
+    "title": "Поиск конфигурации",
+    "description": "Иерархическое тестирование: Поиск стратегии → Оптимизация → Комбинирование",
+    "alert": "<strong>Поиск конфигурации:</strong> Автоматически тестирует множество пресетов конфигурации для поиска наиболее эффективных настроек обхода DPI для указанных доменов. B4 временно применяет различные конфигурации и измеряет их производительность.",
+    "addDomainLabel": "Добавить домен или URL",
+    "addDomainPlaceholder": "youtube.com, https://discord.com/path",
+    "addDomainHelper": "Нажмите Enter для добавления. Вставьте несколько URL через запятую или перенос строки.",
+    "noUrlsAdded": "URL ещё не добавлены",
+    "startDiscovery": "Начать поиск",
+    "cancel": "Отмена",
+    "newDiscovery": "Новый поиск",
+    "reconnecting": "Переподключение к запущенному поиску...",
+    "checkingDns": "Проверка DNS...",
+    "checksProgress": "{{completed}} из {{total}} проверок",
+    "cacheCleared": "Кэш поиска очищен",
+    "cacheClearFailed": "Не удалось очистить кэш",
+    "createdSet": "Сет \"{{name}}\" создан",
+    "createSetFailed": "Не удалось создать сет",
+    "addedDomainToSet": "Домен добавлен в сет",
+    "addDomainToSetFailed": "Не удалось добавить домен в сет",
+    "currentBest": "Текущий лучший",
+    "bestConfiguration": "Лучшая конфигурация",
+    "useCurrentBest": "Использовать текущий лучший",
+    "useThisStrategy": "Использовать эту стратегию",
+    "useThisConfig": "Использовать эту конфигурацию",
+    "configs": "{{success}}/{{total}} конфигураций",
+    "noWorkingConfig": "Нет рабочей конфигурации",
+    "tested": "{{count}} протестировано...",
+    "moreConfigsToTest": "Ещё {{count}} конфигураций для тестирования...",
+    "testingConfigurations": "Тестирование конфигураций...",
+    "foundWorking": "Найдена рабочая конфигурация! Тестируется ещё {{remaining}} конфигураций — может быть найден более быстрый вариант.",
+    "transportBlocked": "<strong>Транспорт заблокирован:</strong> Этот домен заблокирован на уровне IP/сети — TCP-соединения не могут быть установлены ни к одному известному IP-адресу. Стратегии обхода DPI не помогут при блокировке на уровне IP. Для этого домена требуется VPN или прокси.",
+    "allFailed": "Все {{count}} протестированных конфигураций не сработали для этого домена. Проверьте сетевое подключение и доступность домена.",
+    "failed": "Не прошёл",
+
+    "history": {
+      "title": "Предыдущие результаты",
+      "domainsTested": "{{count}} домен протестирован",
+      "domainsTested_plural": "{{count}} доменов протестировано",
+      "clearHistory": "Очистить историю",
+      "historyCleared": "История очищена",
+      "historyClearFailed": "Не удалось очистить историю",
+      "removeFromHistory": "Удалить из истории",
+      "removedFromHistory": "{{domain}} удалён из истории",
+      "dnsPoisoning": "Обнаружено отравление DNS",
+      "dnsPoisoningServer": "Обнаружено отравление DNS — лучший сервер: {{server}}",
+      "transportBlockedShort": "Транспорт заблокирован — обнаружена блокировка на уровне IP. Требуется VPN или прокси.",
+      "baseline": "Базовый: {{speed}} МБ/с",
+      "best": "Лучший: {{speed}} МБ/с",
+      "improvement": "(+{{percent}}% улучшение)",
+      "retest": "Повторить тест"
+    },
+
+    "familyNames": {
+      "none": "Baseline",
+      "tcp_frag": "TCP Fragmentation",
+      "tls_record": "TLS Record Split",
+      "oob": "Out-of-Band",
+      "ip_frag": "IP Fragmentation",
+      "fake_sni": "Fake SNI",
+      "sack": "SACK Drop",
+      "syn_fake": "SYN Fake",
+      "desync": "Desync",
+      "delay": "Delay",
+      "disorder": "Disorder",
+      "extsplit": "Extension Split",
+      "firstbyte": "First-Byte",
+      "combo": "Combo",
+      "hybrid": "Hybrid",
+      "window": "Window Manipulation",
+      "mutation": "Mutation",
+      "incoming": "Incoming"
+    },
+
+    "phaseNames": {
+      "baseline": "Базовый тест",
+      "cached": "Кэшированные стратегии",
+      "strategy_detection": "Поиск стратегий",
+      "optimization": "Оптимизация",
+      "combination": "Тест комбинаций",
+      "dns_detection": "Проверка DNS"
+    },
+
+    "timeAgo": {
+      "justNow": "только что",
+      "minutesAgo": "{{count}} мин. назад",
+      "hoursAgo": "{{count}} ч. назад",
+      "daysAgo": "{{count}} д. назад",
+      "monthsAgo": "{{count}} мес. назад"
+    },
+
+    "addDialog": {
+      "title": "Добавить конфигурацию",
+      "subtitle": "Стратегия: {{name}}",
+      "domainPattern": "Шаблон домена",
+      "addTo": "Добавить в",
+      "createNewSet": "Создать новый сет",
+      "addToExisting": "Добавить в существующий похожий сет",
+      "setName": "Название сета",
+      "similarSets": "Похожие сеты",
+      "nMore": "+{{count}} ещё",
+      "createSet": "Создать сет",
+      "addToSet": "Добавить в сет"
+    },
+
+    "options": {
+      "title": "Параметры поиска",
+      "skipDns": "Пропустить поиск DNS",
+      "skipCache": "Пропустить кэшированные стратегии",
+      "cacheHint": "Ранее успешные конфигурации тестируются первыми.",
+      "clearCache": "Очистить кэш",
+      "tlsVersion": "Версия TLS",
+      "tlsVersionHint": "Версия TLS для проб поиска. Некоторые DPI-системы обрабатывают TLS 1.2 и 1.3 по-разному.",
+      "customPayloads": "Пользовательские payloads",
+      "customPayloadsHint": "Тестировать с сгенерированным TLS ClientHello (SNI-first) вместо встроенных payloads",
+      "selectPayloads": "Выберите захваченные payloads...",
+      "validationTries": "Попыток валидации",
+      "validationTriesHint": "Количество успешных подключений, необходимых для подтверждения пресета",
+      "noPayloads": "Нет доступных захваченных payloads.",
+      "capturePayloads": "Захватить payloads",
+      "noPayloadsSuffix": "для тестирования с пользовательским TLS ClientHello.",
+      "summarySkipDns": "Без DNS",
+      "summarySkipCache": "Без кэша",
+      "summaryTries": "{{count}} попыток",
+      "summaryPayloads": "{{count}} payload",
+      "summaryPayloads_plural": "{{count}} payloads"
+    },
+
+    "logs": {
+      "title": "Журнал поиска",
+      "waiting": "Ожидание журнала поиска...",
+      "clearLogs": "Очистить журнал",
+      "fullscreenLogs": "Полноэкранный журнал",
+      "lines": "{{count}} строк",
+      "clear": "Очистить"
+    },
+
+    "badges": {
+      "success": "Успешно",
+      "testing": "Тестирование...",
+      "blocked": "Заблокирован",
+      "failed": "Не прошёл"
     }
   }
 }

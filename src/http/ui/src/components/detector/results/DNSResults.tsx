@@ -45,7 +45,7 @@ export function DNSResults({
   domains,
 }: Readonly<{ domains: DNSDomainResult[] }>) {
   return (
-    <Stack spacing={1}>
+    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
       {domains.map((d, index) => {
         const status =
           d.status === "OK"
@@ -55,47 +55,48 @@ export function DNSResults({
               : "error";
 
         return (
-          <ResultCard
-            key={d.domain}
-            index={index}
-            status={status}
-            title={d.domain}
-            subtitle={`DoH: ${d.doh_ip} | UDP: ${d.udp_ip}`}
-            badge={
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                {d.is_stub_ip && (
-                  <B4Badge label="STUB" size="small" color="error" />
-                )}
-                <StatusChip status={d.status} />
-              </Box>
-            }
-            expandedContent={
-              <Stack spacing={1} sx={{ py: 0.5 }}>
-                <DetailRow label="DoH IP" value={d.doh_ip} mono />
-                <DetailRow label="UDP IP" value={d.udp_ip} mono />
-                <DetailRow
-                  label="Status"
-                  value={<StatusChip status={d.status} />}
-                />
-                {d.is_stub_ip && (
+          <Box key={d.domain} sx={{ flex: "1 1 280px", minWidth: 0 }}>
+            <ResultCard
+              index={index}
+              status={status}
+              title={d.domain}
+              subtitle={`DoH: ${d.doh_ip} | UDP: ${d.udp_ip}`}
+              badge={
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  {d.is_stub_ip && (
+                    <B4Badge label="STUB" size="small" color="error" />
+                  )}
+                  <StatusChip status={d.status} />
+                </Box>
+              }
+              expandedContent={
+                <Stack spacing={1} sx={{ py: 0.5 }}>
+                  <DetailRow label="DoH IP" value={d.doh_ip} mono />
+                  <DetailRow label="UDP IP" value={d.udp_ip} mono />
                   <DetailRow
-                    label="Note"
-                    value={
-                      <Typography
-                        variant="caption"
-                        sx={{ color: statusColors.error }}
-                      >
-                        Stub/sinkhole IP detected
-                      </Typography>
-                    }
+                    label="Status"
+                    value={<StatusChip status={d.status} />}
                   />
-                )}
-              </Stack>
-            }
-          />
+                  {d.is_stub_ip && (
+                    <DetailRow
+                      label="Note"
+                      value={
+                        <Typography
+                          variant="caption"
+                          sx={{ color: statusColors.error }}
+                        >
+                          Stub/sinkhole IP detected
+                        </Typography>
+                      }
+                    />
+                  )}
+                </Stack>
+              }
+            />
+          </Box>
         );
       })}
-    </Stack>
+    </Box>
   );
 }
 

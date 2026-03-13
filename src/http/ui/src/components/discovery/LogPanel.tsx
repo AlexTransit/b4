@@ -20,12 +20,14 @@ import { colors } from "@design";
 import { useDiscoveryLogs } from "@b4.discovery";
 import { B4Badge } from "@b4.elements";
 import { B4Dialog } from "@common/B4Dialog";
+import { useTranslation } from "react-i18next";
 
 interface DiscoveryLogPanelProps {
   running: boolean;
 }
 
 export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
+  const { t } = useTranslation();
   const { logs, connected, clearLogs } = useDiscoveryLogs();
   const [expanded, setExpanded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -73,7 +75,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
         <Typography
           sx={{ color: colors.text.disabled, fontStyle: "italic" }}
         >
-          Waiting for discovery logs...
+          {t("discovery.logs.waiting")}
         </Typography>
       ) : (
         logs.map((line, i) => (
@@ -119,7 +121,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
           <Stack direction="row" alignItems="center" spacing={1.5}>
             <LogsIcon sx={{ fontSize: 20, color: colors.secondary }} />
             <Typography variant="h6" sx={{ color: colors.text.primary }}>
-              Discovery Logs
+              {t("discovery.logs.title")}
             </Typography>
             <Box
               sx={{
@@ -130,13 +132,13 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
               }}
             />
             {logs.length > 0 && (
-              <B4Badge variant="filled" label={`${logs.length} lines`} />
+              <B4Badge variant="filled" label={t("discovery.logs.lines", { count: logs.length })} />
             )}
           </Stack>
           <Stack direction="row" alignItems="center" spacing={1}>
             {logs.length > 0 && (
               <>
-                <Tooltip title="Clear logs">
+                <Tooltip title={t("discovery.logs.clearLogs")}>
                   <IconButton
                     size="small"
                     onClick={(e) => {
@@ -148,7 +150,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
                     <ClearIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Fullscreen logs">
+                <Tooltip title={t("discovery.logs.fullscreenLogs")}>
                   <IconButton
                     size="small"
                     onClick={(e) => {
@@ -181,7 +183,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
 
       {/* Fullscreen log modal */}
       <B4Dialog
-        title="Discovery Logs"
+        title={t("discovery.logs.title")}
         icon={<LogsIcon />}
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -194,7 +196,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
               startIcon={<ClearIcon />}
               size="small"
             >
-              Clear
+              {t("discovery.logs.clear")}
             </Button>
             <Box sx={{ flex: 1 }} />
             <Button
@@ -202,7 +204,7 @@ export const DiscoveryLogPanel = ({ running }: DiscoveryLogPanelProps) => {
               variant="contained"
               startIcon={<CloseIcon />}
             >
-              Close
+              {t("core.close")}
             </Button>
           </>
         }

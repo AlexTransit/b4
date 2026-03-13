@@ -20,6 +20,7 @@ import {
 } from "@b4.elements";
 import { colors } from "@design";
 import { Capture } from "@b4.capture";
+import { useTranslation } from "react-i18next";
 
 export type TLSVersion = "auto" | "tls12" | "tls13";
 
@@ -46,6 +47,7 @@ export const DiscoveryOptionsPanel = ({
   captures,
   disabled = false,
 }: DiscoveryOptionsPanelProps) => {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(() => {
     return localStorage.getItem("b4_discovery_options_expanded") === "true";
   });
@@ -86,11 +88,11 @@ export const DiscoveryOptionsPanel = ({
         <Stack direction="row" alignItems="center" spacing={1}>
           <FilterIcon sx={{ fontSize: 18, color: colors.text.secondary }} />
           <Typography variant="body2" sx={{ color: colors.text.secondary }}>
-            Discovery Options
+            {t("discovery.options.title")}
           </Typography>
           {!expanded && hasOptions && (
             <B4Badge
-              label={getOptionsSummary(options)}
+              label={getOptionsSummary(options, t)}
               sx={{
                 height: 20,
                 fontSize: "0.7rem",
@@ -119,9 +121,9 @@ export const DiscoveryOptionsPanel = ({
           }}
           variant="outlined"
         >
-          <B4FormGroup label="Discovery Options" columns={2}>
+          <B4FormGroup label={t("discovery.options.title")} columns={2}>
             <B4Switch
-              label="Skip DNS Discovery"
+              label={t("discovery.options.skipDns")}
               checked={options.skipDNS}
               onChange={(checked) => onChange({ ...options, skipDNS: checked })}
               disabled={disabled}
@@ -130,7 +132,7 @@ export const DiscoveryOptionsPanel = ({
             {/* Cache Controls */}
             <Box>
               <B4Switch
-                label="Skip Cached Strategies"
+                label={t("discovery.options.skipCache")}
                 checked={options.skipCache}
                 onChange={(checked) =>
                   onChange({ ...options, skipCache: checked })
@@ -144,7 +146,7 @@ export const DiscoveryOptionsPanel = ({
                 sx={{ mt: 0.5 }}
               >
                 <Typography variant="caption" color="text.secondary">
-                  Previously successful configurations are tested first.
+                  {t("discovery.options.cacheHint")}
                 </Typography>
                 {onClearCache && (
                   <Button
@@ -153,7 +155,7 @@ export const DiscoveryOptionsPanel = ({
                     onClick={onClearCache}
                     disabled={disabled}
                   >
-                    Clear Cache
+                    {t("discovery.options.clearCache")}
                   </Button>
                 )}
               </Stack>
@@ -162,15 +164,14 @@ export const DiscoveryOptionsPanel = ({
             {/* TLS Version */}
             <Box>
               <Typography variant="body1" sx={{ mb: 1 }}>
-                TLS Version
+                {t("discovery.options.tlsVersion")}
               </Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
                 sx={{ mb: 1, display: "block" }}
               >
-                TLS version used for discovery probes. Some DPI systems handle
-                TLS 1.2 and 1.3 differently.
+                {t("discovery.options.tlsVersionHint")}
               </Typography>
               <ToggleButtonGroup
                 value={options.tlsVersion}
@@ -207,15 +208,14 @@ export const DiscoveryOptionsPanel = ({
             {tlsCaptures.length > 0 && (
               <Box>
                 <Typography variant="body1" sx={{ mb: 1 }}>
-                  Custom Payloads
+                  {t("discovery.options.customPayloads")}
                 </Typography>
                 <Typography
                   variant="caption"
                   color="text.secondary"
                   sx={{ mb: 1, display: "block" }}
                 >
-                  Test with generated TLS ClientHello (SNI-first) instead of
-                  built-in payloads
+                  {t("discovery.options.customPayloadsHint")}
                 </Typography>
                 <Autocomplete
                   multiple
@@ -231,7 +231,7 @@ export const DiscoveryOptionsPanel = ({
                       {...params}
                       placeholder={
                         options.payloadFiles.length === 0
-                          ? "Select captured payloads..."
+                          ? t("discovery.options.selectPayloads")
                           : ""
                       }
                       size="small"
@@ -257,7 +257,7 @@ export const DiscoveryOptionsPanel = ({
             {/* Validation Tries */}
             <Box>
               <B4Slider
-                label="Validation Tries"
+                label={t("discovery.options.validationTries")}
                 value={options.validationTries}
                 onChange={(value: number) =>
                   onChange({ ...options, validationTries: value })
@@ -265,17 +265,17 @@ export const DiscoveryOptionsPanel = ({
                 min={1}
                 max={5}
                 step={1}
-                helperText="Number of successful connection attempts required to validate a preset"
+                helperText={t("discovery.options.validationTriesHint")}
               />
             </Box>
 
             {tlsCaptures.length === 0 && (
               <Typography variant="caption" color="text.secondary">
-                No captured payloads available.{" "}
+                {t("discovery.options.noPayloads")}{" "}
                 <a href="/settings/payloads" style={{ color: colors.secondary }}>
-                  Capture payloads
+                  {t("discovery.options.capturePayloads")}
                 </a>{" "}
-                to test with custom TLS ClientHello.
+                {t("discovery.options.noPayloadsSuffix")}
               </Typography>
             )}
           </B4FormGroup>
@@ -285,19 +285,19 @@ export const DiscoveryOptionsPanel = ({
   );
 };
 
-function getOptionsSummary(options: DiscoveryOptions): string {
+function getOptionsSummary(options: DiscoveryOptions, t: (key: string, opts?: Record<string, unknown>) => string): string {
   const parts: string[] = [];
-  if (options.skipDNS) parts.push("Skip DNS");
-  if (options.skipCache) parts.push("Skip Cache");
+  if (options.skipDNS) parts.push(t("discovery.options.summarySkipDns"));
+  if (options.skipCache) parts.push(t("discovery.options.summarySkipCache"));
   if (options.tlsVersion === "tls12") parts.push("TLS 1.2");
   if (options.tlsVersion === "tls13") parts.push("TLS 1.3");
   if (options.validationTries > 1)
-    parts.push(`${options.validationTries} tries`);
+    parts.push(t("discovery.options.summaryTries", { count: options.validationTries }));
   if (options.payloadFiles.length > 0) {
     parts.push(
-      `${options.payloadFiles.length} payload${
-        options.payloadFiles.length > 1 ? "s" : ""
-      }`,
+      options.payloadFiles.length > 1
+        ? t("discovery.options.summaryPayloads_plural", { count: options.payloadFiles.length })
+        : t("discovery.options.summaryPayloads", { count: options.payloadFiles.length }),
     );
   }
   return parts.join(", ");
