@@ -45,6 +45,20 @@ Or pass `--help` to get more information about the possible options.
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --help
 ```
 
+To update B4:
+
+```bash
+#to latest version
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --update
+
+#to specific version
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --update v1.43.0
+
+#update silently
+curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --update --quiet
+
+```
+
 To remove B4:
 
 ```bash
