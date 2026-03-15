@@ -155,16 +155,12 @@ func TestSysctlSetting(t *testing.T) {
 }
 
 func TestRule_Struct(t *testing.T) {
-	cfg := config.NewConfig()
-	manager := NewIPTablesManager(&cfg)
 
 	r := Rule{
-		manager: manager,
-		IPT:     "iptables",
-		Table:   "mangle",
-		Chain:   "B4",
-		Spec:    []string{"-p", "tcp", "--dport", "443"},
-		Action:  "A",
+		IPT:   "iptables",
+		Table: "mangle",
+		Chain: "B4",
+		Spec:  []string{"-p", "tcp", "--dport", "443"},
 	}
 
 	if r.IPT != "iptables" {
@@ -182,14 +178,11 @@ func TestRule_Struct(t *testing.T) {
 }
 
 func TestChain_Struct(t *testing.T) {
-	cfg := config.NewConfig()
-	manager := NewIPTablesManager(&cfg)
 
 	c := Chain{
-		manager: manager,
-		IPT:     "iptables",
-		Table:   "mangle",
-		Name:    "B4",
+		IPT:   "iptables",
+		Table: "mangle",
+		Name:  "B4",
 	}
 
 	if c.IPT != "iptables" {

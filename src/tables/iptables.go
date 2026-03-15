@@ -525,8 +525,8 @@ func (ipt *IPTablesManager) Apply() error {
 	result := m.Apply()
 
 	if log.Level(log.CurLevel.Load()) >= log.LevelTrace {
-		iptables_trace, _ := run("sh", "-c", "cat /proc/net/netfilter/nfnetlink_queue && iptables -t mangle -vnL --line-numbers")
-		log.Tracef("Current iptables mangle table:\n%s", iptables_trace)
+		iptablesTrace, _ := run("sh", "-c", "cat /proc/net/netfilter/nfnetlink_queue && iptables -t mangle -vnL --line-numbers")
+		log.Tracef("Current iptables mangle table:\n%s", iptablesTrace)
 	}
 	return result
 }

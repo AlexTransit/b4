@@ -673,11 +673,11 @@ func TestTransferLearnedIPs(t *testing.T) {
 	old.LearnIPToDomain(net.ParseIP("1.2.3.4"), "example.com", s1)
 
 	s2 := makeSetWithDomains("new-set", "example.com")
-	new_ := NewSuffixSet([]*config.SetConfig{s2})
+	newSuffix := NewSuffixSet([]*config.SetConfig{s2})
 
-	new_.TransferLearnedIPs(old)
+	newSuffix.TransferLearnedIPs(old)
 
-	matched, set, domain := new_.MatchLearnedIP(net.ParseIP("1.2.3.4"))
+	matched, set, domain := newSuffix.MatchLearnedIP(net.ParseIP("1.2.3.4"))
 	if !matched {
 		t.Fatal("expected transferred IP to match")
 	}
@@ -695,11 +695,11 @@ func TestTransferLearnedIPs_SkipsUnmatchedDomains(t *testing.T) {
 	old.LearnIPToDomain(net.ParseIP("1.2.3.4"), "old-domain.com", s1)
 
 	s2 := makeSetWithDomains("new-set", "new-domain.com")
-	new_ := NewSuffixSet([]*config.SetConfig{s2})
+	newSuffix := NewSuffixSet([]*config.SetConfig{s2})
 
-	new_.TransferLearnedIPs(old)
+	newSuffix.TransferLearnedIPs(old)
 
-	matched, _, _ := new_.MatchLearnedIP(net.ParseIP("1.2.3.4"))
+	matched, _, _ := newSuffix.MatchLearnedIP(net.ParseIP("1.2.3.4"))
 	if matched {
 		t.Error("domain not in new set should not transfer")
 	}
