@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Grid } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { LogsIcon } from "@b4.icons";
@@ -12,25 +13,30 @@ interface LoggingSettingsProps {
   ) => void;
 }
 
-function getTimezoneOptions() {
-  const zones = Intl.supportedValuesOf("timeZone");
-  const options = [{ value: "", label: "Auto (system default)" }];
-  for (const tz of zones) {
-    const offset = new Intl.DateTimeFormat("en", {
-      timeZone: tz,
-      timeZoneName: "shortOffset",
-    })
-      .formatToParts()
-      .find((p) => p.type === "timeZoneName")?.value ?? "";
-    options.push({ value: tz, label: `${tz} (${offset})` });
+// Timezone list is locale-independent, compute once at module level
+const ZONE_ENTRIES: { value: string; label: string }[] = (() => {
+  try {
+    return Intl.supportedValuesOf("timeZone").map((tz) => {
+      const offset = new Intl.DateTimeFormat("en", {
+        timeZone: tz,
+        timeZoneName: "shortOffset",
+      })
+        .formatToParts()
+        .find((p) => p.type === "timeZoneName")?.value ?? "";
+      return { value: tz, label: `${tz} (${offset})` };
+    });
+  } catch {
+    return [{ value: "UTC", label: "UTC" }];
   }
-  return options;
-}
-
-const TIMEZONES = getTimezoneOptions();
+})();
 
 export const LoggingSettings = ({ config, onChange }: LoggingSettingsProps) => {
   const { t } = useTranslation();
+
+  const TIMEZONES = useMemo(
+    () => [{ value: "", label: t("settings.Logging.timezoneAuto") }, ...ZONE_ENTRIES],
+    [t],
+  );
 
   const LOG_LEVELS: Array<{ value: LogLevel; label: string }> = [
     { value: LogLevel.ERROR, label: t("settings.Logging.levelError") },

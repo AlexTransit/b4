@@ -12,6 +12,14 @@ import (
 // (e.g. "UTC+1", "UTC-5", "UTC+5:30").
 func ApplyTimezone(tzName string) {
 	if tzName == "" {
+		// Reset to system default
+		loc, err := time.LoadLocation("Local")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "[WARN] Failed to load system timezone: %v\n", err)
+			return
+		}
+		time.Local = loc
+		fmt.Fprintf(os.Stderr, "[INIT] Timezone reset to system default (%s)\n", loc.String())
 		return
 	}
 
@@ -50,10 +58,18 @@ func parseFixedOffset(name string) *time.Location {
 	}
 
 	hours, minutes := 0, 0
-	if _, err := fmt.Sscanf(rest, "%d:%d", &hours, &minutes); err != nil {
+	if strings.Contains(rest, ":") {
+		if _, err := fmt.Sscanf(rest, "%d:%d", &hours, &minutes); err != nil {
+			return nil
+		}
+	} else {
 		if _, err := fmt.Sscanf(rest, "%d", &hours); err != nil {
 			return nil
 		}
+	}
+
+	if hours < 0 || hours > 14 || minutes < 0 || minutes >= 60 {
+		return nil
 	}
 
 	offset := sign * (hours*3600 + minutes*60)

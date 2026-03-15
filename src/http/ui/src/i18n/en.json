@@ -134,7 +134,8 @@
       "levelTrace": "Trace",
       "levelDebug": "Debug",
       "timezone": "Time Zone",
-      "timezoneHelp": "Timezone for log timestamps (default: UTC)"
+      "timezoneAuto": "Auto (system default)",
+      "timezoneHelp": "Timezone for log timestamps (default: system)"
     },
     "Feature": {
       "title": "Feature Flags",

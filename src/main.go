@@ -56,12 +56,6 @@ func init() {
 }
 
 func main() {
-	// Initialize timezone from TZ environment variable
-	initTimezone()
-
-	// Configure memory limit for embedded/constrained environments
-	initMemoryLimit()
-
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -74,10 +68,19 @@ func runB4(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	initTimezone()
+	initMemoryLimit()
+
+	cfg.LoadWithMigration(cfg.ConfigPath)
+	cfg.SaveToFile(cfg.ConfigPath)
+
+	if cfg.System.Timezone != "" {
+		config.ApplyTimezone(cfg.System.Timezone)
+	}
+
 	cfg.ApplyLogLevel(verboseFlag)
 
-	// Initialize logging first thing
-	if err := initLogging(&cfg); err != nil { // init currentLogLevel from verboseFlag
+	if err := initLogging(&cfg); err != nil {
 		return fmt.Errorf("logging initialization failed: %w", err)
 	}
 
@@ -89,14 +92,6 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Infof("Starting B4 packet processor")
-
-	cfg.LoadWithMigration(cfg.ConfigPath)
-	cfg.SaveToFile(cfg.ConfigPath)
-
-	// Re-apply timezone from config (overrides TZ env var)
-	if cfg.System.Timezone != "" {
-		config.ApplyTimezone(cfg.System.Timezone)
-	}
 
 	if cmd.Flags().Changed("verbose") {
 		cfg.ApplyLogLevel(verboseFlag)
