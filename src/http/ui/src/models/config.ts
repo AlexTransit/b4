@@ -249,6 +249,7 @@ export interface SystemConfig {
   checker: DiscoveryConfig;
   geo: GeoConfig;
   api: ApiConfig;
+  timezone: string;
 }
 
 export interface B4Config {

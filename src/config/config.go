@@ -215,6 +215,8 @@ var DefaultConfig = Config{
 		API: ApiConfig{
 			IPInfoToken: "",
 		},
+
+		Timezone: "",
 	},
 }
 

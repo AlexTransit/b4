@@ -12,6 +12,23 @@ interface LoggingSettingsProps {
   ) => void;
 }
 
+function getTimezoneOptions() {
+  const zones = Intl.supportedValuesOf("timeZone");
+  const options = [{ value: "", label: "Auto (system default)" }];
+  for (const tz of zones) {
+    const offset = new Intl.DateTimeFormat("en", {
+      timeZone: tz,
+      timeZoneName: "shortOffset",
+    })
+      .formatToParts()
+      .find((p) => p.type === "timeZoneName")?.value ?? "";
+    options.push({ value: tz, label: `${tz} (${offset})` });
+  }
+  return options;
+}
+
+const TIMEZONES = getTimezoneOptions();
+
 export const LoggingSettings = ({ config, onChange }: LoggingSettingsProps) => {
   const { t } = useTranslation();
 
@@ -47,6 +64,15 @@ export const LoggingSettings = ({ config, onChange }: LoggingSettingsProps) => {
             }
             placeholder={t("settings.Logging.errorFilePathPlaceholder")}
             helperText={t("settings.Logging.errorFilePathHelp")}
+          />
+          <B4Select
+            label={t("settings.Logging.timezone")}
+            value={config.system.timezone ?? ""}
+            options={TIMEZONES}
+            onChange={(e) =>
+              onChange("system.timezone", String(e.target.value))
+            }
+            helperText={t("settings.Logging.timezoneHelp")}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>

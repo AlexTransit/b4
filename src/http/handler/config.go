@@ -190,6 +190,12 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 		log.Infof("Log level changed to %s", newConfig.System.Logging.Level)
 	}
 
+	// update timezone if changed
+	if newConfig.System.Timezone != a.cfg.System.Timezone {
+		config.ApplyTimezone(newConfig.System.Timezone)
+		log.Infof("Timezone changed to %s", newConfig.System.Timezone)
+	}
+
 	a.geodataManager.UpdatePaths(newConfig.System.Geo.GeoSitePath, newConfig.System.Geo.GeoIpPath)
 
 	// Calculate statistics for response

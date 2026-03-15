@@ -93,6 +93,11 @@ func runB4(cmd *cobra.Command, args []string) error {
 	cfg.LoadWithMigration(cfg.ConfigPath)
 	cfg.SaveToFile(cfg.ConfigPath)
 
+	// Re-apply timezone from config (overrides TZ env var)
+	if cfg.System.Timezone != "" {
+		config.ApplyTimezone(cfg.System.Timezone)
+	}
+
 	if cmd.Flags().Changed("verbose") {
 		cfg.ApplyLogLevel(verboseFlag)
 		log.CurLevel.Store(int32(currentLogLevel))
@@ -341,20 +346,10 @@ func initMemoryLimit() {
 }
 
 func initTimezone() {
-	// Load timezone from TZ environment variable, default to UTC
-	tzName := os.Getenv("TZ")
-	if tzName == "" {
-		tzName = "UTC"
+	// Apply TZ env var if set; otherwise keep Go's default (system timezone from /etc/localtime)
+	if tzName := os.Getenv("TZ"); tzName != "" {
+		config.ApplyTimezone(tzName)
 	}
-
-	loc, err := time.LoadLocation(tzName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[WARN] Failed to load timezone %s: %v, using UTC\n", tzName, err)
-		loc, _ = time.LoadLocation("UTC")
-	}
-
-	time.Local = loc
-	fmt.Fprintf(os.Stderr, "[INIT] Timezone set to %s\n", loc.String())
 }
 
 func initLogging(cfg *config.Config) error {

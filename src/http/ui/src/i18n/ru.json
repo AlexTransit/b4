@@ -132,7 +132,9 @@
       "levelError": "Ошибка",
       "levelInfo": "Инфо",
       "levelTrace": "Трассировка",
-      "levelDebug": "Отладка"
+      "levelDebug": "Отладка",
+      "timezone": "Часовой пояс",
+      "timezoneHelp": "Часовой пояс для временных меток в логах (по умолчанию: UTC)"
     },
     "Feature": {
       "title": "Функции",
