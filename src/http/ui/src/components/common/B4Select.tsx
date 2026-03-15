@@ -22,10 +22,15 @@ export const B4Select = ({
 }: B4SelectProps) => {
   return (
     <FormControl fullWidth size="small">
-      <InputLabel sx={{ color: colors.text.secondary }}>{label}</InputLabel>
+      <InputLabel shrink sx={{ color: colors.text.secondary }}>{label}</InputLabel>
       <Select
         {...props}
         label={label}
+        displayEmpty
+        renderValue={(selected) => {
+          const match = options.find((o) => o.value === selected);
+          return match?.label ?? String(selected);
+        }}
         sx={{
           bgcolor: colors.background.dark,
           "& .MuiOutlinedInput-notchedOutline": {

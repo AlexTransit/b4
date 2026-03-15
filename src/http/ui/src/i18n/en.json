@@ -132,7 +132,10 @@
       "levelError": "Error",
       "levelInfo": "Info",
       "levelTrace": "Trace",
-      "levelDebug": "Debug"
+      "levelDebug": "Debug",
+      "timezone": "Time Zone",
+      "timezoneAuto": "Auto (system default)",
+      "timezoneHelp": "Timezone for log timestamps (default: system)"
     },
     "Feature": {
       "title": "Feature Flags",

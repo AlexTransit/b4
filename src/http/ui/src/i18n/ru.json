@@ -132,7 +132,10 @@
       "levelError": "Ошибка",
       "levelInfo": "Инфо",
       "levelTrace": "Трассировка",
-      "levelDebug": "Отладка"
+      "levelDebug": "Отладка",
+      "timezone": "Часовой пояс",
+      "timezoneAuto": "Авто (система)",
+      "timezoneHelp": "Часовой пояс для временных меток в логах (по умолчанию: системный)"
     },
     "Feature": {
       "title": "Функции",

@@ -56,12 +56,6 @@ func init() {
 }
 
 func main() {
-	// Initialize timezone from TZ environment variable
-	initTimezone()
-
-	// Configure memory limit for embedded/constrained environments
-	initMemoryLimit()
-
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
@@ -74,10 +68,19 @@ func runB4(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	initTimezone()
+	initMemoryLimit()
+
+	cfg.LoadWithMigration(cfg.ConfigPath)
+	cfg.SaveToFile(cfg.ConfigPath)
+
+	if cfg.System.Timezone != "" {
+		config.ApplyTimezone(cfg.System.Timezone)
+	}
+
 	cfg.ApplyLogLevel(verboseFlag)
 
-	// Initialize logging first thing
-	if err := initLogging(&cfg); err != nil { // init currentLogLevel from verboseFlag
+	if err := initLogging(&cfg); err != nil {
 		return fmt.Errorf("logging initialization failed: %w", err)
 	}
 
@@ -89,9 +92,6 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	log.Infof("Starting B4 packet processor")
-
-	cfg.LoadWithMigration(cfg.ConfigPath)
-	cfg.SaveToFile(cfg.ConfigPath)
 
 	if cmd.Flags().Changed("verbose") {
 		cfg.ApplyLogLevel(verboseFlag)
@@ -341,20 +341,10 @@ func initMemoryLimit() {
 }
 
 func initTimezone() {
-	// Load timezone from TZ environment variable, default to UTC
-	tzName := os.Getenv("TZ")
-	if tzName == "" {
-		tzName = "UTC"
+	// Apply TZ env var if set; otherwise keep Go's default (system timezone from /etc/localtime)
+	if tzName := os.Getenv("TZ"); tzName != "" {
+		config.ApplyTimezone(tzName)
 	}
-
-	loc, err := time.LoadLocation(tzName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "[WARN] Failed to load timezone %s: %v, using UTC\n", tzName, err)
-		loc, _ = time.LoadLocation("UTC")
-	}
-
-	time.Local = loc
-	fmt.Fprintf(os.Stderr, "[INIT] Timezone set to %s\n", loc.String())
 }
 
 func initLogging(cfg *config.Config) error {

@@ -49,6 +49,7 @@ var migrationRegistry = map[int]MigrationFunc{
 // Migration: v26 -> v27 (add tables engine config)
 func migrateV26to27(c *Config, _ map[string]interface{}) error {
 	log.Tracef("Migration v26->v27: Adding tables engine config")
+	c.System.Timezone = DefaultConfig.System.Timezone
 	c.System.Tables.Engine = DefaultConfig.System.Tables.Engine
 	return nil
 }

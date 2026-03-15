@@ -159,6 +159,7 @@ type SystemConfig struct {
 	Checker   DiscoveryConfig `json:"checker"`
 	Geo       GeoDatConfig    `json:"geo"`
 	API       ApiConfig       `json:"api"`
+	Timezone  string          `json:"timezone"`
 }
 
 type Socks5Config struct {
