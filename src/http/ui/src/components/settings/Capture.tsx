@@ -51,9 +51,12 @@ export const CaptureSettings = () => {
 
   useEffect(() => {
     if (!uploadForm.domain && uploadForm.file) {
-      setUploadForm((prev) => ({ ...prev, domain: prev.file?.name ?? "" }));
+      setUploadForm((prev) => {
+        const name = (prev.file?.name ?? "").replace(/\.bin$/i, "");
+        return { ...prev, domain: name };
+      });
     }
-  }, [uploadForm]);
+  }, [uploadForm.domain, uploadForm.file]);
 
   const generateCapture = async () => {
     if (!probeForm.domain) return;
@@ -64,9 +67,13 @@ export const CaptureSettings = () => {
       const result = await generate(capturedDomain, "tls");
 
       if (result.already_captured) {
-        showSuccess(t("settings.Capture.alreadyCaptured", { domain: capturedDomain }));
+        showSuccess(
+          t("settings.Capture.alreadyCaptured", { domain: capturedDomain }),
+        );
       } else {
-        showSuccess(t("settings.Capture.generateSuccess", { domain: capturedDomain }));
+        showSuccess(
+          t("settings.Capture.generateSuccess", { domain: capturedDomain }),
+        );
         setProbeForm({ domain: "" });
       }
     } catch (error) {
@@ -78,7 +85,9 @@ export const CaptureSettings = () => {
   const handleDelete = async (capture: Capture) => {
     try {
       await deleteCapture(capture.protocol, capture.domain);
-      showSuccess(t("settings.Capture.deleteSuccess", { domain: capture.domain }));
+      showSuccess(
+        t("settings.Capture.deleteSuccess", { domain: capture.domain }),
+      );
     } catch {
       showError(t("settings.Capture.deleteFailed"));
     }
@@ -104,7 +113,9 @@ export const CaptureSettings = () => {
 
     try {
       await upload(uploadForm.file, uploadForm.domain.toLowerCase(), "tls");
-      showSuccess(t("settings.Capture.uploadedSuccess", { domain: uploadForm.domain }));
+      showSuccess(
+        t("settings.Capture.uploadedSuccess", { domain: uploadForm.domain }),
+      );
       setUploadForm({ domain: "", file: null });
     } catch {
       showError(t("settings.Capture.uploadFailed"));
@@ -158,7 +169,9 @@ export const CaptureSettings = () => {
                   disabled={loading}
                   sx={{ flexShrink: 0 }}
                 >
-                  {uploadForm.file ? uploadForm.file.name : t("settings.Capture.chooseFile")}
+                  {uploadForm.file
+                    ? uploadForm.file.name
+                    : t("settings.Capture.chooseFile")}
                   <input
                     type="file"
                     hidden
@@ -223,7 +236,9 @@ export const CaptureSettings = () => {
                   onClick={() => void generateCapture()}
                   disabled={loading || !probeForm.domain}
                 >
-                  {loading ? t("settings.Capture.generating") : t("core.generate")}
+                  {loading
+                    ? t("settings.Capture.generating")
+                    : t("core.generate")}
                 </Button>
                 <Tooltip title={t("settings.Capture.refreshList")}>
                   <IconButton
@@ -256,7 +271,9 @@ export const CaptureSettings = () => {
       {captures.length > 0 && (
         <B4Section
           title={t("settings.Capture.generatedTitle")}
-          description={t("settings.Capture.generatedDesc", { count: captures.length })}
+          description={t("settings.Capture.generatedDesc", {
+            count: captures.length,
+          })}
           icon={<DownloadIcon />}
         >
           <Grid container spacing={3}>
@@ -268,7 +285,7 @@ export const CaptureSettings = () => {
                 <CaptureCard
                   capture={capture}
                   onViewHex={() => setHexDialog({ open: true, capture })}
-                  onDownload={() => download(capture)}
+                  onDownload={() => void download(capture)}
                   onDelete={() => void handleDelete(capture)}
                 />
               </Grid>

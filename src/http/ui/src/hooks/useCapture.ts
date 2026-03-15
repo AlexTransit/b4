@@ -93,16 +93,22 @@ export function useCaptures() {
     [loadCaptures],
   );
 
-  const download = useCallback((capture: Capture) => {
-    const url = `/api/capture/download?file=${encodeURIComponent(
-      capture.filepath,
-    )}`;
+  const download = useCallback(async (capture: Capture) => {
+    const filename = capture.filepath.split(/[\\/]/).pop() || capture.filepath;
+    const url = `/api/capture/download?file=${encodeURIComponent(filename)}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Download failed: ${response.statusText}`);
+    }
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = url;
+    link.href = blobUrl;
     link.download = `tls_${capture.domain.replaceAll(".", "_")}.bin`;
     document.body.appendChild(link);
     link.click();
     link.remove();
+    URL.revokeObjectURL(blobUrl);
   }, []);
 
   return {

@@ -1,11 +1,13 @@
 # B4 - Bye Bye Big Bro
 
-## [1.44.0] - 2026-03-15
+## [1.44.1] - 2026-03-15
 
 - ADDED: **Time zone setting** — log timestamps now use your system's local time by default instead of UTC. You can also pick a specific time zone in Settings > Logging.
+- FIXED: **Payload download not working** — clicking "Download" on a captured payload in the web UI did nothing. Now downloads work correctly.
+- FIXED: **Uploaded payload filename** — when uploading a payload file, the saved name included the file extension twice (e.g. `tls_payload_bin.bin`). Now it saves correctly (e.g. `tls_payload.bin`).
 - FIXED: **Update from web UI not applying** — clicking "Update" in the web interface would appear to run, but B4 would restart with the same version.
 - FIXED: **DPI bypass not working with TLS version set to "Any"** — when a set's TLS version filter was set to "Any", connections would break after the initial handshake. Selecting a specific version (1.2 or 1.3) worked fine. The issue was that encrypted data packets were being incorrectly processed as if they were new TLS handshakes.
-- FIXED: **B4 crashing on some Xiaomi routers (BE7000, AX3200 and similar)** — B4 would fail to start with a "Could not process rule" error because it incorrectly chose nftables on devices where nftables isn't fully supported. B4 now tests whether nftables actually works before using it, and automatically falls back to iptables-legacy when needed.
+- FIXED: **B4 crashing on some Xiaomi routers (BE7000, AX3200 and similar)** — B4 would fail to start with a "Could not process rule" error because it incorrectly chose nftables on devices where nftables isn't fully supported. B4 now tests whether nftables actually works before using it, and automatically falls back to iptables-legacy when needed. (issues [#132](https://github.com/DanielLavrushin/b4/issues/132) [#133](https://github.com/DanielLavrushin/b4/issues/133))
 - ADDED: **Firewall engine selector** — a new "Firewall Engine" option in Settings lets you manually choose between `nftables`, `iptables`, or `iptables-legacy` if auto-detection doesn't work for your device.
 
 ## [1.43.0] - 2026-03-14

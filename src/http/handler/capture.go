@@ -228,9 +228,9 @@ func (api *API) handleClearCaptures(w http.ResponseWriter, r *http.Request) {
 
 // Download capture file
 func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
-	filePath := r.URL.Query().Get("file")
-	if filePath == "" {
-		http.Error(w, "File path required", http.StatusBadRequest)
+	fileParam := r.URL.Query().Get("file")
+	if fileParam == "" {
+		http.Error(w, "Filename required", http.StatusBadRequest)
 		return
 	}
 
@@ -238,24 +238,15 @@ func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
 	manager := capture.GetManager(api.cfg)
 	capturesDir := manager.GetOutputPath()
 
-	// Security check - ensure the requested file is in the captures directory
-	absPath, err := filepath.Abs(filePath)
-	if err != nil {
-		http.Error(w, "Invalid file path", http.StatusBadRequest)
-		return
-	}
-
 	absCapturesDir, err := filepath.Abs(capturesDir)
 	if err != nil {
 		http.Error(w, "Server error", http.StatusInternalServerError)
 		return
 	}
 
-	// Check that the file is within the captures directory
-	if !strings.HasPrefix(absPath, absCapturesDir) {
-		http.Error(w, "Access denied", http.StatusForbidden)
-		return
-	}
+	// Resolve the file path: use only the base filename to prevent directory traversal
+	filename := filepath.Base(fileParam)
+	absPath := filepath.Join(absCapturesDir, filename)
 
 	// Check file exists and is a .bin file
 	info, err := os.Stat(absPath)
@@ -270,7 +261,6 @@ func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Serve the file
-	filename := filepath.Base(absPath)
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
