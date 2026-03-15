@@ -3219,10 +3219,6 @@ _sysinfo_show_storage() {
     printf "    %-20s %s available (%s)\n" "$_dir" "${avail:-?}" "$writable" >&2
 }
 main() {
-    if [ ! -t 0 ] && [ -e /dev/tty ]; then
-        { exec </dev/tty; } 2>/dev/null || true
-    fi
-
     ACTION="install"
     VERSION=""
     FORCE_ARCH=""
@@ -3262,6 +3258,10 @@ main() {
             ;;
         esac
     done
+
+    if [ "$QUIET_MODE" -ne 1 ] 2>/dev/null && [ ! -t 0 ] && [ -e /dev/tty ]; then
+        exec </dev/tty
+    fi
 
     case "$ACTION" in
     install) action_install "$VERSION" "$FORCE_ARCH" ;;

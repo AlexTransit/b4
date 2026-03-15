@@ -2,15 +2,11 @@
 # Main entry point — argument parsing and dispatch
 
 main() {
-    if [ ! -t 0 ] && [ -e /dev/tty ]; then
-        { exec </dev/tty; } 2>/dev/null || true
-    fi
-
     ACTION="install"
     VERSION=""
     FORCE_ARCH=""
 
-    # Parse arguments
+    # Parse arguments first (need QUIET_MODE before tty redirect)
     for arg in "$@"; do
         case "$arg" in
         --remove | --uninstall | -r)
@@ -46,6 +42,13 @@ main() {
             ;;
         esac
     done
+
+    # Redirect stdin from tty for piped installs (curl | sh).
+    # Skip in quiet mode — no interactive input needed, and /dev/tty
+    # may not be available (e.g. web UI update running without a terminal).
+    if [ "$QUIET_MODE" -ne 1 ] 2>/dev/null && [ ! -t 0 ] && [ -e /dev/tty ]; then
+        exec </dev/tty
+    fi
 
     # Dispatch
     case "$ACTION" in
