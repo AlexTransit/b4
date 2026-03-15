@@ -1,12 +1,15 @@
 # B4 - Bye Bye Big Bro
 
+## [1.44.0] - 2026-03-15
+
+- FIXED: **DPI bypass not working with TLS version set to "Any"** — when a set's TLS version filter was set to "Any", connections would break after the initial handshake. Selecting a specific version (1.2 or 1.3) worked fine. The issue was that encrypted data packets were being incorrectly processed as if they were new TLS handshakes.
+
 ## [1.43.0] - 2026-03-14
 
 - ADDED: **Language selection** — you can now switch the web interface language in Settings. English and Russian are available.
 - FIXED: **Update stuck on "Waiting for service to restart"** — when login protection was enabled, the update process would get stuck polling forever after the service restarted.
 - FIXED: **Excessive logging under heavy traffic** — on busy routers, packet queue overflows could flood the log with repeated error messages, wasting CPU and potentially making the situation worse. These messages are now rate-limited.
 - FIXED: **TLS version not shown for some UDP connections** — QUIC (UDP) connections would sometimes show a blank TLS version in the log and connections table, even though they always use TLS 1.3. Now all QUIC traffic correctly displays its TLS version.
-- FIXED: **DPI bypass not working with TLS version set to "Any"** — when a set's TLS version filter was set to "Any", connections would break after the initial handshake. Selecting a specific version (1.2 or 1.3) worked fine. The issue was that encrypted data packets were being incorrectly processed as if they were new TLS handshakes.
 
 ## [1.42.1] - 2026-03-13
 
