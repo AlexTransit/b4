@@ -90,6 +90,9 @@ func (p *Pool) Start() error {
 }
 
 func (p *Pool) Stop() {
+	// Stop the DNS routing pending cleanup goroutine
+	stopDNSRouteCleanup()
+
 	// Stop the connState cleanup goroutine
 	select {
 	case <-p.stopCleanup:

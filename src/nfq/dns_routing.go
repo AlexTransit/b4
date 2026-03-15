@@ -5,14 +5,24 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/daniellavrushin/b4/config"
 )
+
+// RoutingHandleDNSFunc is called when DNS-resolved IPs are available for routing.
+// Set from main.go to break the tables ↔ nfq import cycle.
+var RoutingHandleDNSFunc func(cfg *config.Config, set *config.SetConfig, ips []net.IP)
 
 type pendingDNSRoute struct {
 	setID   string
 	expires time.Time
 }
 
-var dnsRoutePending sync.Map
+var (
+	dnsRoutePending    sync.Map
+	dnsRouteCleanOnce  sync.Once
+	dnsRouteCleanStop  chan struct{}
+)
 
 func dnsRouteKeyRequest(
 	ipVersion byte,
@@ -47,7 +57,37 @@ func dnsRouteKeyResponse(
 	return dnsRouteKeyRequest(ipVersion, clientIP, clientPort, dnsServerIP, dnsServerPort, txid, domain)
 }
 
+func startDNSRouteCleanup() {
+	dnsRouteCleanOnce.Do(func() {
+		dnsRouteCleanStop = make(chan struct{})
+		go func() {
+			ticker := time.NewTicker(60 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					cleanupDNSPendingRoutes(time.Now())
+				case <-dnsRouteCleanStop:
+					return
+				}
+			}
+		}()
+	})
+}
+
+func stopDNSRouteCleanup() {
+	if dnsRouteCleanStop != nil {
+		select {
+		case <-dnsRouteCleanStop:
+			// already closed
+		default:
+			close(dnsRouteCleanStop)
+		}
+	}
+}
+
 func storeDNSPendingRoute(key string, setID string) {
+	startDNSRouteCleanup()
 	dnsRoutePending.Store(key, pendingDNSRoute{setID: setID, expires: time.Now().Add(2 * time.Minute)})
 }
 

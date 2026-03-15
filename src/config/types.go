@@ -218,7 +218,7 @@ type SetConfig struct {
 	DNS           DNSConfig           `json:"dns"`
 	TCPPortRanges []PortRange         `json:"-"`
 	UDPPortRanges []PortRange         `json:"-"`
-	Routing       RoutingConfig       `json:"routing" bson:"routing"`
+	Routing       RoutingConfig       `json:"routing"`
 }
 
 type GeoDatConfig struct {
@@ -278,10 +278,10 @@ type DeviceMSSClamp struct {
 }
 
 type RoutingConfig struct {
-	Enabled          bool     `json:"enabled" bson:"enabled"`
-	EgressInterface  string   `json:"egress_interface" bson:"egress_interface"`
-	FWMark           uint32   `json:"fwmark" bson:"fwmark"`
-	Table            int      `json:"table" bson:"table"`
-	SourceInterfaces []string `json:"source_interfaces" bson:"source_interfaces"`
-	IPTTLSeconds     int      `json:"ip_ttl_seconds" bson:"ip_ttl_seconds"`
+	Enabled          bool     `json:"enabled"`
+	EgressInterface  string   `json:"egress_interface"`
+	FWMark           uint32   `json:"fwmark"`
+	Table            int      `json:"table"`
+	SourceInterfaces []string `json:"source_interfaces"`
+	IPTTLSeconds     int      `json:"ip_ttl_seconds"`
 }

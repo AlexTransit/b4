@@ -135,6 +135,29 @@ func hasBinary(name string) bool {
 	return err == nil
 }
 
+func runLogged(op string, args ...string) {
+	out, err := run(args...)
+	if err != nil {
+		msg := strings.TrimSpace(out)
+		if strings.Contains(msg, "File exists") || strings.Contains(msg, "No such file or directory") {
+			return
+		}
+		log.Warnf("%s failed: %v | cmd=%s | out=%s", op, err, strings.Join(args, " "), strings.TrimSpace(out))
+	}
+}
+
+func runEnsure(args ...string) error {
+	out, err := run(args...)
+	if err == nil {
+		return nil
+	}
+	msg := strings.TrimSpace(out)
+	if strings.Contains(msg, "File exists") || strings.Contains(msg, "already exists") {
+		return nil
+	}
+	return fmt.Errorf("%v: %s", err, msg)
+}
+
 func loadKernelModules() {
 	modulesLoaded.Do(func() {
 		_, _ = run("sh", "-c", "modprobe -q nfnetlink 2>/dev/null || true")

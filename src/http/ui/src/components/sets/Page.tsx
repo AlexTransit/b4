@@ -12,7 +12,6 @@ import {
   Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { OtherSetsTargets } from "./Target";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { SetEditorPage } from "./Editor";
@@ -57,7 +56,10 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
     }
     return map;
   }, [sets, id]);
-  const defaultSet = useMemo(() => createDefaultSet(sets.length), [sets.length]);
+  const defaultSet = useMemo(
+    () => createDefaultSet(sets.length),
+    [sets.length],
+  );
   const set = isNew ? defaultSet : existingSet;
 
   const stats = existingSet
@@ -127,7 +129,7 @@ export function SetsPage() {
         initialLoadDone.current = true;
       }
     }
-  }, [showError]);
+  }, [showError, t]);
 
   useEffect(() => {
     loadConfig().catch(() => {});

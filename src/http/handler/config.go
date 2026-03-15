@@ -12,7 +12,6 @@ import (
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/metrics"
-	"github.com/daniellavrushin/b4/route"
 )
 
 func (api *API) RegisterConfigApi() {
@@ -352,7 +351,9 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 	}
 
 	*a.cfg = *newCfg
-	route.SyncConfig(a.cfg)
+	if routingSyncFunc != nil {
+		routingSyncFunc(a.cfg)
+	}
 
 	return nil
 }

@@ -11,7 +11,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
 
 import {
-  DnsIcon,
   DomainIcon,
   ImportExportIcon,
   SaveIcon,
@@ -30,7 +29,6 @@ import {
   SystemConfig,
 } from "@models/config";
 
-import { DnsSettings } from "./Dns";
 import { ImportExportSettings } from "./ImportExport";
 import { SetStats } from "./Manager";
 import { RoutingSettings } from "./Routing";
@@ -93,7 +91,6 @@ export const SetEditorPage = ({
     TARGETS = 0,
     TCP,
     UDP,
-    DNS,
     ROUTING,
     IMPORT_EXPORT,
   }
@@ -248,7 +245,6 @@ export const SetEditorPage = ({
             <B4Tab icon={<DomainIcon />} label={t("sets.editor.tabs.targets")} inline />
             <B4Tab icon={<TcpIcon />} label={t("sets.editor.tabs.tcp")} inline />
             <B4Tab icon={<UdpIcon />} label={t("sets.editor.tabs.udp")} inline />
-            <B4Tab icon={<DnsIcon />} label={t("sets.editor.tabs.dns")} inline />
             <B4Tab icon={<AltRouteIcon />} label={t("sets.editor.tabs.routing")} inline />
             <B4Tab icon={<ImportExportIcon />} label={t("sets.editor.tabs.importExport")} inline />
           </B4Tabs>
@@ -283,17 +279,10 @@ export const SetEditorPage = ({
           />
         </TabPanel>
 
-        <TabPanel value={activeTab} index={TABS.DNS}>
-          <DnsSettings
-            config={editedSet}
-            onChange={handleChange}
-            ipv6={config.queue.ipv6}
-          />
-        </TabPanel>
-
         <TabPanel value={activeTab} index={TABS.ROUTING}>
           <RoutingSettings
             set={editedSet}
+            ipv6={config.queue.ipv6}
             availableIfaces={config.available_ifaces ?? []}
             onChange={handleChange}
           />

@@ -1,0 +1,166 @@
+package tables
+
+import (
+	"fmt"
+	"strings"
+)
+
+const (
+	routeNftTable      = "b4_route"
+	routeNftPrerouting = "prerouting"
+	routeNftOutput     = "output"
+	routeNftPostroute  = "postrouting"
+)
+
+type routeNftBackend struct{}
+
+func (b *routeNftBackend) name() string    { return "nftables" }
+func (b *routeNftBackend) available() bool { return hasBinary("nft") }
+
+func (b *routeNftBackend) ensureBase() error {
+	if err := runEnsure("nft", "add", "table", "inet", routeNftTable); err != nil {
+		return fmt.Errorf("ensure table: %w", err)
+	}
+	if err := runEnsure("nft", "add", "chain", "inet", routeNftTable, routeNftPrerouting,
+		"{", "type", "filter", "hook", "prerouting", "priority", "-151", ";", "policy", "accept", ";", "}"); err != nil {
+		return fmt.Errorf("ensure prerouting chain: %w", err)
+	}
+	if err := runEnsure("nft", "add", "chain", "inet", routeNftTable, routeNftOutput,
+		"{", "type", "route", "hook", "output", "priority", "-151", ";", "policy", "accept", ";", "}"); err != nil {
+		return fmt.Errorf("ensure output chain: %w", err)
+	}
+	if err := runEnsure("nft", "add", "chain", "inet", routeNftTable, routeNftPostroute,
+		"{", "type", "nat", "hook", "postrouting", "priority", "100", ";", "policy", "accept", ";", "}"); err != nil {
+		return fmt.Errorf("ensure postrouting chain: %w", err)
+	}
+	return nil
+}
+
+func (b *routeNftBackend) ensureIPSet(name string, v6 bool) error {
+	typ := "ipv4_addr"
+	if v6 {
+		typ = "ipv6_addr"
+	}
+	if err := runEnsure("nft", "add", "set", "inet", routeNftTable, name,
+		"{", "type", typ, ";", "flags", "timeout", ";", "timeout", "1h", ";", "}"); err != nil {
+		return fmt.Errorf("ensure set %s: %w", name, err)
+	}
+	return nil
+}
+
+func (b *routeNftBackend) addElement(setName, ip string, ttlSec int) {
+	runLogged("routing: add element "+ip,
+		"nft", "add", "element", "inet", routeNftTable, setName,
+		"{", ip, "timeout", fmt.Sprintf("%ds", ttlSec), "}")
+}
+
+func (b *routeNftBackend) ensureChain(chain string, _ bool) error {
+	if err := runEnsure("nft", "add", "chain", "inet", routeNftTable, chain); err != nil {
+		return fmt.Errorf("ensure chain %s: %w", chain, err)
+	}
+	return nil
+}
+
+func (b *routeNftBackend) flushChain(chain string, _ bool) {
+	runLogged("routing: flush chain "+chain, "nft", "flush", "chain", "inet", routeNftTable, chain)
+}
+
+func (b *routeNftBackend) deleteChain(chain string, _ bool) {
+	runLogged("routing: delete chain "+chain, "nft", "delete", "chain", "inet", routeNftTable, chain)
+}
+
+func (b *routeNftBackend) addBypassRule(chain string, mark uint32) {
+	runLogged("routing: add bypass rule "+chain,
+		"nft", "add", "rule", "inet", routeNftTable, chain,
+		"meta", "mark", fmt.Sprintf("0x%x", mark), "return")
+}
+
+func (b *routeNftBackend) addMarkRule(chain string, v6 bool, setName string, mark uint32, sourceIface string, tagHostConntrack bool) {
+	args := []string{"add", "rule", "inet", routeNftTable, chain}
+	if sourceIface != "" {
+		args = append(args, "iifname", sourceIface)
+	}
+	if v6 {
+		args = append(args, "ip6", "daddr", "@"+setName, "meta", "mark", "set", fmt.Sprintf("0x%x", mark))
+	} else {
+		args = append(args, "ip", "daddr", "@"+setName, "meta", "mark", "set", fmt.Sprintf("0x%x", mark))
+	}
+	if tagHostConntrack {
+		args = append(args, "ct", "mark", "set", "ct", "mark", "or", fmt.Sprintf("0x%x", hostRouteCTMark))
+	}
+	runLogged("routing: add mark rule "+chain, append([]string{"nft"}, args...)...)
+}
+
+func nftRouteBaseChain(generic string) string {
+	switch generic {
+	case "PREROUTING":
+		return routeNftPrerouting
+	case "OUTPUT":
+		return routeNftOutput
+	case "POSTROUTING":
+		return routeNftPostroute
+	default:
+		return strings.ToLower(generic)
+	}
+}
+
+func (b *routeNftBackend) ensureJumpRule(baseChain, targetChain string, _ bool) {
+	base := nftRouteBaseChain(baseChain)
+	b.deleteJumpRules(baseChain, targetChain, true)
+	runLogged("routing: add jump "+base+"->"+targetChain,
+		"nft", "add", "rule", "inet", routeNftTable, base, "jump", targetChain)
+}
+
+func (b *routeNftBackend) deleteJumpRules(baseChain, targetChain string, _ bool) {
+	base := nftRouteBaseChain(baseChain)
+	out, err := run("nft", "-a", "list", "chain", "inet", routeNftTable, base)
+	if err != nil {
+		return
+	}
+	for _, line := range strings.Split(out, "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.Contains(line, "jump "+targetChain) {
+			continue
+		}
+		idx := strings.Index(line, "# handle ")
+		if idx < 0 {
+			continue
+		}
+		handle := strings.TrimSpace(line[idx+len("# handle "):])
+		if handle == "" {
+			continue
+		}
+		runLogged("routing: delete jump rule handle "+handle,
+			"nft", "delete", "rule", "inet", routeNftTable, base, "handle", handle)
+	}
+}
+
+func (b *routeNftBackend) addSNATRule(chain string, mark uint32, iface, srcAddr string, v6 bool) {
+	markHex := fmt.Sprintf("0x%x", mark)
+	hostCTMask := fmt.Sprintf("0x%x", hostRouteCTMark)
+	af := "ip"
+	if v6 {
+		af = "ip6"
+	}
+	runLogged("routing: add auto-snat rule",
+		"nft", "add", "rule", "inet", routeNftTable, chain,
+		"meta", "mark", markHex,
+		"ct", "mark", "&", hostCTMask, "==", hostCTMask,
+		"oifname", iface,
+		af, "saddr", "!=", srcAddr,
+		"snat", "to", srcAddr,
+	)
+}
+
+func (b *routeNftBackend) flushIPSet(name string) {
+	runLogged("routing: flush set "+name, "nft", "flush", "set", "inet", routeNftTable, name)
+}
+
+func (b *routeNftBackend) destroyIPSet(name string) {
+	runLogged("routing: delete set "+name, "nft", "delete", "set", "inet", routeNftTable, name)
+}
+
+func (b *routeNftBackend) clearAll() {
+	runLogged("routing: flush route table", "nft", "flush", "table", "inet", routeNftTable)
+	runLogged("routing: delete route table", "nft", "delete", "table", "inet", routeNftTable)
+}

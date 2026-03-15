@@ -26,6 +26,7 @@ var (
 	globalPool         *nfq.Pool
 	globalSocks5Server ConfigRefresher
 	tablesRefreshFunc  func() error
+	routingSyncFunc    func(*config.Config)
 )
 
 func setJsonHeader(w http.ResponseWriter) {
@@ -125,4 +126,8 @@ func sendResponse(w http.ResponseWriter, response interface{}) {
 
 func SetTablesRefreshFunc(fn func() error) {
 	tablesRefreshFunc = fn
+}
+
+func SetRoutingSyncFunc(fn func(*config.Config)) {
+	routingSyncFunc = fn
 }

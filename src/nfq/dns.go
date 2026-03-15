@@ -8,7 +8,6 @@ import (
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/dns"
 	"github.com/daniellavrushin/b4/log"
-	b4route "github.com/daniellavrushin/b4/route"
 	"github.com/daniellavrushin/b4/sock"
 	"github.com/florianl/go-nfqueue"
 )
@@ -153,7 +152,9 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 				if ips := dns.ParseResponseIPs(payload); len(ips) > 0 {
 					cfg := w.getConfig()
 					if set := cfg.GetSetById(setID); set != nil {
-						b4route.HandleDNSResolved(cfg, set, ips)
+						if RoutingHandleDNSFunc != nil {
+							RoutingHandleDNSFunc(cfg, set, ips)
+						}
 					}
 				}
 			}

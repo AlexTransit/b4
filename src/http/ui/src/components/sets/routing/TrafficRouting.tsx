@@ -1,0 +1,262 @@
+import { Box, Grid, MenuItem, Typography } from "@mui/material";
+import { B4Alert, B4Badge, B4Switch, B4TextField } from "@b4.elements";
+import { B4SetConfig, RoutingConfig } from "@models/config";
+import { colors } from "@design";
+import { useTranslation } from "react-i18next";
+import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
+
+const defaultRouting: RoutingConfig = {
+  enabled: false,
+  egress_interface: "",
+  fwmark: 0,
+  table: 0,
+  source_interfaces: [],
+  ip_ttl_seconds: 3600,
+};
+
+interface TrafficRoutingProps {
+  config: B4SetConfig;
+  availableIfaces: string[];
+  onChange: (
+    field: string,
+    value: string | number | boolean | string[] | number[] | null | undefined,
+  ) => void;
+}
+
+export const TrafficRouting = ({
+  config,
+  availableIfaces,
+  onChange,
+}: TrafficRoutingProps) => {
+  const { t } = useTranslation();
+  const routing = config.routing ?? defaultRouting;
+  const selectedIfaceAvailable = availableIfaces.includes(
+    routing.egress_interface,
+  );
+  const shouldShowUnavailableSelected = Boolean(
+    routing.egress_interface && !selectedIfaceAvailable,
+  );
+
+  const toggleSourceIface = (iface: string) => {
+    const current = routing.source_interfaces || [];
+    const updated = current.includes(iface)
+      ? current.filter((i) => i !== iface)
+      : [...current, iface];
+    onChange("routing.source_interfaces", updated);
+  };
+
+  return (
+    <Grid container spacing={3}>
+      <Grid size={{ lg: 12 }}>
+        <B4Switch
+          label={t("sets.routing.enable")}
+          checked={routing.enabled}
+          onChange={(checked: boolean) => onChange("routing.enabled", checked)}
+          description={t("sets.routing.enableDesc")}
+          disabled={availableIfaces.length === 0}
+        />
+      </Grid>
+
+      {routing.enabled && (
+        <>
+          {/* Traffic flow diagram */}
+          <Grid size={{ xs: 12 }}>
+            <Box
+              sx={{
+                p: 2,
+                bgcolor: colors.background.paper,
+                borderRadius: 1,
+                border: `1px solid ${colors.border.default}`,
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                component="div"
+                sx={{ mb: 1.5 }}
+              >
+                {t("sets.routing.flowDiagramLabel")}
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  fontFamily: "monospace",
+                  fontSize: "0.75rem",
+                  flexWrap: "wrap",
+                  justifyContent: "center",
+                }}
+              >
+                <Box
+                  sx={{
+                    p: 1,
+                    px: 1.5,
+                    bgcolor: colors.accent.primary,
+                    borderRadius: 0.5,
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {routing.source_interfaces?.length
+                    ? routing.source_interfaces.join(", ")
+                    : t("sets.routing.flowAnyDevice")}
+                </Box>
+                <ArrowForwardIcon
+                  sx={{ fontSize: 16, color: "text.secondary" }}
+                />
+                <Box
+                  sx={{
+                    p: 1,
+                    px: 1.5,
+                    bgcolor: colors.accent.secondary,
+                    borderRadius: 0.5,
+                    textAlign: "center",
+                    border: `1px solid ${colors.secondary}`,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  B4
+                </Box>
+                <ArrowForwardIcon
+                  sx={{ fontSize: 16, color: "text.secondary" }}
+                />
+                <Box
+                  sx={{
+                    p: 1,
+                    px: 1.5,
+                    bgcolor: colors.accent.tertiary,
+                    borderRadius: 0.5,
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {routing.egress_interface || t("sets.routing.flowNoOutput")}
+                </Box>
+                <ArrowForwardIcon
+                  sx={{ fontSize: 16, color: "text.secondary" }}
+                />
+                <Box
+                  sx={{
+                    p: 1,
+                    px: 1.5,
+                    bgcolor: colors.accent.primary,
+                    borderRadius: 0.5,
+                    textAlign: "center",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Internet
+                </Box>
+              </Box>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 1.5, display: "block", textAlign: "center" }}
+              >
+                {t("sets.routing.flowCaption")}
+              </Typography>
+            </Box>
+          </Grid>
+
+          <Grid size={{ xs: 12 }}>
+            <B4Alert severity="info">{t("sets.routing.howItWorks")}</B4Alert>
+          </Grid>
+
+          <Grid size={{ xs: 12 }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              {t("sets.routing.sourceInterfaces")}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {t("sets.routing.sourceInterfacesDesc")}
+            </Typography>
+
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {availableIfaces.map((iface) => {
+                const selected = (routing.source_interfaces || []).includes(
+                  iface,
+                );
+                return (
+                  <B4Badge
+                    key={iface}
+                    label={iface}
+                    onClick={() => toggleSourceIface(iface)}
+                    variant={selected ? "filled" : "outlined"}
+                    color={selected ? "secondary" : "primary"}
+                  />
+                );
+              })}
+            </Box>
+
+            {availableIfaces.length === 0 && (
+              <B4Alert severity="warning" sx={{ mt: 2 }}>
+                {t("sets.routing.noInterfaces")}
+              </B4Alert>
+            )}
+
+            {shouldShowUnavailableSelected && (
+              <B4Alert severity="warning" sx={{ mt: 2 }}>
+                {t("sets.routing.unavailableWarning", {
+                  iface: routing.egress_interface,
+                })}
+              </B4Alert>
+            )}
+
+            <B4Alert severity="info" sx={{ mt: 2 }}>
+              {t("sets.routing.info")}
+            </B4Alert>
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <B4TextField
+              label={t("sets.routing.outputInterface")}
+              select
+              value={routing.egress_interface}
+              onChange={(e) =>
+                onChange("routing.egress_interface", e.target.value)
+              }
+              helperText={
+                shouldShowUnavailableSelected
+                  ? t("sets.routing.interfaceUnavailable")
+                  : t("sets.routing.outputInterfaceHelper")
+              }
+            >
+              {shouldShowUnavailableSelected && (
+                <MenuItem value={routing.egress_interface}>
+                  {t("sets.routing.interfaceUnavailableOption", {
+                    iface: routing.egress_interface,
+                  })}
+                </MenuItem>
+              )}
+              {availableIfaces.map((iface) => (
+                <MenuItem key={iface} value={iface}>
+                  {iface}
+                </MenuItem>
+              ))}
+            </B4TextField>
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <B4TextField
+              label={t("sets.routing.ipTtl")}
+              type="number"
+              value={routing.ip_ttl_seconds}
+              onChange={(e) =>
+                onChange("routing.ip_ttl_seconds", Number(e.target.value))
+              }
+              helperText={t("sets.routing.ipTtlHelper")}
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mt: 1, display: "block" }}
+            >
+              {t("sets.routing.ipTtlDesc")}
+            </Typography>
+          </Grid>
+        </>
+      )}
+    </Grid>
+  );
+};
