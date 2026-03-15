@@ -322,10 +322,8 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			set = nil
 		}
 
-		// Learned IP match without SNI confirmation: don't apply DPI evasion to
-		// non-ClientHello data packets (SYN was already handled above and returned).
-		// Without this, "ANY" TLS version sets would fragment encrypted app data.
-		if matchedLearned && !matchedSNI {
+		// Learned IP match without SNI confirmation
+		if matchedLearned && !matchedSNI && !(len(payload) >= 1 && payload[0] == 0x16) {
 			matched = false
 			set = nil
 		}
