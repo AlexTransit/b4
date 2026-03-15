@@ -30,19 +30,21 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
   const isTls = strategy === "tls";
   const isActive = strategy !== "none";
 
-  const fragmentationOptions: { label: string; value: FragmentationStrategy }[] =
-    [
-      { label: t("sets.tcp.splitting.strategyCombo"), value: "combo" },
-      { label: t("sets.tcp.splitting.strategyHybrid"), value: "hybrid" },
-      { label: t("sets.tcp.splitting.strategyDisorder"), value: "disorder" },
-      { label: t("sets.tcp.splitting.strategyExtSplit"), value: "extsplit" },
-      { label: t("sets.tcp.splitting.strategyFirstByte"), value: "firstbyte" },
-      { label: t("sets.tcp.splitting.strategyTcp"), value: "tcp" },
-      { label: t("sets.tcp.splitting.strategyIp"), value: "ip" },
-      { label: t("sets.tcp.splitting.strategyTls"), value: "tls" },
-      { label: t("sets.tcp.splitting.strategyOob"), value: "oob" },
-      { label: t("sets.tcp.splitting.strategyNone"), value: "none" },
-    ];
+  const fragmentationOptions: {
+    label: string;
+    value: FragmentationStrategy;
+  }[] = [
+    { label: t("sets.tcp.splitting.strategyCombo"), value: "combo" },
+    { label: t("sets.tcp.splitting.strategyHybrid"), value: "hybrid" },
+    { label: t("sets.tcp.splitting.strategyDisorder"), value: "disorder" },
+    { label: t("sets.tcp.splitting.strategyExtSplit"), value: "extsplit" },
+    { label: t("sets.tcp.splitting.strategyFirstByte"), value: "firstbyte" },
+    { label: t("sets.tcp.splitting.strategyTcp"), value: "tcp" },
+    { label: t("sets.tcp.splitting.strategyIp"), value: "ip" },
+    { label: t("sets.tcp.splitting.strategyTls"), value: "tls" },
+    { label: t("sets.tcp.splitting.strategyOob"), value: "oob" },
+    { label: t("sets.tcp.splitting.strategyNone"), value: "none" },
+  ];
 
   return (
     <>
@@ -88,9 +90,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
           <>
             <B4FormHeader label={t("sets.tcp.splitting.oobHeader")} />
 
-            <B4Alert>
-              {t("sets.tcp.splitting.oobAlert")}
-            </B4Alert>
+            <B4Alert>{t("sets.tcp.splitting.oobAlert")}</B4Alert>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <B4Slider
@@ -111,7 +111,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
                 <Typography variant="body2" gutterBottom>
                   {t("sets.tcp.splitting.oobByte")}{" "}
                   <code>
-                    {String.fromCharCode(config.fragmentation.oob_char || 120)}
+                    {String.fromCodePoint(config.fragmentation.oob_char || 120)}
                   </code>{" "}
                   (0x
                   {(config.fragmentation.oob_char || 120)
@@ -129,9 +129,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
           <>
             <B4FormHeader label={t("sets.tcp.splitting.tlsRecHeader")} />
 
-            <B4Alert>
-              {t("sets.tcp.splitting.tlsRecAlert")}
-            </B4Alert>
+            <B4Alert>{t("sets.tcp.splitting.tlsRecAlert")}</B4Alert>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <B4Slider
