@@ -163,7 +163,7 @@ func RoutingClearAll() {
 		// Try both iptables and iptables-legacy for best-effort cleanup.
 		for _, legacy := range []bool{false, true} {
 			ipt := &routeIptBackend{legacy: legacy}
-			if ipt.available() {
+			if hasBinary(ipt.ipt4()) || hasBinary(ipt.ipt6()) {
 				ipt.clearAll()
 			}
 		}
