@@ -52,7 +52,8 @@ export const CaptureSettings = () => {
   useEffect(() => {
     if (!uploadForm.domain && uploadForm.file) {
       setUploadForm((prev) => {
-        const name = (prev.file?.name ?? "").replace(/\.bin$/i, "");
+        let name = (prev.file?.name ?? "").replace(/\.bin$/i, "");
+        name = name.replace(/^(tls|quic)_/, "").replaceAll("_", ".");
         return { ...prev, domain: name };
       });
     }

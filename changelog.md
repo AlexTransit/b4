@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.45.0] - 2026-03-xx
+
+- FIXED: **Payload handling** — fixed incorrect filenames on upload/download and unnecessary loading errors when sets are disabled.
+- ADDED: **Traffic routing** — you can now route traffic for matched domains through a specific network interface. When a set matches a domain, B4 resolves its IPs and directs that traffic through the chosen output interface. Configure it in the `Routing` tab when editing a set.
+
 ## [1.44.1] - 2026-03-15
 
 - ADDED: **Time zone setting** — log timestamps now use your system's local time by default instead of UTC. You can also pick a specific time zone in Settings > Logging.
