@@ -15,6 +15,9 @@ func (w *Worker) sendPostDesyncRST(cfg *config.SetConfig, raw []byte, ipHdrLen i
 	}
 
 	tcpHdrLen := int((raw[ipHdrLen+12] >> 4) * 4)
+	if tcpHdrLen < 20 || ipHdrLen+tcpHdrLen > len(raw) {
+		return
+	}
 	payloadLen := len(raw) - ipHdrLen - tcpHdrLen
 	seq := binary.BigEndian.Uint32(raw[ipHdrLen+4 : ipHdrLen+8])
 	ttl := dynamicTTL(raw, false, cfg.Faking.TTL)
@@ -63,6 +66,9 @@ func (w *Worker) sendPostDesyncRSTv6(cfg *config.SetConfig, raw []byte, dst net.
 	}
 
 	tcpHdrLen := int((raw[ipv6HdrLen+12] >> 4) * 4)
+	if tcpHdrLen < 20 || ipv6HdrLen+tcpHdrLen > len(raw) {
+		return
+	}
 	payloadLen := len(raw) - ipv6HdrLen - tcpHdrLen
 
 	rstLen := ipv6HdrLen + tcpHdrLen

@@ -31,8 +31,9 @@ export const CaptureSettings = () => {
   const [probeForm, setProbeForm] = useState({ domain: "" });
   const [uploadForm, setUploadForm] = useState<{
     domain: string;
+    protocol: string;
     file: File | null;
-  }>({ domain: "", file: null });
+  }>({ domain: "", protocol: "tls", file: null });
 
   const {
     captures,
@@ -53,8 +54,9 @@ export const CaptureSettings = () => {
     if (!uploadForm.domain && uploadForm.file) {
       setUploadForm((prev) => {
         let name = (prev.file?.name ?? "").replace(/\.bin$/i, "");
+        const proto = name.startsWith("quic_") ? "quic" : "tls";
         name = name.replace(/^(tls|quic)_/, "").replaceAll("_", ".");
-        return { ...prev, domain: name };
+        return { ...prev, domain: name, protocol: proto };
       });
     }
   }, [uploadForm.domain, uploadForm.file]);
@@ -113,7 +115,7 @@ export const CaptureSettings = () => {
     if (!uploadForm.file || !uploadForm.domain) return;
 
     try {
-      await upload(uploadForm.file, uploadForm.domain.toLowerCase(), "tls");
+      await upload(uploadForm.file, uploadForm.domain.toLowerCase(), uploadForm.protocol);
       showSuccess(
         t("settings.Capture.uploadedSuccess", { domain: uploadForm.domain }),
       );
