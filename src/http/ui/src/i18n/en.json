@@ -1221,7 +1221,12 @@
       "domain": "Domain",
       "source": "Source",
       "destination": "Destination",
-      "waitingForConnections": "Waiting for connections..."
+      "waitingForConnections": "Waiting for connections...",
+      "enrichAsn": "Enrich ASN",
+      "enrichSuccess": "{{asn}} enriched ({{count}} prefixes)",
+      "enrichFailed": "Failed to enrich ASN",
+      "enrichNoAsn": "No ASN found for this IP",
+      "asnDeleted": "AS{{asn}} removed"
     },
     "addDomain": {
       "title": "Add Domain to Manual List",

@@ -16,6 +16,8 @@
 - FIXED: **Time zone not applying on routers** — setting a time zone in `Settings` had no effect on some routers (e.g. `Keenetic`) because the device lacked timezone data.
 - FIXED: **Log level resets to Info on restart** — changing the log verbosity in `Settings` did not persist across service restarts.
 - FIXED: **Invalid TLS certificate crashes B4** — setting a wrong certificate or key path in `Settings` caused B4 to crash on next restart. Now it logs a warning and falls back to `HTTP`.
+- IMPROVED: **ASN data now persists on the router** — enriched ASN information is stored server-side, so it stays consistent across all browsers and devices.
+- ADDED: **Inline ASN enrichment** — you can now enrich destination IPs with ASN data directly from the connections table without opening the Add IP dialog.
 
 ## [1.44.1] - 2026-03-15
 

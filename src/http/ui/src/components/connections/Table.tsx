@@ -10,8 +10,9 @@ import {
   Stack,
   Box,
   Tooltip,
+  CircularProgress,
 } from "@mui/material";
-import { AddIcon } from "@b4.icons";
+import { AddIcon, NetworkIcon } from "@b4.icons";
 import { SortableTableCell, SortDirection } from "@common/SortableTableCell";
 import { ProtocolChip } from "@common/ProtocolChip";
 import { colors } from "@design";
@@ -35,6 +36,10 @@ interface DomainsTableProps {
   onSort: (column: SortColumn) => void;
   onDomainClick: (domain: string) => void;
   onIpClick: (ip: string) => void;
+  onEnrichIp: (ip: string) => Promise<void>;
+  onDeleteAsn: (asnId: string) => void;
+  enrichingIps: Set<string>;
+  asnVersion: number;
   onScrollStateChange: (isAtBottom: boolean) => void;
 }
 
@@ -45,13 +50,19 @@ const TableRowMemo = memo<{
   log: ParsedLog;
   onDomainClick: (domain: string) => void;
   onIpClick: (ip: string) => void;
+  onEnrichIp: (ip: string) => Promise<void>;
+  onDeleteAsn: (asnId: string) => void;
+  enrichingIps: Set<string>;
+  asnVersion: number;
 }>(
-  ({ log, onDomainClick, onIpClick }) => {
-    const asnName = useMemo(() => {
+  ({ log, onDomainClick, onIpClick, onEnrichIp, onDeleteAsn, enrichingIps, asnVersion }) => {
+    const { t } = useTranslation();
+    const asnInfo = useMemo(() => {
       if (!log.destination) return null;
-      const asn = asnStorage.findAsnForIp(log.destination);
-      return asn?.name || null;
-    }, [log.destination]);
+      return asnStorage.findAsnForIp(log.destination);
+    }, [log.destination, asnVersion]);
+
+    const isEnriching = enrichingIps.has(log.destination);
 
     return (
       <TableRow
@@ -172,8 +183,34 @@ const TableRowMemo = memo<{
             >
               {log.destination}
             </Box>
-            {asnName && (
-              <B4Badge variant="outlined" color="primary" label={asnName} />
+            {asnInfo ? (
+              <B4Badge
+                variant="outlined"
+                color="primary"
+                label={asnInfo.name}
+                onDelete={() => onDeleteAsn(asnInfo.id)}
+              />
+            ) : log.destination && (
+              <Tooltip title={t("connections.table.enrichAsn")} placement="top" arrow>
+                {isEnriching ? (
+                  <CircularProgress size={14} sx={{ color: colors.secondary }} />
+                ) : (
+                  <NetworkIcon
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void onEnrichIp(log.destination);
+                    }}
+                    sx={{
+                      fontSize: 16,
+                      color: `${colors.secondary}88`,
+                      cursor: "pointer",
+                      "&:hover": {
+                        color: colors.secondary,
+                      },
+                    }}
+                  />
+                )}
+              </Tooltip>
             )}
             <Box sx={{ flex: 1 }} />
             {!log.ipSet && (
@@ -196,7 +233,10 @@ const TableRowMemo = memo<{
       </TableRow>
     );
   },
-  (prev, next) => prev.log.raw === next.log.raw
+  (prev, next) =>
+    prev.log.raw === next.log.raw &&
+    prev.enrichingIps === next.enrichingIps &&
+    prev.asnVersion === next.asnVersion
 );
 
 TableRowMemo.displayName = "TableRowMemo";
@@ -208,6 +248,10 @@ export const DomainsTable = ({
   onSort,
   onDomainClick,
   onIpClick,
+  onEnrichIp,
+  onDeleteAsn,
+  enrichingIps,
+  asnVersion,
   onScrollStateChange,
 }: DomainsTableProps) => {
   const { t } = useTranslation();
@@ -356,6 +400,10 @@ export const DomainsTable = ({
                   log={log}
                   onDomainClick={onDomainClick}
                   onIpClick={onIpClick}
+                  onEnrichIp={onEnrichIp}
+                  onDeleteAsn={onDeleteAsn}
+                  enrichingIps={enrichingIps}
+                  asnVersion={asnVersion}
                 />
               ))}
 

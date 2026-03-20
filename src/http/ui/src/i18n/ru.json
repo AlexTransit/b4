@@ -1222,7 +1222,12 @@
       "domain": "Домен",
       "source": "Источник",
       "destination": "Назначение",
-      "waitingForConnections": "Ожидание соединений..."
+      "waitingForConnections": "Ожидание соединений...",
+      "enrichAsn": "Определить ASN",
+      "enrichSuccess": "{{asn}} обогащён ({{count}} префиксов)",
+      "enrichFailed": "Не удалось определить ASN",
+      "enrichNoAsn": "ASN не найден для этого IP",
+      "asnDeleted": "AS{{asn}} удалён"
     },
     "addDomain": {
       "title": "Добавить домен в список",
