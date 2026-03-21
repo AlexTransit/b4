@@ -847,7 +847,6 @@ definitions:
     - 1
     - 2
     - 3
-    format: int32
     type: integer
     x-enum-varnames:
     - LevelError
@@ -1379,6 +1378,49 @@ paths:
       tags:
       - Devices
   /devices/{mac}/alias:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: Alias payload
+        in: body
+        name: alias
+        required: true
+        schema:
+          type: object
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Delete device alias
+      tags:
+      - Devices
+      - Devices
+      - Devices
     get:
       consumes:
       - application/json
@@ -1388,7 +1430,25 @@ paths:
         name: mac
         required: true
         type: string
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: Alias payload
+        in: body
+        name: alias
+        required: true
+        schema:
+          type: object
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
       produces:
+      - application/json
+      - application/json
       - application/json
       responses:
         "200":
@@ -1397,8 +1457,55 @@ paths:
             type: object
       security:
       - BearerAuth: []
-      summary: Manage device alias (get, set, or delete)
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Delete device alias
       tags:
+      - Devices
+      - Devices
+      - Devices
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: Alias payload
+        in: body
+        name: alias
+        required: true
+        schema:
+          type: object
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Delete device alias
+      tags:
+      - Devices
+      - Devices
       - Devices
   /devices/{mac}/vendor:
     get:

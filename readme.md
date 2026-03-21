@@ -283,7 +283,7 @@ http://your-device-ip:7000/swagger/
 ```
 
 > [!TIP]
-> If web authentication is enabled, first call `POST /api/auth/login` to get a token, then click **Authorize** in Swagger UI and enter `Bearer {your_token}`.
+> If web authentication is enabled, call `POST /api/auth/login` to get a token first, then click **Authorize** in Swagger UI and enter `Bearer {your_token}`.
 
 ## Geosite Integration
 

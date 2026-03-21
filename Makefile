@@ -30,7 +30,7 @@ ANDROID_MIN_API := 21
 .PHONY: swagger
 swagger:
 	@echo "Generating Swagger docs..."
-	@cd $(SRC_DIR) && swag init --generalInfo main.go --output docs --parseDependency
+	@cd $(SRC_DIR) && go run github.com/swaggo/swag/cmd/swag@v1.16.4 init --generalInfo main.go --output docs --parseDependency
 
 # Build for current platform
 .PHONY: build

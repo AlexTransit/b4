@@ -245,14 +245,31 @@ func (api *API) RegisterDevicesApi() {
 	api.mux.HandleFunc("/api/devices/{mac}/alias", api.handleDeviceAlias)
 }
 
-// @Summary Manage device alias (get, set, or delete)
+// @Summary Get device alias
 // @Tags Devices
-// @Accept json
 // @Produce json
 // @Param mac path string true "MAC address"
 // @Success 200 {object} object
 // @Security BearerAuth
 // @Router /devices/{mac}/alias [get]
+//
+// @Summary Set device alias
+// @Tags Devices
+// @Accept json
+// @Produce json
+// @Param mac path string true "MAC address"
+// @Param alias body object true "Alias payload"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /devices/{mac}/alias [put]
+//
+// @Summary Delete device alias
+// @Tags Devices
+// @Produce json
+// @Param mac path string true "MAC address"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /devices/{mac}/alias [delete]
 func (api *API) handleDeviceAlias(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	if mac == "" {
