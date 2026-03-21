@@ -38,6 +38,14 @@ func (a *API) handleGeoIp(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Add IP/CIDR blocks to a set
+// @Tags GeoIP
+// @Accept json
+// @Produce json
+// @Param body body AddGeoIpRequest true "CIDR blocks to add"
+// @Success 200 {object} AddIpResponse
+// @Security BearerAuth
+// @Router /geoip [put]
 func (a *API) AddGeoIpTag(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -109,6 +117,12 @@ func (a *API) AddGeoIpTag(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// @Summary List geoip categories
+// @Tags GeoIP
+// @Produce json
+// @Success 200 {object} GeoipResponse
+// @Security BearerAuth
+// @Router /geoip [get]
 func (a *API) getGeoIpTags(w http.ResponseWriter) {
 
 	setJsonHeader(w)

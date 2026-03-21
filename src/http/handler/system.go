@@ -59,6 +59,12 @@ func isDockerEnvironment() bool {
 	return false
 }
 
+// @Summary Get system information
+// @Tags System
+// @Produce json
+// @Success 200 {object} SystemInfo
+// @Security BearerAuth
+// @Router /system/info [get]
 func (api *API) handleSystemInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -81,6 +87,13 @@ func (api *API) handleSystemInfo(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(info)
 }
 
+// @Summary Restart the service
+// @Tags System
+// @Produce json
+// @Success 200 {object} RestartResponse
+// @Failure 400 {object} RestartResponse
+// @Security BearerAuth
+// @Router /system/restart [post]
 func (api *API) handleRestart(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -167,6 +180,11 @@ func (api *API) handleRestart(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+// @Summary Get version information
+// @Tags System
+// @Produce json
+// @Success 200 {object} VersionInfo
+// @Router /version [get]
 func (api *API) handleVersion(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -183,6 +201,15 @@ func (api *API) handleVersion(w http.ResponseWriter, r *http.Request) {
 	_ = enc.Encode(versionInfo)
 }
 
+// @Summary Start update process
+// @Tags System
+// @Accept json
+// @Produce json
+// @Param body body UpdateRequest true "Update request"
+// @Success 200 {object} UpdateResponse
+// @Failure 400 {object} UpdateResponse
+// @Security BearerAuth
+// @Router /system/update [post]
 func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -290,6 +317,13 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
+// @Summary Get cache statistics
+// @Tags System
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 503 {string} string
+// @Security BearerAuth
+// @Router /system/cache [get]
 func (api *API) handleCacheStats(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

@@ -26,10 +26,24 @@ func (a *API) handleAsn(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Get all ASN entries
+// @Tags ASN
+// @Produce json
+// @Success 200 {array} config.AsnInfo
+// @Security BearerAuth
+// @Router /asn [get]
 func (a *API) getAsnAll(w http.ResponseWriter, _ *http.Request) {
 	sendResponse(w, a.asnStore.GetAll())
 }
 
+// @Summary Create or update ASN entry
+// @Tags ASN
+// @Accept json
+// @Produce json
+// @Param body body config.AsnInfo true "ASN info"
+// @Success 200 {object} config.AsnInfo
+// @Security BearerAuth
+// @Router /asn [put]
 func (a *API) putAsn(w http.ResponseWriter, r *http.Request) {
 	var info config.AsnInfo
 	if err := json.NewDecoder(r.Body).Decode(&info); err != nil {
@@ -47,6 +61,13 @@ func (a *API) putAsn(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, info)
 }
 
+// @Summary Delete ASN entry
+// @Tags ASN
+// @Produce json
+// @Param id query string true "ASN ID"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /asn [delete]
 func (a *API) deleteAsn(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
@@ -60,6 +81,13 @@ func (a *API) deleteAsn(w http.ResponseWriter, r *http.Request) {
 	sendResponse(w, map[string]bool{"ok": true})
 }
 
+// @Summary Lookup ASN by IP address
+// @Tags ASN
+// @Produce json
+// @Param ip query string true "IP address"
+// @Success 200 {object} config.AsnInfo
+// @Security BearerAuth
+// @Router /asn/lookup [get]
 func (a *API) handleAsnLookup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

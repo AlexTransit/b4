@@ -19,6 +19,12 @@ func (api *API) RegisterBackupApi() {
 	api.mux.HandleFunc("/api/backup/restore", api.handleRestore)
 }
 
+// @Summary Download configuration backup
+// @Tags Backup
+// @Produce application/gzip
+// @Success 200 {file} binary
+// @Security BearerAuth
+// @Router /backup [get]
 // handleBackup creates a tar.gz of the config directory, excluding geodat and oui files.
 func (api *API) handleBackup(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
@@ -90,6 +96,14 @@ func (api *API) handleBackup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Restore configuration from backup
+// @Tags Backup
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "Backup tar.gz file"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /backup/restore [post]
 // handleRestore accepts a tar.gz upload and extracts it over the config directory.
 func (api *API) handleRestore(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

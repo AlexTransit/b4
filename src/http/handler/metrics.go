@@ -23,6 +23,12 @@ func (api *API) RegisterMetricsApi() {
 	api.mux.HandleFunc("/api/metrics/reset", api.resetMetrics)
 }
 
+// @Summary Get full metrics snapshot
+// @Tags Metrics
+// @Produce json
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /metrics [get]
 func (a *API) getMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -36,6 +42,12 @@ func (a *API) getMetrics(w http.ResponseWriter, r *http.Request) {
 	_ = enc.Encode(metricsData)
 }
 
+// @Summary Reset metrics statistics
+// @Tags Metrics
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /metrics/reset [post]
 func (a *API) resetMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -51,6 +63,12 @@ func (a *API) resetMetrics(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary Get metrics summary
+// @Tags Metrics
+// @Produce json
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /metrics/summary [get]
 func (a *API) getMetricsSummary(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

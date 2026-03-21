@@ -31,6 +31,14 @@ func registerAuthEndpoints(mux *http.ServeMux, cfg *config.Config) {
 	mux.HandleFunc("/api/auth/logout", handleLogout)
 }
 
+// @Summary Login with credentials
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param body body object true "Login credentials (username, password)"
+// @Success 200 {object} object
+// @Failure 401 {object} object
+// @Router /auth/login [post]
 func handleLogin(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -75,6 +83,12 @@ func handleLogin(cfg *config.Config) http.HandlerFunc {
 	}
 }
 
+// @Summary Check authentication status
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /auth/check [get]
 func handleAuthCheck(cfg *config.Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !authEnabled(cfg) {
@@ -96,6 +110,12 @@ func handleAuthCheck(cfg *config.Config) http.HandlerFunc {
 	}
 }
 
+// @Summary Logout and invalidate token
+// @Tags Auth
+// @Produce json
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /auth/logout [post]
 func handleLogout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)

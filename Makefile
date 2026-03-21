@@ -27,9 +27,14 @@ ANDROID_MIN_API := 21
 # Default target
 .DEFAULT_GOAL := build
 
+.PHONY: swagger
+swagger:
+	@echo "Generating Swagger docs..."
+	@cd $(SRC_DIR) && swag init --generalInfo main.go --output docs --parseDependency
+
 # Build for current platform
 .PHONY: build
-build:
+build: swagger
 	@echo "Building $(BINARY_NAME) $(VERSION) for current platform..."
 	@mkdir -p $(OUT_DIR)
 	go -C $(SRC_DIR) build $(BUILDFLAGS) -ldflags "$(LDFLAGS)" -o ../$(OUT_DIR)/$(BINARY_NAME)
