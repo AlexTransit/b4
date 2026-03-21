@@ -31,6 +31,12 @@ func (a *API) handleConfig(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Get full configuration with statistics
+// @Tags Config
+// @Produce json
+// @Success 200 {object} ConfigResponse
+// @Security BearerAuth
+// @Router /config [get]
 func (a *API) getConfig(w http.ResponseWriter) {
 	setJsonHeader(w)
 
@@ -171,6 +177,14 @@ func getSystemInterfaces() ([]string, error) {
 	return ifaceNames, nil
 }
 
+// @Summary Update configuration
+// @Tags Config
+// @Accept json
+// @Produce json
+// @Param config body config.Config true "Updated configuration"
+// @Success 200 {object} ConfigResponse
+// @Security BearerAuth
+// @Router /config [put]
 func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 	var newConfig config.Config
 
@@ -282,6 +296,12 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 	_ = enc.Encode(response)
 }
 
+// @Summary Reset configuration to defaults
+// @Tags Config
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /config/reset [post]
 func (a *API) resetConfig(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)

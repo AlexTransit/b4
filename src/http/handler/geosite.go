@@ -26,6 +26,14 @@ func (a *API) handleGeoSite(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Add domain to a set via geosite
+// @Tags Geosite
+// @Accept json
+// @Produce json
+// @Param body body AddDomainRequest true "Domain to add"
+// @Success 200 {object} AddDomainResponse
+// @Security BearerAuth
+// @Router /geosite/domain [put]
 func (a *API) addGeositeDomain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -101,6 +109,12 @@ func (a *API) addGeositeDomain(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// @Summary List geosite categories
+// @Tags Geosite
+// @Produce json
+// @Success 200 {object} GeositeResponse
+// @Security BearerAuth
+// @Router /geosite [get]
 func (a *API) getGeositeTags(w http.ResponseWriter) {
 	setJsonHeader(w)
 	enc := json.NewEncoder(w)
@@ -124,6 +138,13 @@ func (a *API) getGeositeTags(w http.ResponseWriter) {
 	_ = enc.Encode(response)
 }
 
+// @Summary Preview geosite category domains
+// @Tags Geosite
+// @Produce json
+// @Param tag query string true "Category tag name"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /geosite/category [get]
 func (a *API) previewGeoCategory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

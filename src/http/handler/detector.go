@@ -19,6 +19,14 @@ func (api *API) RegisterDetectorApi() {
 	api.mux.HandleFunc("/api/detector/history/{id}", api.handleDeleteDetectorHistoryEntry)
 }
 
+// @Summary Start detection suite
+// @Tags Detector
+// @Accept json
+// @Produce json
+// @Param body body DetectorRequest true "Detector request"
+// @Success 202 {object} DetectorResponse
+// @Security BearerAuth
+// @Router /detector/start [post]
 func (api *API) handleStartDetector(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -83,6 +91,14 @@ func (api *API) handleStartDetector(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// @Summary Get detector status
+// @Tags Detector
+// @Produce json
+// @Param id path string true "Suite ID"
+// @Success 200 {object} object
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /detector/status/{id} [get]
 func (api *API) handleDetectorStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -105,6 +121,14 @@ func (api *API) handleDetectorStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(suite)
 }
 
+// @Summary Cancel detector suite
+// @Tags Detector
+// @Produce json
+// @Param id path string true "Suite ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /detector/cancel/{id} [delete]
 func (api *API) handleCancelDetector(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -131,6 +155,12 @@ func (api *API) handleCancelDetector(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary Get detector history
+// @Tags Detector
+// @Produce json
+// @Success 200 {array} object
+// @Security BearerAuth
+// @Router /detector/history [get]
 func (api *API) handleDetectorHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -142,6 +172,12 @@ func (api *API) handleDetectorHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(history.Entries)
 }
 
+// @Summary Clear detector history
+// @Tags Detector
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /detector/history/clear [post]
 func (api *API) handleClearDetectorHistory(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -163,6 +199,13 @@ func (api *API) handleClearDetectorHistory(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+// @Summary Delete detector history entry
+// @Tags Detector
+// @Produce json
+// @Param id path string true "Entry ID"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /detector/history/{id} [delete]
 func (api *API) handleDeleteDetectorHistoryEntry(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)

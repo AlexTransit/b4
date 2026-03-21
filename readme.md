@@ -262,6 +262,29 @@ git config --global http.proxy socks5://127.0.0.1:1080
 > [!NOTE]
 > Restart B4 after changing SOCKS5 settings.
 
+## API Documentation (Swagger)
+
+B4 provides interactive REST API documentation via Swagger UI. To enable, add to your `b4.json`:
+
+```json
+{
+  "system": {
+    "web_server": {
+      "swagger": true
+    }
+  }
+}
+```
+
+After restarting B4, open:
+
+```text
+http://your-device-ip:7000/swagger/
+```
+
+> [!TIP]
+> If web authentication is enabled, call `POST /api/auth/login` to get a token first, then click **Authorize** in Swagger UI and enter `Bearer {your_token}`.
+
 ## Geosite Integration
 
 B4 supports [v2ray/xray `geosite.dat`](https://github.com/v2fly/domain-list-community) files from various sources:

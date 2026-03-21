@@ -56,6 +56,14 @@ func init() {
 
 }
 
+// @title B4 API
+// @version 1.0
+// @description B4 network packet processor REST API
+// @BasePath /api
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+// @description Enter "Bearer {token}" to authorize
 func main() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

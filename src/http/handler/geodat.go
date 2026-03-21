@@ -61,6 +61,12 @@ func loadGeodatSources() {
 	})
 }
 
+// @Summary List available geodat sources
+// @Tags Geodat
+// @Produce json
+// @Success 200 {array} GeodatSource
+// @Security BearerAuth
+// @Router /geodat/sources [get]
 func (api *API) handleGeodatSources(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -72,6 +78,14 @@ func (api *API) handleGeodatSources(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(geodatSources)
 }
 
+// @Summary Download geodat files
+// @Tags Geodat
+// @Accept json
+// @Produce json
+// @Param body body GeodatDownloadRequest true "Download request"
+// @Success 200 {object} GeodatDownloadResponse
+// @Security BearerAuth
+// @Router /geodat/download [post]
 func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -194,6 +208,16 @@ func validateDestinationPath(destPath string) error {
 	return nil
 }
 
+// @Summary Upload geodat file
+// @Tags Geodat
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "Geodat file (.dat or .db)"
+// @Param type formData string true "File type (geosite or geoip)"
+// @Param destination_path formData string true "Destination directory path"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /geodat/upload [post]
 func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -389,6 +413,13 @@ func downloadFile(url, destPath string) (int64, error) {
 	return size, nil
 }
 
+// @Summary Get geodat file info
+// @Tags Geodat
+// @Produce json
+// @Param path query string true "File path"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /geodat/info [get]
 func (api *API) handleFileInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

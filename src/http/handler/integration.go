@@ -15,6 +15,13 @@ func (api *API) RegisterIntegrationApi() {
 	api.mux.HandleFunc("/api/integration/ripestat", api.getRipestatNetworkInfo)
 }
 
+// @Summary Query IPInfo API for IP details
+// @Tags Integration
+// @Produce json
+// @Param ip query string true "IP address"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /integration/ipinfo [get]
 func (a *API) getIpInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -58,6 +65,13 @@ func (a *API) getIpInfo(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, resp.Body)
 }
 
+// @Summary Query RIPE ASN announced prefixes
+// @Tags Integration
+// @Produce json
+// @Param asn query string true "ASN number"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /integration/ripestat/asn [get]
 func (a *API) getRipestatAsnPrefixes(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -92,6 +106,13 @@ func (a *API) getRipestatAsnPrefixes(w http.ResponseWriter, r *http.Request) {
 	_, _ = io.Copy(w, resp.Body)
 }
 
+// @Summary Query RIPE network info for IP
+// @Tags Integration
+// @Produce json
+// @Param ip query string true "IP address"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /integration/ripestat [get]
 func (a *API) getRipestatNetworkInfo(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

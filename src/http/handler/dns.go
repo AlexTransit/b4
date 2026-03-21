@@ -22,6 +22,13 @@ func (api *API) RegisterDnsApi() {
 
 }
 
+// @Summary Get public DNS servers by country
+// @Tags DNS
+// @Produce json
+// @Param country query string false "Country code (default: us)"
+// @Success 200 {array} PublicDNSServer
+// @Security BearerAuth
+// @Router /dns [get]
 func (api *API) getPublicDNSServers(w http.ResponseWriter, r *http.Request) {
 	country := r.URL.Query().Get("country")
 	if country == "" {

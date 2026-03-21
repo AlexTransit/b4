@@ -13,6 +13,12 @@ func (api *API) RegisterSocks5Api() {
 	api.mux.HandleFunc("/api/socks5/config", api.handleSocks5Config)
 }
 
+// @Summary Get SOCKS5 configuration
+// @Tags SOCKS5
+// @Produce json
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /socks5/config [get]
 func (api *API) handleSocks5Config(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -27,6 +33,14 @@ func (api *API) handleSocks5Config(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Update SOCKS5 configuration
+// @Tags SOCKS5
+// @Accept json
+// @Produce json
+// @Param body body config.Socks5Config true "SOCKS5 configuration"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /socks5/config [post]
 func (api *API) updateSocks5Config(w http.ResponseWriter, r *http.Request) {
 	var req config.Socks5Config
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

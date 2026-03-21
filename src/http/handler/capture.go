@@ -28,6 +28,14 @@ func (api *API) RegisterCaptureApi() {
 	api.mux.HandleFunc("/api/capture/upload", api.handleUploadCapture)
 }
 
+// @Summary Generate capture payload
+// @Tags Capture
+// @Accept json
+// @Produce json
+// @Param body body CaptureRequest true "Capture request"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /capture/generate [post]
 func (api *API) handleGenerateCapture(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -84,7 +92,14 @@ func (api *API) handleGenerateCapture(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Trigger traffic to capture payload
+// @Summary Probe domain for capture
+// @Tags Capture
+// @Accept json
+// @Produce json
+// @Param body body CaptureRequest true "Capture request"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /capture/probe [post]
 func (api *API) handleProbeCapture(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -160,7 +175,12 @@ func (api *API) handleProbeCapture(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// List all captures
+// @Summary List all captures
+// @Tags Capture
+// @Produce json
+// @Success 200 {array} object
+// @Security BearerAuth
+// @Router /capture/list [get]
 func (api *API) handleListCaptures(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -178,7 +198,15 @@ func (api *API) handleListCaptures(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(captures)
 }
 
-// Delete specific capture
+// @Summary Delete a capture
+// @Tags Capture
+// @Produce json
+// @Param protocol query string true "Protocol (tls or quic)"
+// @Param domain query string true "Domain name"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /capture/delete [delete]
 func (api *API) handleDeleteCapture(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -206,7 +234,12 @@ func (api *API) handleDeleteCapture(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Clear all captures
+// @Summary Clear all captures
+// @Tags Capture
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /capture/clear [post]
 func (api *API) handleClearCaptures(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -226,7 +259,13 @@ func (api *API) handleClearCaptures(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Download capture file
+// @Summary Download a capture file
+// @Tags Capture
+// @Produce application/octet-stream
+// @Param file query string true "Filename"
+// @Success 200 {file} binary
+// @Security BearerAuth
+// @Router /capture/download [get]
 func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
 	fileParam := r.URL.Query().Get("file")
 	if fileParam == "" {
@@ -269,6 +308,16 @@ func (api *API) handleDownloadCapture(w http.ResponseWriter, r *http.Request) {
 	log.Tracef("Served capture file: %s", filename)
 }
 
+// @Summary Upload a capture file
+// @Tags Capture
+// @Accept multipart/form-data
+// @Produce json
+// @Param file formData file true "Capture binary file"
+// @Param domain formData string true "Domain name"
+// @Param protocol formData string false "Protocol (tls or quic)" default(tls)
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /capture/upload [post]
 func (api *API) handleUploadCapture(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)

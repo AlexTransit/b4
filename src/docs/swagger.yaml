@@ -1,0 +1,2414 @@
+basePath: /api
+definitions:
+  config.ApiConfig:
+    properties:
+      ipinfo_token:
+        type: string
+    type: object
+  config.AsnInfo:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+      prefixes:
+        items:
+          type: string
+        type: array
+    type: object
+  config.ComboFragConfig:
+    properties:
+      decoy_enabled:
+        type: boolean
+      extension_split:
+        type: boolean
+      fake_per_seg_count:
+        description: Number of fake packets per segment (default 1)
+        type: integer
+      fake_per_seg_count_max:
+        description: Max for randomization (0 = use fixed)
+        type: integer
+      fake_per_segment:
+        type: boolean
+      first_byte_split:
+        type: boolean
+      first_delay_ms:
+        type: integer
+      first_delay_ms_max:
+        type: integer
+      jitter_max_us:
+        type: integer
+      jitter_max_us_max:
+        type: integer
+      shuffle_mode:
+        description: '"middle", "full", "reverse"'
+        type: string
+    type: object
+  config.Config:
+    properties:
+      queue:
+        $ref: '#/definitions/config.QueueConfig'
+      sets:
+        items:
+          $ref: '#/definitions/config.SetConfig'
+        type: array
+      system:
+        $ref: '#/definitions/config.SystemConfig'
+      version:
+        type: integer
+    type: object
+  config.DNSConfig:
+    properties:
+      enabled:
+        type: boolean
+      fragment_query:
+        type: boolean
+      target_dns:
+        type: string
+    type: object
+  config.DesyncConfig:
+    properties:
+      count:
+        description: Number of desync packets
+        type: integer
+      mode:
+        description: '"off" "rst", "fin", "ack", "combo", "full"'
+        type: string
+      post_desync:
+        description: Send fake RST after ClientHello
+        type: boolean
+      ttl:
+        description: TTL for desync packets
+        type: integer
+    type: object
+  config.DeviceMSSClamp:
+    properties:
+      mac:
+        type: string
+      size:
+        type: integer
+    type: object
+  config.DevicesConfig:
+    properties:
+      enabled:
+        type: boolean
+      mac:
+        items:
+          type: string
+        type: array
+      mss_clamps:
+        items:
+          $ref: '#/definitions/config.DeviceMSSClamp'
+        type: array
+      vendor_lookup:
+        type: boolean
+      wisb:
+        type: boolean
+    type: object
+  config.DiscoveryConfig:
+    properties:
+      config_propagate_ms:
+        type: integer
+      discovery_timeout:
+        type: integer
+      reference_dns:
+        items:
+          type: string
+        type: array
+      reference_domain:
+        type: string
+      validation_tries:
+        type: integer
+    type: object
+  config.DisorderFragConfig:
+    properties:
+      fake_per_seg_count:
+        description: Number of fake packets per segment (default 1)
+        type: integer
+      fake_per_seg_count_max:
+        description: Max for randomization (0 = use fixed)
+        type: integer
+      fake_per_segment:
+        type: boolean
+      max_jitter_us:
+        type: integer
+      min_jitter_us:
+        type: integer
+      shuffle_mode:
+        description: '"full", "reverse"'
+        type: string
+    type: object
+  config.DuplicateConfig:
+    properties:
+      count:
+        description: Number of packet copies to send (original is dropped)
+        type: integer
+      enabled:
+        type: boolean
+    type: object
+  config.FakingConfig:
+    properties:
+      custom_payload:
+        type: string
+      payload_file:
+        type: string
+      seq_offset:
+        type: integer
+      sni:
+        type: boolean
+      sni_mutation:
+        $ref: '#/definitions/config.SNIMutationConfig'
+      sni_seq_length:
+        type: integer
+      sni_type:
+        type: integer
+      strategy:
+        type: string
+      tcp_md5:
+        description: Enable TCP MD5 option insertion
+        type: boolean
+      timestamp_decrease:
+        description: Amount to decrease TCP timestamp option
+        type: integer
+      tls_mod:
+        description: e.g. ["rnd", "dupsid"]
+        items:
+          type: string
+        type: array
+      ttl:
+        type: integer
+    type: object
+  config.FragmentationConfig:
+    properties:
+      combo:
+        $ref: '#/definitions/config.ComboFragConfig'
+      disorder:
+        $ref: '#/definitions/config.DisorderFragConfig'
+      middle_sni:
+        type: boolean
+      oob_char:
+        description: Character for OOB data
+        type: integer
+      oob_position:
+        description: Position for OOB (0=disabled)
+        type: integer
+      oob_position_max:
+        description: max for randomization (0 = use fixed)
+        type: integer
+      reverse_order:
+        type: boolean
+      seq_overlap_pattern:
+        items:
+          type: string
+        type: array
+      sni_position:
+        type: integer
+      sni_position_max:
+        description: max for randomization (0 = use fixed)
+        type: integer
+      strategy:
+        description: 'Values: "tcp", "ip", "oob", "tls", "disorder",  "extsplit",
+          "firstbyte", "combo", "none"'
+        type: string
+      strategy_pool:
+        items:
+          type: string
+        type: array
+      tlsrec_pos:
+        description: where to split TLS record
+        type: integer
+      tlsrec_pos_max:
+        description: max for randomization (0 = use fixed)
+        type: integer
+    type: object
+  config.GeoDatConfig:
+    properties:
+      ipdat_path:
+        type: string
+      ipdat_url:
+        type: string
+      sitedat_path:
+        type: string
+      sitedat_url:
+        type: string
+    type: object
+  config.IncomingConfig:
+    properties:
+      fake_count:
+        type: integer
+      fake_ttl:
+        type: integer
+      max:
+        description: threshold max (KB), if 0 or eq MinKB -> uses MinKB
+        type: integer
+      min:
+        description: threshold min (KB)
+        type: integer
+      mode:
+        description: '"off", "fake", "reset", "fin", "desync"'
+        type: string
+      strategy:
+        description: '"badsum", "badseq", "badack",  "rand", "all"'
+        type: string
+    type: object
+  config.Logging:
+    properties:
+      error_file:
+        type: string
+      instaflush:
+        type: boolean
+      level:
+        $ref: '#/definitions/log.Level'
+      syslog:
+        type: boolean
+    type: object
+  config.MSSClampConfig:
+    properties:
+      enabled:
+        type: boolean
+      size:
+        description: MSS value in bytes (e.g., 88)
+        type: integer
+    type: object
+  config.QueueConfig:
+    properties:
+      devices:
+        $ref: '#/definitions/config.DevicesConfig'
+      interfaces:
+        items:
+          type: string
+        type: array
+      ipv4:
+        type: boolean
+      ipv6:
+        type: boolean
+      mark:
+        type: integer
+      mss_clamp:
+        $ref: '#/definitions/config.MSSClampConfig'
+      start_num:
+        type: integer
+      tcp_conn_bytes_limit:
+        type: integer
+      threads:
+        type: integer
+      udp_conn_bytes_limit:
+        type: integer
+    type: object
+  config.RoutingConfig:
+    properties:
+      egress_interface:
+        type: string
+      enabled:
+        type: boolean
+      fwmark:
+        type: integer
+      ip_ttl_seconds:
+        type: integer
+      source_interfaces:
+        items:
+          type: string
+        type: array
+      table:
+        type: integer
+    type: object
+  config.SNIMutationConfig:
+    properties:
+      fake_ext_count:
+        type: integer
+      fake_snis:
+        description: Additional SNIs to inject
+        items:
+          type: string
+        type: array
+      grease_count:
+        type: integer
+      mode:
+        description: '"off", "duplicate", "grease", "padding", "reorder", "full"'
+        type: string
+      padding_size:
+        type: integer
+    type: object
+  config.SetConfig:
+    properties:
+      dns:
+        $ref: '#/definitions/config.DNSConfig'
+      enabled:
+        type: boolean
+      faking:
+        $ref: '#/definitions/config.FakingConfig'
+      fragmentation:
+        $ref: '#/definitions/config.FragmentationConfig'
+      id:
+        type: string
+      name:
+        type: string
+      routing:
+        $ref: '#/definitions/config.RoutingConfig'
+      targets:
+        $ref: '#/definitions/config.TargetsConfig'
+      tcp:
+        $ref: '#/definitions/config.TCPConfig'
+      udp:
+        $ref: '#/definitions/config.UDPConfig'
+    type: object
+  config.Socks5Config:
+    properties:
+      bind_address:
+        type: string
+      enabled:
+        type: boolean
+      password:
+        type: string
+      port:
+        type: integer
+      udp_read_timeout:
+        type: integer
+      udp_timeout:
+        type: integer
+      username:
+        type: string
+    type: object
+  config.SystemConfig:
+    properties:
+      api:
+        $ref: '#/definitions/config.ApiConfig'
+      checker:
+        $ref: '#/definitions/config.DiscoveryConfig'
+      geo:
+        $ref: '#/definitions/config.GeoDatConfig'
+      logging:
+        $ref: '#/definitions/config.Logging'
+      socks5:
+        $ref: '#/definitions/config.Socks5Config'
+      tables:
+        $ref: '#/definitions/config.TablesConfig'
+      timezone:
+        type: string
+      web_server:
+        $ref: '#/definitions/config.WebServerConfig'
+    type: object
+  config.TCPConfig:
+    properties:
+      conn_bytes_limit:
+        type: integer
+      desync:
+        $ref: '#/definitions/config.DesyncConfig'
+      dport_filter:
+        description: comma separated list of ports and port ranges, e.g. "80,443,5222"
+        type: string
+      drop_sack:
+        type: boolean
+      duplicate:
+        $ref: '#/definitions/config.DuplicateConfig'
+      incoming:
+        $ref: '#/definitions/config.IncomingConfig'
+      seg2delay:
+        type: integer
+      seg2delay_max:
+        type: integer
+      syn_fake:
+        type: boolean
+      syn_fake_len:
+        type: integer
+      syn_ttl:
+        type: integer
+      win:
+        $ref: '#/definitions/config.WinConfig'
+    type: object
+  config.TablesConfig:
+    properties:
+      engine:
+        type: string
+      masquerade:
+        type: boolean
+      masquerade_interface:
+        type: string
+      monitor_interval:
+        type: integer
+      skip_setup:
+        type: boolean
+    type: object
+  config.TargetsConfig:
+    properties:
+      geoip_categories:
+        items:
+          type: string
+        type: array
+      geosite_categories:
+        items:
+          type: string
+        type: array
+      ip:
+        items:
+          type: string
+        type: array
+      sni_domains:
+        items:
+          type: string
+        type: array
+      source_devices:
+        items:
+          type: string
+        type: array
+      tls:
+        description: '"1.2", "1.3", or "" (match any)'
+        type: string
+    type: object
+  config.UDPConfig:
+    properties:
+      conn_bytes_limit:
+        type: integer
+      dport_filter:
+        description: can be a comma separated list of ports and port ranges, e.g.
+          "80,443,1000-2000"
+        type: string
+      fake_len:
+        type: integer
+      fake_seq_length:
+        type: integer
+      faking_strategy:
+        type: string
+      filter_quic:
+        type: string
+      filter_stun:
+        type: boolean
+      mode:
+        type: string
+      seg2delay:
+        type: integer
+      seg2delay_max:
+        type: integer
+    type: object
+  config.WebServerConfig:
+    properties:
+      bind_address:
+        type: string
+      language:
+        type: string
+      password:
+        type: string
+      port:
+        type: integer
+      swagger:
+        type: boolean
+      tls_cert:
+        type: string
+      tls_key:
+        type: string
+      username:
+        type: string
+    type: object
+  config.WinConfig:
+    properties:
+      mode:
+        description: '"off", "oscillate", "zero", "random", "escalate"'
+        type: string
+      values:
+        description: Custom window values
+        items:
+          type: integer
+        type: array
+    type: object
+  handler.AddDomainRequest:
+    properties:
+      domain:
+        type: string
+      set_id:
+        type: string
+      set_name:
+        type: string
+    type: object
+  handler.AddDomainResponse:
+    properties:
+      domain:
+        type: string
+      manual_domains:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+      total_domains:
+        type: integer
+    type: object
+  handler.AddGeoIpRequest:
+    properties:
+      cidr:
+        items:
+          type: string
+        type: array
+      set_id:
+        type: string
+      set_name:
+        type: string
+    type: object
+  handler.AddIpResponse:
+    properties:
+      manual_cidrs:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      success:
+        type: boolean
+      total_cidrs:
+        type: integer
+    type: object
+  handler.CaptureRequest:
+    properties:
+      domain:
+        type: string
+      protocol:
+        description: '"tls", "quic", or "both"'
+        type: string
+    type: object
+  handler.ConfigResponse:
+    properties:
+      available_ifaces:
+        items:
+          type: string
+        type: array
+      message:
+        type: string
+      queue:
+        $ref: '#/definitions/config.QueueConfig'
+      sets:
+        items:
+          $ref: '#/definitions/handler.SetWithStats'
+        type: array
+      success:
+        type: boolean
+      system:
+        $ref: '#/definitions/config.SystemConfig'
+      version:
+        type: integer
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.DetectorRequest:
+    properties:
+      tests:
+        description: '"dns", "domains", "tcp"'
+        items:
+          type: string
+        type: array
+    type: object
+  handler.DetectorResponse:
+    properties:
+      estimated_tests:
+        type: integer
+      id:
+        type: string
+      message:
+        type: string
+      tests:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.DeviceInfo:
+    properties:
+      alias:
+        type: string
+      hostname:
+        type: string
+      ip:
+        type: string
+      is_private:
+        type: boolean
+      mac:
+        type: string
+      vendor:
+        type: string
+    type: object
+  handler.DevicesResponse:
+    properties:
+      available:
+        type: boolean
+      devices:
+        items:
+          $ref: '#/definitions/handler.DeviceInfo'
+        type: array
+      source:
+        type: string
+    type: object
+  handler.DiscoveryRequest:
+    properties:
+      check_url:
+        type: string
+      check_urls:
+        items:
+          type: string
+        type: array
+      payload_files:
+        items:
+          type: string
+        type: array
+      skip_cache:
+        type: boolean
+      skip_dns:
+        type: boolean
+      tls_version:
+        description: '"auto", "tls12", "tls13"'
+        type: string
+      validation_tries:
+        type: integer
+    type: object
+  handler.DiscoveryResponse:
+    properties:
+      check_url:
+        type: string
+      domain:
+        type: string
+      domains:
+        items:
+          type: string
+        type: array
+      estimated_tests:
+        type: integer
+      id:
+        type: string
+      message:
+        type: string
+    type: object
+  handler.GeodatDownloadRequest:
+    properties:
+      destination_path:
+        type: string
+      geoip_url:
+        type: string
+      geosite_url:
+        type: string
+    type: object
+  handler.GeodatDownloadResponse:
+    properties:
+      geoip_path:
+        type: string
+      geoip_size:
+        type: integer
+      geosite_path:
+        type: string
+      geosite_size:
+        type: integer
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  handler.GeodatSource:
+    properties:
+      geoip_url:
+        type: string
+      geosite_url:
+        type: string
+      name:
+        type: string
+    type: object
+  handler.GeoipResponse:
+    properties:
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.GeositeResponse:
+    properties:
+      tags:
+        items:
+          type: string
+        type: array
+    type: object
+  handler.PublicDNSServer:
+    properties:
+      city:
+        type: string
+      country_id:
+        type: string
+      dnssec:
+        type: boolean
+      ip:
+        type: string
+      name:
+        type: string
+      reliability:
+        type: number
+    type: object
+  handler.RestartResponse:
+    properties:
+      message:
+        type: string
+      restart_command:
+        type: string
+      service_manager:
+        type: string
+      success:
+        type: boolean
+    type: object
+  handler.SetStatistics:
+    properties:
+      geoip_category_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      geoip_ips:
+        type: integer
+      geosite_category_breakdown:
+        additionalProperties:
+          type: integer
+        type: object
+      geosite_domains:
+        type: integer
+      manual_domains:
+        type: integer
+      manual_ips:
+        type: integer
+      total_domains:
+        type: integer
+      total_ips:
+        type: integer
+    type: object
+  handler.SetWithStats:
+    properties:
+      dns:
+        $ref: '#/definitions/config.DNSConfig'
+      enabled:
+        type: boolean
+      faking:
+        $ref: '#/definitions/config.FakingConfig'
+      fragmentation:
+        $ref: '#/definitions/config.FragmentationConfig'
+      id:
+        type: string
+      name:
+        type: string
+      routing:
+        $ref: '#/definitions/config.RoutingConfig'
+      stats:
+        $ref: '#/definitions/handler.SetStatistics'
+      targets:
+        $ref: '#/definitions/config.TargetsConfig'
+      tcp:
+        $ref: '#/definitions/config.TCPConfig'
+      udp:
+        $ref: '#/definitions/config.UDPConfig'
+    type: object
+  handler.SystemInfo:
+    properties:
+      arch:
+        type: string
+      can_restart:
+        type: boolean
+      is_docker:
+        type: boolean
+      os:
+        type: string
+      service_manager:
+        type: string
+    type: object
+  handler.UpdateRequest:
+    properties:
+      version:
+        type: string
+    type: object
+  handler.UpdateResponse:
+    properties:
+      message:
+        type: string
+      service_manager:
+        type: string
+      success:
+        type: boolean
+      update_command:
+        type: string
+    type: object
+  handler.VendorInfo:
+    properties:
+      company:
+        type: string
+    type: object
+  handler.VersionInfo:
+    properties:
+      build_date:
+        type: string
+      commit:
+        type: string
+      version:
+        type: string
+    type: object
+  log.Level:
+    enum:
+    - 0
+    - 1
+    - 2
+    - 3
+    type: integer
+    x-enum-varnames:
+    - LevelError
+    - LevelInfo
+    - LevelTrace
+    - LevelDebug
+info:
+  contact: {}
+  description: B4 network packet processor REST API
+  title: B4 API
+  version: "1.0"
+paths:
+  /asn:
+    delete:
+      parameters:
+      - description: ASN ID
+        in: query
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete ASN entry
+      tags:
+      - ASN
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/config.AsnInfo'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get all ASN entries
+      tags:
+      - ASN
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ASN info
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/config.AsnInfo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/config.AsnInfo'
+      security:
+      - BearerAuth: []
+      summary: Create or update ASN entry
+      tags:
+      - ASN
+  /asn/lookup:
+    get:
+      parameters:
+      - description: IP address
+        in: query
+        name: ip
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/config.AsnInfo'
+      security:
+      - BearerAuth: []
+      summary: Lookup ASN by IP address
+      tags:
+      - ASN
+  /auth/check:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Check authentication status
+      tags:
+      - Auth
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Login credentials (username, password)
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            type: object
+      summary: Login with credentials
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout and invalidate token
+      tags:
+      - Auth
+  /backup:
+    get:
+      produces:
+      - application/gzip
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: Download configuration backup
+      tags:
+      - Backup
+  /backup/restore:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Backup tar.gz file
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Restore configuration from backup
+      tags:
+      - Backup
+  /capture/clear:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Clear all captures
+      tags:
+      - Capture
+  /capture/delete:
+    delete:
+      parameters:
+      - description: Protocol (tls or quic)
+        in: query
+        name: protocol
+        required: true
+        type: string
+      - description: Domain name
+        in: query
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete a capture
+      tags:
+      - Capture
+  /capture/download:
+    get:
+      parameters:
+      - description: Filename
+        in: query
+        name: file
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - BearerAuth: []
+      summary: Download a capture file
+      tags:
+      - Capture
+  /capture/generate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Capture request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CaptureRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Generate capture payload
+      tags:
+      - Capture
+  /capture/list:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List all captures
+      tags:
+      - Capture
+  /capture/probe:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Capture request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.CaptureRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Probe domain for capture
+      tags:
+      - Capture
+  /capture/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Capture binary file
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: Domain name
+        in: formData
+        name: domain
+        required: true
+        type: string
+      - default: tls
+        description: Protocol (tls or quic)
+        in: formData
+        name: protocol
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload a capture file
+      tags:
+      - Capture
+  /config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ConfigResponse'
+      security:
+      - BearerAuth: []
+      summary: Get full configuration with statistics
+      tags:
+      - Config
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Updated configuration
+        in: body
+        name: config
+        required: true
+        schema:
+          $ref: '#/definitions/config.Config'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.ConfigResponse'
+      security:
+      - BearerAuth: []
+      summary: Update configuration
+      tags:
+      - Config
+  /config/reset:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reset configuration to defaults
+      tags:
+      - Config
+  /detector/cancel/{id}:
+    delete:
+      parameters:
+      - description: Suite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Cancel detector suite
+      tags:
+      - Detector
+  /detector/history:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get detector history
+      tags:
+      - Detector
+  /detector/history/{id}:
+    delete:
+      parameters:
+      - description: Entry ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete detector history entry
+      tags:
+      - Detector
+  /detector/history/clear:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Clear detector history
+      tags:
+      - Detector
+  /detector/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Detector request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.DetectorRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handler.DetectorResponse'
+      security:
+      - BearerAuth: []
+      summary: Start detection suite
+      tags:
+      - Detector
+  /detector/status/{id}:
+    get:
+      parameters:
+      - description: Suite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get detector status
+      tags:
+      - Detector
+  /devices:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.DevicesResponse'
+      security:
+      - BearerAuth: []
+      summary: Get all devices
+      tags:
+      - Devices
+  /devices/{mac}/alias:
+    delete:
+      consumes:
+      - application/json
+      parameters:
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: Alias payload
+        in: body
+        name: alias
+        required: true
+        schema:
+          type: object
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Delete device alias
+      tags:
+      - Devices
+      - Devices
+      - Devices
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: Alias payload
+        in: body
+        name: alias
+        required: true
+        schema:
+          type: object
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Delete device alias
+      tags:
+      - Devices
+      - Devices
+      - Devices
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      - description: Alias payload
+        in: body
+        name: alias
+        required: true
+        schema:
+          type: object
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      produces:
+      - application/json
+      - application/json
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      - BearerAuth: []
+      - BearerAuth: []
+      summary: Delete device alias
+      tags:
+      - Devices
+      - Devices
+      - Devices
+  /devices/{mac}/vendor:
+    get:
+      parameters:
+      - description: MAC address
+        in: path
+        name: mac
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.VendorInfo'
+      security:
+      - BearerAuth: []
+      summary: Get device vendor info
+      tags:
+      - Devices
+  /discovery/add:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Set configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/config.SetConfig'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Add discovery preset as a new set
+      tags:
+      - Discovery
+  /discovery/cache/clear:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Clear discovery cache
+      tags:
+      - Discovery
+  /discovery/cancel/{id}:
+    delete:
+      parameters:
+      - description: Suite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Cancel discovery
+      tags:
+      - Discovery
+  /discovery/current:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get current running discovery
+      tags:
+      - Discovery
+  /discovery/history:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get discovery history
+      tags:
+      - Discovery
+  /discovery/history/{domain}:
+    delete:
+      parameters:
+      - description: Domain name
+        in: path
+        name: domain
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete discovery history entry
+      tags:
+      - Discovery
+  /discovery/history/clear:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Clear discovery history
+      tags:
+      - Discovery
+  /discovery/similar:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Set to compare
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/config.SetConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Find sets with similar configuration
+      tags:
+      - Discovery
+  /discovery/start:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Discovery request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.DiscoveryRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/handler.DiscoveryResponse'
+      security:
+      - BearerAuth: []
+      summary: Start domain discovery
+      tags:
+      - Discovery
+  /discovery/status/{id}:
+    get:
+      parameters:
+      - description: Suite ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get discovery status
+      tags:
+      - Discovery
+  /dns:
+    get:
+      parameters:
+      - description: 'Country code (default: us)'
+        in: query
+        name: country
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.PublicDNSServer'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get public DNS servers by country
+      tags:
+      - DNS
+  /geodat/download:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Download request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.GeodatDownloadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GeodatDownloadResponse'
+      security:
+      - BearerAuth: []
+      summary: Download geodat files
+      tags:
+      - Geodat
+  /geodat/info:
+    get:
+      parameters:
+      - description: File path
+        in: query
+        name: path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get geodat file info
+      tags:
+      - Geodat
+  /geodat/sources:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handler.GeodatSource'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List available geodat sources
+      tags:
+      - Geodat
+  /geodat/upload:
+    post:
+      consumes:
+      - multipart/form-data
+      parameters:
+      - description: Geodat file (.dat or .db)
+        in: formData
+        name: file
+        required: true
+        type: file
+      - description: File type (geosite or geoip)
+        in: formData
+        name: type
+        required: true
+        type: string
+      - description: Destination directory path
+        in: formData
+        name: destination_path
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload geodat file
+      tags:
+      - Geodat
+  /geoip:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GeoipResponse'
+      security:
+      - BearerAuth: []
+      summary: List geoip categories
+      tags:
+      - GeoIP
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: CIDR blocks to add
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AddGeoIpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.AddIpResponse'
+      security:
+      - BearerAuth: []
+      summary: Add IP/CIDR blocks to a set
+      tags:
+      - GeoIP
+  /geosite:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.GeositeResponse'
+      security:
+      - BearerAuth: []
+      summary: List geosite categories
+      tags:
+      - Geosite
+  /geosite/category:
+    get:
+      parameters:
+      - description: Category tag name
+        in: query
+        name: tag
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Preview geosite category domains
+      tags:
+      - Geosite
+  /geosite/domain:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Domain to add
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.AddDomainRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.AddDomainResponse'
+      security:
+      - BearerAuth: []
+      summary: Add domain to a set via geosite
+      tags:
+      - Geosite
+  /integration/ipinfo:
+    get:
+      parameters:
+      - description: IP address
+        in: query
+        name: ip
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Query IPInfo API for IP details
+      tags:
+      - Integration
+  /integration/ripestat:
+    get:
+      parameters:
+      - description: IP address
+        in: query
+        name: ip
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Query RIPE network info for IP
+      tags:
+      - Integration
+  /integration/ripestat/asn:
+    get:
+      parameters:
+      - description: ASN number
+        in: query
+        name: asn
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Query RIPE ASN announced prefixes
+      tags:
+      - Integration
+  /metrics:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get full metrics snapshot
+      tags:
+      - Metrics
+  /metrics/reset:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reset metrics statistics
+      tags:
+      - Metrics
+  /metrics/summary:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get metrics summary
+      tags:
+      - Metrics
+  /sets:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/config.SetConfig'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List all sets
+      tags:
+      - Sets
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Set configuration
+        in: body
+        name: set
+        required: true
+        schema:
+          $ref: '#/definitions/config.SetConfig'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/config.SetConfig'
+      security:
+      - BearerAuth: []
+      summary: Create a new set
+      tags:
+      - Sets
+  /sets/{id}:
+    delete:
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Delete a set
+      tags:
+      - Sets
+    get:
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/config.SetConfig'
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get a set by ID
+      tags:
+      - Sets
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Updated set configuration
+        in: body
+        name: set
+        required: true
+        schema:
+          $ref: '#/definitions/config.SetConfig'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/config.SetConfig'
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Update a set
+      tags:
+      - Sets
+  /sets/{id}/add-domain:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Set ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Domain object
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Add domain to a set
+      tags:
+      - Sets
+  /sets/batch-delete:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Set IDs to delete
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Batch delete sets
+      tags:
+      - Sets
+  /sets/check-domain:
+    get:
+      parameters:
+      - description: Domain to check
+        in: query
+        name: domain
+        required: true
+        type: string
+      - description: Set ID to exclude
+        in: query
+        name: exclude
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Check which sets match a domain
+      tags:
+      - Sets
+  /sets/reorder:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Ordered set IDs
+        in: body
+        name: body
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reorder sets
+      tags:
+      - Sets
+  /sets/targeted-domains:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+      security:
+      - BearerAuth: []
+      summary: List all targeted domains from enabled sets
+      tags:
+      - Sets
+  /socks5/config:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get SOCKS5 configuration
+      tags:
+      - SOCKS5
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: SOCKS5 configuration
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/config.Socks5Config'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update SOCKS5 configuration
+      tags:
+      - SOCKS5
+  /system/cache:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            type: string
+      security:
+      - BearerAuth: []
+      summary: Get cache statistics
+      tags:
+      - System
+  /system/info:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.SystemInfo'
+      security:
+      - BearerAuth: []
+      summary: Get system information
+      tags:
+      - System
+  /system/restart:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.RestartResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.RestartResponse'
+      security:
+      - BearerAuth: []
+      summary: Restart the service
+      tags:
+      - System
+  /system/update:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Update request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.UpdateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handler.UpdateResponse'
+      security:
+      - BearerAuth: []
+      summary: Start update process
+      tags:
+      - System
+  /version:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.VersionInfo'
+      summary: Get version information
+      tags:
+      - System
+securityDefinitions:
+  BearerAuth:
+    description: Enter "Bearer {token}" to authorize
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

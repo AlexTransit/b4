@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.45.1] - 2026-03-21
+
+- ADDED: **API documentation** — interactive Swagger UI is now available at `/swagger/` to browse and test all REST API endpoints.
+
 ## [1.45.0] - 2026-03-21
 
 - ADDED: **Traffic routing** — you can now route traffic for matched domains through a specific network interface. When a set matches a domain, B4 resolves its IPs and directs that traffic through the chosen output interface. Configure it in the `Routing` tab when editing a set.

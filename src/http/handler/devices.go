@@ -245,6 +245,31 @@ func (api *API) RegisterDevicesApi() {
 	api.mux.HandleFunc("/api/devices/{mac}/alias", api.handleDeviceAlias)
 }
 
+// @Summary Get device alias
+// @Tags Devices
+// @Produce json
+// @Param mac path string true "MAC address"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /devices/{mac}/alias [get]
+//
+// @Summary Set device alias
+// @Tags Devices
+// @Accept json
+// @Produce json
+// @Param mac path string true "MAC address"
+// @Param alias body object true "Alias payload"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /devices/{mac}/alias [put]
+//
+// @Summary Delete device alias
+// @Tags Devices
+// @Produce json
+// @Param mac path string true "MAC address"
+// @Success 200 {object} object
+// @Security BearerAuth
+// @Router /devices/{mac}/alias [delete]
 func (api *API) handleDeviceAlias(w http.ResponseWriter, r *http.Request) {
 	mac := r.PathValue("mac")
 	if mac == "" {
@@ -310,6 +335,13 @@ func (api *API) handleDeviceAlias(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary Get device vendor info
+// @Tags Devices
+// @Produce json
+// @Param mac path string true "MAC address"
+// @Success 200 {object} VendorInfo
+// @Security BearerAuth
+// @Router /devices/{mac}/vendor [get]
 func (api *API) handleDeviceVendor(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -331,6 +363,12 @@ func (api *API) handleDeviceVendor(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(VendorInfo{Company: company})
 }
 
+// @Summary Get all devices
+// @Tags Devices
+// @Produce json
+// @Success 200 {object} DevicesResponse
+// @Security BearerAuth
+// @Router /devices [get]
 func (api *API) handleDevices(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)

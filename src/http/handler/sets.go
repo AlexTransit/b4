@@ -20,6 +20,12 @@ func (api *API) RegisterSetsApi() {
 	api.mux.HandleFunc("/api/sets/batch-delete", api.handleBatchDeleteSets)
 }
 
+// @Summary List all targeted domains from enabled sets
+// @Tags Sets
+// @Produce json
+// @Success 200 {array} string
+// @Security BearerAuth
+// @Router /sets/targeted-domains [get]
 func (api *API) handleTargetedDomains(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -45,6 +51,14 @@ func (api *API) handleTargetedDomains(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(result)
 }
 
+// @Summary Check which sets match a domain
+// @Tags Sets
+// @Produce json
+// @Param domain query string true "Domain to check"
+// @Param exclude query string false "Set ID to exclude"
+// @Success 200 {array} object
+// @Security BearerAuth
+// @Router /sets/check-domain [get]
 func (api *API) handleCheckDomain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -91,6 +105,16 @@ func (api *API) handleCheckDomain(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(matches)
 }
 
+// @Summary Add domain to a set
+// @Tags Sets
+// @Accept json
+// @Produce json
+// @Param id path string true "Set ID"
+// @Param body body object true "Domain object"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /sets/{id}/add-domain [post]
 func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -170,11 +194,25 @@ func (api *API) handleSetById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary List all sets
+// @Tags Sets
+// @Produce json
+// @Success 200 {array} config.SetConfig
+// @Security BearerAuth
+// @Router /sets [get]
 func (api *API) listSets(w http.ResponseWriter) {
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(api.cfg.Sets)
 }
 
+// @Summary Get a set by ID
+// @Tags Sets
+// @Produce json
+// @Param id path string true "Set ID"
+// @Success 200 {object} config.SetConfig
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /sets/{id} [get]
 func (api *API) getSet(w http.ResponseWriter, id string) {
 	set := api.cfg.GetSetById(id)
 	if set == nil {
@@ -185,6 +223,14 @@ func (api *API) getSet(w http.ResponseWriter, id string) {
 	json.NewEncoder(w).Encode(set)
 }
 
+// @Summary Create a new set
+// @Tags Sets
+// @Accept json
+// @Produce json
+// @Param set body config.SetConfig true "Set configuration"
+// @Success 201 {object} config.SetConfig
+// @Security BearerAuth
+// @Router /sets [post]
 func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 	var set config.SetConfig
 	if err := json.NewDecoder(r.Body).Decode(&set); err != nil {
@@ -219,6 +265,16 @@ func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(set)
 }
 
+// @Summary Update a set
+// @Tags Sets
+// @Accept json
+// @Produce json
+// @Param id path string true "Set ID"
+// @Param set body config.SetConfig true "Updated set configuration"
+// @Success 200 {object} config.SetConfig
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /sets/{id} [put]
 func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 	var updated config.SetConfig
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
@@ -262,6 +318,14 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 	json.NewEncoder(w).Encode(updated)
 }
 
+// @Summary Delete a set
+// @Tags Sets
+// @Produce json
+// @Param id path string true "Set ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 404 {string} string
+// @Security BearerAuth
+// @Router /sets/{id} [delete]
 func (api *API) deleteSet(w http.ResponseWriter, id string) {
 	oldConfig := api.cfg
 
@@ -297,6 +361,14 @@ func (api *API) deleteSet(w http.ResponseWriter, id string) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
+// @Summary Reorder sets
+// @Tags Sets
+// @Accept json
+// @Produce json
+// @Param body body object true "Ordered set IDs"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /sets/reorder [post]
 func (api *API) handleReorderSets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -397,6 +469,14 @@ func (api *API) loadTargetsForSetCached(set *config.SetConfig) {
 	set.Targets.IpsToMatch = ips
 }
 
+// @Summary Batch delete sets
+// @Tags Sets
+// @Accept json
+// @Produce json
+// @Param body body object true "Set IDs to delete"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /sets/batch-delete [post]
 func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
