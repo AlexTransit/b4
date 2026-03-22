@@ -1953,6 +1953,20 @@ service_dispatch() {
         return 1
     fi
 }
+
+service_show_crash_log() {
+    _errlog=""
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        _errlog=$(jq -r '.system.logging.error_file // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+    fi
+    [ -z "$_errlog" ] && _errlog="/var/log/b4/errors.log"
+    if [ -s "$_errlog" ]; then
+        log_info "Last log entries from $_errlog:"
+        tail -5 "$_errlog" 2>/dev/null | while IFS= read -r _line; do
+            log_info "  $_line"
+        done
+    fi
+}
 service_entware_install() {
     ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
 
@@ -2073,15 +2087,7 @@ service_entware_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"
@@ -2167,15 +2173,7 @@ service_openrc_start() {
         return 0
     fi
     log_err "Service crashed immediately after start"
-    for _logf in /var/log/b4/errors.log; do
-        if [ -s "$_logf" ]; then
-            log_info "Last log entries from $_logf:"
-            tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                log_info "  $_line"
-            done
-            break
-        fi
-    done
+    service_show_crash_log
     return 1
 }
 
@@ -2253,15 +2251,7 @@ service_procd_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"
@@ -2416,15 +2406,7 @@ service_sysv_start() {
             return 0
         fi
         log_err "Service crashed immediately after start"
-        for _logf in /var/log/b4/errors.log; do
-            if [ -s "$_logf" ]; then
-                log_info "Last log entries from $_logf:"
-                tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                    log_info "  $_line"
-                done
-                break
-            fi
-        done
+        service_show_crash_log
         return 1
     fi
     log_warn "Could not start service"

@@ -55,15 +55,7 @@ service_openrc_start() {
         return 0
     fi
     log_err "Service crashed immediately after start"
-    for _logf in /var/log/b4/errors.log; do
-        if [ -s "$_logf" ]; then
-            log_info "Last log entries from $_logf:"
-            tail -5 "$_logf" 2>/dev/null | while IFS= read -r _line; do
-                log_info "  $_line"
-            done
-            break
-        fi
-    done
+    service_show_crash_log
     return 1
 }
 

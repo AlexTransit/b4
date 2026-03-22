@@ -42,3 +42,17 @@ service_dispatch() {
         return 1
     fi
 }
+
+service_show_crash_log() {
+    _errlog=""
+    if [ -f "$B4_CONFIG_FILE" ] && command_exists jq; then
+        _errlog=$(jq -r '.system.logging.error_file // empty' "$B4_CONFIG_FILE" 2>/dev/null)
+    fi
+    [ -z "$_errlog" ] && _errlog="/var/log/b4/errors.log"
+    if [ -s "$_errlog" ]; then
+        log_info "Last log entries from $_errlog:"
+        tail -5 "$_errlog" 2>/dev/null | while IFS= read -r _line; do
+            log_info "  $_line"
+        done
+    fi
+}
