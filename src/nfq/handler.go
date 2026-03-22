@@ -353,10 +353,11 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			set = nil
 		}
 
-		// Learned IP match without SNI confirmation
 		if matchedLearned && !matchedSNI && !(len(payload) >= 1 && payload[0] == 0x16) {
-			matched = false
-			set = nil
+			if set != nil && set.Fragmentation.Strategy == config.ConfigNone && len(set.Fragmentation.StrategyPool) == 0 && set.TCP.Desync.Mode == config.ConfigOff {
+				matched = false
+				set = nil
+			}
 		}
 	}
 

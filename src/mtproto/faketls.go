@@ -1,0 +1,268 @@
+package mtproto
+
+import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/binary"
+	"fmt"
+	"io"
+	"net"
+	"time"
+)
+
+const (
+	tlsRecordHandshake    = 0x16
+	tlsRecordChangeCipher = 0x14
+	tlsRecordAppData      = 0x17
+	handshakeClientHello  = 0x01
+	handshakeServerHello  = 0x02
+	maxTLSRecordPayload  = 16379
+	timestampTolerance   = 120
+	secondDuration       = time.Second
+)
+
+type FakeTLSConn struct {
+	net.Conn
+	readBuf []byte
+}
+
+func (c *FakeTLSConn) Read(p []byte) (int, error) {
+	if len(c.readBuf) > 0 {
+		n := copy(p, c.readBuf)
+		c.readBuf = c.readBuf[n:]
+		return n, nil
+	}
+
+	for {
+		hdr := make([]byte, 5)
+		if _, err := io.ReadFull(c.Conn, hdr); err != nil {
+			return 0, err
+		}
+
+		payloadLen := int(binary.BigEndian.Uint16(hdr[3:5]))
+		if payloadLen > maxTLSRecordPayload+256 {
+			return 0, fmt.Errorf("TLS record too large: %d", payloadLen)
+		}
+
+		if hdr[0] == tlsRecordChangeCipher {
+			discard := make([]byte, payloadLen)
+			if _, err := io.ReadFull(c.Conn, discard); err != nil {
+				return 0, err
+			}
+			continue
+		}
+
+		if hdr[0] != tlsRecordAppData {
+			return 0, fmt.Errorf("unexpected TLS record type 0x%02x", hdr[0])
+		}
+
+		payload := make([]byte, payloadLen)
+		if _, err := io.ReadFull(c.Conn, payload); err != nil {
+			return 0, err
+		}
+
+		n := copy(p, payload)
+		if n < len(payload) {
+			c.readBuf = payload[n:]
+		}
+		return n, nil
+	}
+}
+
+func (c *FakeTLSConn) Write(p []byte) (int, error) {
+	total := 0
+	for len(p) > 0 {
+		chunk := len(p)
+		if chunk > maxTLSRecordPayload {
+			chunk = maxTLSRecordPayload
+		}
+		hdr := []byte{tlsRecordAppData, 0x03, 0x03, 0, 0}
+		binary.BigEndian.PutUint16(hdr[3:5], uint16(chunk))
+
+		if _, err := c.Conn.Write(hdr); err != nil {
+			return total, err
+		}
+		n, err := c.Conn.Write(p[:chunk])
+		total += n
+		if err != nil {
+			return total, err
+		}
+		p = p[chunk:]
+	}
+	return total, nil
+}
+
+func AcceptFakeTLS(conn net.Conn, secret *Secret) (*FakeTLSConn, error) {
+	recHdr := make([]byte, 5)
+	if _, err := io.ReadFull(conn, recHdr); err != nil {
+		return nil, fmt.Errorf("read TLS record header: %w", err)
+	}
+	if recHdr[0] != tlsRecordHandshake {
+		return nil, fmt.Errorf("not a TLS handshake: type 0x%02x", recHdr[0])
+	}
+
+	recLen := int(binary.BigEndian.Uint16(recHdr[3:5]))
+	if recLen < 39 || recLen > 4096 {
+		return nil, fmt.Errorf("invalid ClientHello length: %d", recLen)
+	}
+
+	body := make([]byte, recLen)
+	if _, err := io.ReadFull(conn, body); err != nil {
+		return nil, fmt.Errorf("read ClientHello body: %w", err)
+	}
+
+	if body[0] != handshakeClientHello {
+		return nil, fmt.Errorf("not a ClientHello: type 0x%02x", body[0])
+	}
+
+	clientHello := append(recHdr, body...)
+
+	if len(body) < 38 {
+		return nil, fmt.Errorf("ClientHello too short")
+	}
+	clientRandom := make([]byte, 32)
+	copy(clientRandom, body[6:38])
+
+	zeroed := make([]byte, len(clientHello))
+	copy(zeroed, clientHello)
+	for i := 0; i < 32; i++ {
+		zeroed[11+i] = 0
+	}
+
+	mac := hmac.New(sha256.New, secret.Key[:])
+	mac.Write(zeroed)
+	expected := mac.Sum(nil)
+
+	for i := 0; i < 28; i++ {
+		if clientRandom[i] != expected[i] {
+			return nil, fmt.Errorf("HMAC verification failed at byte %d", i)
+		}
+	}
+
+	tsBytes := make([]byte, 4)
+	for i := 0; i < 4; i++ {
+		tsBytes[i] = clientRandom[28+i] ^ expected[28+i]
+	}
+	ts := binary.LittleEndian.Uint32(tsBytes)
+	now := uint32(time.Now().Unix())
+	diff := int64(now) - int64(ts)
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > timestampTolerance {
+		return nil, fmt.Errorf("timestamp out of range: diff=%ds", diff)
+	}
+
+	sessionID := extractSessionID(body)
+
+	serverHello := buildServerHello(secret, clientRandom, sessionID)
+	if _, err := conn.Write(serverHello); err != nil {
+		return nil, fmt.Errorf("write ServerHello: %w", err)
+	}
+
+	return &FakeTLSConn{Conn: conn}, nil
+}
+
+func extractSessionID(helloBody []byte) []byte {
+	if len(helloBody) < 39 {
+		return nil
+	}
+	sessLen := int(helloBody[38])
+	if sessLen == 0 || len(helloBody) < 39+sessLen {
+		return nil
+	}
+	sid := make([]byte, sessLen)
+	copy(sid, helloBody[39:39+sessLen])
+	return sid
+}
+
+func buildServerHello(secret *Secret, clientRandom, sessionID []byte) []byte {
+	if sessionID == nil {
+		sessionID = make([]byte, 32)
+		rand.Read(sessionID)
+	}
+
+	var shBody bytes.Buffer
+	shBody.Write([]byte{0x03, 0x03})
+	shBody.Write(make([]byte, 32))
+	shBody.WriteByte(byte(len(sessionID)))
+	shBody.Write(sessionID)
+	shBody.Write([]byte{0x13, 0x01})
+	shBody.WriteByte(0x00)
+
+	x25519Key := make([]byte, 32)
+	rand.Read(x25519Key)
+
+	var extensions bytes.Buffer
+	extensions.Write([]byte{0x00, 0x2b, 0x00, 0x02, 0x03, 0x04})
+	keyShareData := make([]byte, 0, 36)
+	keyShareData = append(keyShareData, 0x00, 0x1d, 0x00, 0x20)
+	keyShareData = append(keyShareData, x25519Key...)
+	extensions.Write([]byte{0x00, 0x33})
+	extLen := len(keyShareData)
+	extensions.Write([]byte{byte(extLen >> 8), byte(extLen)})
+	extensions.Write(keyShareData)
+
+	extBytes := extensions.Bytes()
+	shBody.Write([]byte{byte(len(extBytes) >> 8), byte(len(extBytes))})
+	shBody.Write(extBytes)
+
+	shBytes := shBody.Bytes()
+	hsLen := len(shBytes)
+	var shRecord bytes.Buffer
+	shRecord.Write([]byte{tlsRecordHandshake, 0x03, 0x03})
+	recLen := 4 + hsLen
+	shRecord.Write([]byte{byte(recLen >> 8), byte(recLen)})
+	shRecord.Write([]byte{handshakeServerHello, byte(hsLen >> 16), byte(hsLen >> 8), byte(hsLen)})
+	shRecord.Write(shBytes)
+
+	changeCipher := []byte{tlsRecordChangeCipher, 0x03, 0x03, 0x00, 0x01, 0x01}
+
+	noiseLen := 512 + int(randomByte())%512
+	noise := make([]byte, noiseLen)
+	rand.Read(noise)
+	var noiseRecord bytes.Buffer
+	noiseRecord.Write([]byte{tlsRecordAppData, 0x03, 0x03})
+	noiseRecord.Write([]byte{byte(noiseLen >> 8), byte(noiseLen)})
+	noiseRecord.Write(noise)
+
+	var full bytes.Buffer
+	full.Write(shRecord.Bytes())
+	full.Write(changeCipher)
+	full.Write(noiseRecord.Bytes())
+
+	fullBytes := full.Bytes()
+
+	randomOffset := findServerRandomOffset(fullBytes)
+	if randomOffset < 0 {
+		return fullBytes
+	}
+
+	for i := 0; i < 32; i++ {
+		fullBytes[randomOffset+i] = 0
+	}
+
+	mac := hmac.New(sha256.New, secret.Key[:])
+	mac.Write(clientRandom)
+	mac.Write(fullBytes)
+	serverRandom := mac.Sum(nil)
+
+	copy(fullBytes[randomOffset:randomOffset+32], serverRandom)
+
+	return fullBytes
+}
+
+func findServerRandomOffset(data []byte) int {
+	if len(data) < 11+32 {
+		return -1
+	}
+	return 11
+}
+
+func randomByte() byte {
+	b := make([]byte, 1)
+	rand.Read(b)
+	return b[0]
+}

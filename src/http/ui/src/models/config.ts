@@ -245,10 +245,21 @@ export interface Socks5Config {
   udp_read_timeout: number;
 }
 
+export interface MTProtoConfig {
+  enabled: boolean;
+  port: number;
+  bind_address: string;
+  secret: string;
+  fake_sni: string;
+  dc_relay: string;
+}
+
+
 export interface SystemConfig {
   logging: LoggingConfig;
   web_server: WebServerConfig;
   socks5: Socks5Config;
+  mtproto: MTProtoConfig;
   tables: TableConfig;
   checker: DiscoveryConfig;
   geo: GeoConfig;

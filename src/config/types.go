@@ -160,10 +160,20 @@ type SystemConfig struct {
 	Logging   Logging         `json:"logging"`
 	WebServer WebServerConfig `json:"web_server"`
 	Socks5    Socks5Config    `json:"socks5"`
+	MTProto   MTProtoConfig   `json:"mtproto"`
 	Checker   DiscoveryConfig `json:"checker"`
 	Geo       GeoDatConfig    `json:"geo"`
 	API       ApiConfig       `json:"api"`
 	Timezone  string          `json:"timezone"`
+}
+
+type MTProtoConfig struct {
+	Enabled     bool              `json:"enabled"`
+	Port        int               `json:"port"`
+	BindAddress string            `json:"bind_address"`
+	Secret      string            `json:"secret"`
+	FakeSNI     string            `json:"fake_sni"`
+	DCRelay     string            `json:"dc_relay"`
 }
 
 type Socks5Config struct {

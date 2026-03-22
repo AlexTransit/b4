@@ -1,5 +1,12 @@
 # B4 - Bye Bye Big Bro
 
+## [1.46.0] - 2026-03-22
+
+- ADDED: **MTProto proxy** — built-in Telegram `MTProto` proxy with fake-TLS obfuscation. Telegram traffic is wrapped in TLS that looks like a normal HTTPS connection. Configure in Settings with a Fake SNI domain and generated secret, then paste the secret into Telegram's proxy settings.
+- ADDED: **DC relay** — when Telegram DCs are blocked by IP, route through an external relay.
+- ADDED: **SOCKS5 first-packet fragmentation** — the SOCKS5 proxy now splits the first data packet for matched connections, improving bypass for non-TLS protocols.
+- IMPROVED: **Non-TLS traffic handling** — learned IP matches now keep fragmentation and desync active even when traffic is not TLS.
+
 ## [1.45.1] - 2026-03-21
 
 - ADDED: **API documentation** — interactive Swagger UI is now available at `/swagger/` to browse and test all REST API endpoints.

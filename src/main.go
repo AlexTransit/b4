@@ -21,6 +21,7 @@ import (
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/nfq"
 	"github.com/daniellavrushin/b4/quic"
+	"github.com/daniellavrushin/b4/mtproto"
 	"github.com/daniellavrushin/b4/socks5"
 	"github.com/daniellavrushin/b4/tables"
 	"github.com/spf13/cobra"
@@ -182,6 +183,12 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 	handler.SetSocks5Server(socks5Server)
 
+	mtprotoServer := mtproto.NewServer(&cfg)
+	if err := mtprotoServer.Start(); err != nil {
+		metrics.RecordEvent("error", fmt.Sprintf("Failed to start MTProto server: %v", err))
+		return log.Errorf("failed to start MTProto server: %w", err)
+	}
+
 	log.Infof("B4 is running. Press Ctrl+C to stop")
 	metrics.RecordEvent("info", "B4 is fully operational")
 
@@ -194,10 +201,10 @@ func runB4(cmd *cobra.Command, args []string) error {
 	metrics.RecordEvent("info", fmt.Sprintf("Shutdown initiated by signal: %v", sig))
 
 	// Perform graceful shutdown with timeout
-	return gracefulShutdown(&cfg, pool, httpServer, socks5Server, metrics)
+	return gracefulShutdown(&cfg, pool, httpServer, socks5Server, mtprotoServer, metrics)
 }
 
-func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Server, socks5Server *socks5.Server, metrics *handler.MetricsCollector) error {
+func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Server, socks5Server *socks5.Server, mtprotoServer *mtproto.Server, metrics *handler.MetricsCollector) error {
 	// Create shutdown context with timeout
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -231,6 +238,19 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 				shutdownErrors <- fmt.Errorf("SOCKS5 shutdown: %w", err)
 			} else {
 				log.Infof("SOCKS5 server stopped")
+			}
+		}()
+	}
+
+	if mtprotoServer != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := mtprotoServer.Stop(); err != nil {
+				log.Errorf("MTProto server shutdown error: %v", err)
+				shutdownErrors <- fmt.Errorf("MTProto shutdown: %w", err)
+			} else {
+				log.Infof("MTProto server stopped")
 			}
 		}()
 	}

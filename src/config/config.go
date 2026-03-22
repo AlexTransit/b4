@@ -211,6 +211,13 @@ var DefaultConfig = Config{
 			UDPReadTimeout: 5,
 		},
 
+		MTProto: MTProtoConfig{
+			Enabled:     false,
+			Port:        3128,
+			BindAddress: "0.0.0.0",
+			FakeSNI:     "storage.googleapis.com",
+		},
+
 		Logging: Logging{
 			Level:      log.LevelInfo,
 			Instaflush: true,

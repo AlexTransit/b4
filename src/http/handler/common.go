@@ -113,6 +113,7 @@ func (api *API) RegisterEndpoints(mux *http.ServeMux, cfg *config.Config) {
 	api.RegisterDnsApi()
 	api.RegisterDevicesApi()
 	api.RegisterSocks5Api()
+	api.RegisterMTProtoApi()
 	api.RegisterDetectorApi()
 	api.RegisterBackupApi()
 	api.RegisterAsnApi()

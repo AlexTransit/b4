@@ -320,14 +320,137 @@ func (s *Server) handleConnect(conn net.Conn, dest string) error {
 		return fmt.Errorf("send reply: %w", err)
 	}
 
-	// Clear handshake deadline for data relay
 	if err := conn.SetDeadline(time.Time{}); err != nil {
 		return fmt.Errorf("clear deadline: %w", err)
 	}
 
 	s.logAndRecordConnection("P-TCP", conn.RemoteAddr().String(), dest)
 
+	set := s.resolveSet(dest)
+	if set != nil && set.Fragmentation.Strategy != config.ConfigNone {
+		return s.relayWithFragmentation(conn, remote, set)
+	}
+
 	return s.relay(conn, remote)
+}
+
+func (s *Server) resolveSet(dest string) *config.SetConfig {
+	sniSet, _, ipSet, _ := s.matchDestinationSet(dest)
+	if sniSet != nil {
+		return sniSet
+	}
+	return ipSet
+}
+
+func (s *Server) relayWithFragmentation(client, remote net.Conn, set *config.SetConfig) error {
+	seg2delay := config.ResolveSeg2Delay(set.TCP.Seg2Delay, set.TCP.Seg2DelayMax)
+	if seg2delay <= 0 {
+		seg2delay = 50
+	}
+
+	firstBuf := make([]byte, 4096)
+	if err := client.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		return s.relay(client, remote)
+	}
+	n, err := client.Read(firstBuf)
+	_ = client.SetReadDeadline(time.Time{})
+	if err != nil {
+		if n == 0 {
+			return s.relay(client, remote)
+		}
+	}
+	firstData := firstBuf[:n]
+
+	splitPos := n / 2
+	if splitPos < 1 {
+		splitPos = 1
+	}
+
+	if n >= 5 && firstData[0] == 0x16 {
+		if sniStart, sniEnd, ok := findSNIInPayload(firstData); ok && sniEnd > sniStart {
+			splitPos = sniStart + (sniEnd-sniStart)/2
+		}
+	}
+
+	if splitPos >= n {
+		splitPos = n / 2
+	}
+
+	log.Debugf("SOCKS5 fragmenting first %d bytes at pos %d for set '%s' (seg2delay=%dms)",
+		n, splitPos, set.Name, seg2delay)
+
+	if tc, ok := remote.(*net.TCPConn); ok {
+		_ = tc.SetNoDelay(true)
+	}
+
+	if _, err := remote.Write(firstData[:splitPos]); err != nil {
+		return fmt.Errorf("write fragment 1: %w", err)
+	}
+	time.Sleep(time.Duration(seg2delay) * time.Millisecond)
+	if _, err := remote.Write(firstData[splitPos:]); err != nil {
+		return fmt.Errorf("write fragment 2: %w", err)
+	}
+
+	if tc, ok := remote.(*net.TCPConn); ok {
+		_ = tc.SetNoDelay(false)
+	}
+
+	return s.relay(client, remote)
+}
+
+func findSNIInPayload(data []byte) (start, end int, ok bool) {
+	if len(data) < 43 {
+		return 0, 0, false
+	}
+	if data[0] != 0x16 || data[5] != 0x01 {
+		return 0, 0, false
+	}
+
+	pos := 43
+	if pos >= len(data) {
+		return 0, 0, false
+	}
+	sessLen := int(data[pos])
+	pos += 1 + sessLen
+	if pos+2 > len(data) {
+		return 0, 0, false
+	}
+	csLen := int(data[pos])<<8 | int(data[pos+1])
+	pos += 2 + csLen
+	if pos+1 > len(data) {
+		return 0, 0, false
+	}
+	compLen := int(data[pos])
+	pos += 1 + compLen
+	if pos+2 > len(data) {
+		return 0, 0, false
+	}
+	extLen := int(data[pos])<<8 | int(data[pos+1])
+	pos += 2
+	extEnd := pos + extLen
+	if extEnd > len(data) {
+		extEnd = len(data)
+	}
+
+	for pos+4 <= extEnd {
+		extType := int(data[pos])<<8 | int(data[pos+1])
+		extDataLen := int(data[pos+2])<<8 | int(data[pos+3])
+		if extType == 0 && pos+4+extDataLen <= extEnd {
+			extDataEnd := pos + 4 + extDataLen
+			nameListStart := pos + 4
+			if nameListStart+5 <= extDataEnd {
+				nameStart := nameListStart + 5
+				nameLen := int(data[nameListStart+3])<<8 | int(data[nameListStart+4])
+				nameEnd := nameStart + nameLen
+				if nameEnd <= extDataEnd {
+					return nameStart, nameEnd, true
+				}
+			}
+		}
+		pos += 4 + extDataLen
+	}
+
+	return 0, 0, false
 }
 
 // relay copies data bidirectionally until one side closes.
@@ -397,22 +520,27 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 }
 
 func (s *Server) matchDestination(dest string) (bool, string, bool, string) {
+	_, sniTarget, _, ipTarget := s.matchDestinationSet(dest)
+	return sniTarget != "", sniTarget, ipTarget != "", ipTarget
+}
+
+func (s *Server) matchDestinationSet(dest string) (*config.SetConfig, string, *config.SetConfig, string) {
 	matcher := s.getMatcher()
 	if matcher == nil {
-		return false, "", false, ""
+		return nil, "", nil, ""
 	}
 
 	host, _, err := net.SplitHostPort(dest)
 	if err != nil {
-		return false, "", false, ""
+		return nil, "", nil, ""
 	}
 
-	var matchedSNI, matchedIP bool
+	var sniSet, ipSet *config.SetConfig
 	var sniTarget, ipTarget string
 
 	if host != "" {
 		if matched, set := matcher.MatchSNI(host); matched && set != nil {
-			matchedSNI = true
+			sniSet = set
 			sniTarget = set.Name
 		}
 	}
@@ -420,12 +548,12 @@ func (s *Server) matchDestination(dest string) (bool, string, bool, string) {
 	ip := net.ParseIP(host)
 	if ip != nil {
 		if matched, set := matcher.MatchIP(ip); matched && set != nil {
-			matchedIP = true
+			ipSet = set
 			ipTarget = set.Name
 		}
 	}
 
-	return matchedSNI, sniTarget, matchedIP, ipTarget
+	return sniSet, sniTarget, ipSet, ipTarget
 }
 
 // --- Logging and metrics ---

@@ -46,6 +46,13 @@ var migrationRegistry = map[int]MigrationFunc{
 	26: migrateV26to27, // Add tables engine config
 	27: migrateV27to28, // Add per-set routing config
 	28: migrateV28to29, // Add position ranges and strategy pool
+	29: migrateV29to30, // Add MTProto proxy config
+}
+
+func migrateV29to30(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v29->v30: Adding MTProto proxy config")
+	c.System.MTProto = DefaultConfig.System.MTProto
+	return nil
 }
 
 func migrateV28to29(c *Config, _ map[string]interface{}) error {

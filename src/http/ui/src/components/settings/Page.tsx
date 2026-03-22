@@ -40,6 +40,7 @@ import { LoggingSettings } from "./Logging";
 import { MSSClampingSettings } from "./MSSClamping";
 import { QueueSettings } from "./Queue";
 import { Socks5Settings } from "./Socks5";
+import { MTProtoSettings } from "./MTProto";
 import { BackupSettings } from "./Backup";
 import { WebServerSettings } from "./WebServer";
 
@@ -197,6 +198,8 @@ export function SettingsPage() {
           JSON.stringify(originalConfig.system.web_server) ||
         JSON.stringify(config.system.socks5) !==
           JSON.stringify(originalConfig.system.socks5) ||
+        JSON.stringify(config.system.mtproto) !==
+          JSON.stringify(originalConfig.system.mtproto) ||
         JSON.stringify(config.system.tables) !==
           JSON.stringify(originalConfig.system.tables) ||
         JSON.stringify(config.queue.devices) !==
@@ -468,6 +471,11 @@ export function SettingsPage() {
             <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
               <Box sx={{ width: "100%" }}>
                 <Socks5Settings config={config} onChange={handleChange} />
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} sx={{ display: "flex" }}>
+              <Box sx={{ width: "100%" }}>
+                <MTProtoSettings config={config} onChange={handleChange} />
               </Box>
             </Grid>
 
