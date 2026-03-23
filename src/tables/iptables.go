@@ -452,6 +452,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 
 		rules = append(rules,
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsResponseSpec},
+			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I", Spec: dnsResponseSpec},
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I",
 				Spec: []string{"-m", "mark", "--mark", markAccept, "-j", "ACCEPT"}},
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "A",

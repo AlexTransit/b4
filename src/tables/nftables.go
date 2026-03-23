@@ -262,6 +262,9 @@ func (n *NFTablesManager) Apply() error {
 	if err := n.addQueueRule("prerouting", "udp", "sport", "53", "counter"); err != nil {
 		return err
 	}
+	if err := n.addQueueRule("output", "udp", "sport", "53", "counter"); err != nil {
+		return err
+	}
 
 	if err := n.addQueueRule("prerouting", "tcp", "sport", tcpPortExpr, "ct", "original", "packets", "<", tcpLimit, "counter"); err != nil {
 		return err
