@@ -275,26 +275,32 @@ func RoutingSyncConfig(cfg *config.Config) {
 }
 
 func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
 	for _, set := range sets {
 		for _, domain := range set.Targets.SNIDomains {
 			domain = strings.TrimSpace(domain)
 			if domain == "" {
 				continue
 			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			ips, err := net.DefaultResolver.LookupIPAddr(ctx, domain)
+			cancel()
 			if err != nil {
 				log.Tracef("Routing: pre-resolve %s failed: %v", domain, err)
 				continue
 			}
 			resolved := make([]net.IP, 0, len(ips))
 			for _, ip := range ips {
+				if ip.IP.To4() != nil && !cfg.Queue.IPv4Enabled {
+					continue
+				}
+				if ip.IP.To4() == nil && !cfg.Queue.IPv6Enabled {
+					continue
+				}
 				resolved = append(resolved, ip.IP)
 			}
 			if len(resolved) > 0 {
 				RoutingHandleDNS(cfg, set, resolved)
-				log.Infof("Routing: pre-resolved %s -> %d IPs", domain, len(resolved))
+				log.Tracef("Routing: pre-resolved %s -> %d IPs", domain, len(resolved))
 			}
 		}
 	}
