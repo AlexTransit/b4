@@ -137,6 +137,10 @@ func (m *Monitor) checkIPTablesRules() bool {
 		}
 
 		out, _ = run(ipt, "-w", "-t", "mangle", "-S", "OUTPUT")
+		if !strings.Contains(out, "sport 53") || !strings.Contains(out, "NFQUEUE") {
+			log.Tracef("Monitor: OUTPUT DNS response rule missing")
+			return false
+		}
 		if !strings.Contains(out, markHex) {
 			log.Tracef("Monitor: OUTPUT mark accept rule missing")
 			return false
@@ -222,6 +226,10 @@ func (m *Monitor) checkNFTablesRules() bool {
 	}
 
 	out, _ = nft.runNft("list", "chain", "inet", nftTableName, "output")
+	if !strings.Contains(out, "sport 53") || !strings.Contains(out, "queue") {
+		log.Tracef("Monitor: output DNS response rule missing")
+		return false
+	}
 	if !strings.Contains(out, "accept") || !strings.Contains(out, nftChainName) {
 		log.Tracef("Monitor: output mark accept rule missing")
 		return false
