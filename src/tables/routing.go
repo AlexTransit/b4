@@ -270,7 +270,8 @@ func RoutingSyncConfig(cfg *config.Config) {
 	}
 
 	if len(newRoutingSets) > 0 {
-		go routePreResolveDomains(cfg, newRoutingSets)
+		cfgSnapshot := *cfg
+		go routePreResolveDomains(&cfgSnapshot, newRoutingSets)
 	}
 }
 
