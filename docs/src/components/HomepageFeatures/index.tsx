@@ -12,42 +12,37 @@ type DocSection = {
 
 const DocSections: DocSection[] = [
   {
-    title: "Установка",
+    title: "Введение",
     link: "/docs/intro",
     description: (
+      <>Что такое b4, как работает обход блокировок и что нужно для старта.</>
+    ),
+  },
+  {
+    title: "Установка",
+    link: "/docs/install/",
+    description: (
       <>
-        Быстрая установка на Linux, OpenWRT, Entware. Настройка systemd, запуск
-        сервиса, решение типичных проблем.
+        Установка на Linux, OpenWRT, ASUS Merlin, Keenetic, MikroTik и Docker.
       </>
     ),
   },
   {
-    title: "Мониторинг соединений",
-    link: "/docs/domains",
+    title: "Быстрый старт",
+    link: "/docs/quickstart",
     description: (
       <>
-        Live-монитор TCP/UDP трафика. Добавление доменов и IP в обход DPI,
-        обогащение через RIPE/IPInfo, фильтрация потока.
+        От первого запуска до работающего обхода за 5 минут через веб-интерфейс.
       </>
     ),
   },
   {
-    title: "Сеты конфигураций",
-    link: "/docs/sets",
+    title: "Веб-интерфейс",
+    link: "/docs/ui/",
     description: (
       <>
-        Создание наборов настроек для разных сценариев. TCP/UDP параметры,
-        стратегии фрагментации, фейкинг, мутация ClientHello.
-      </>
-    ),
-  },
-  {
-    title: "Общие настройки",
-    link: "/docs/settings",
-    description: (
-      <>
-        Сетевые параметры, логирование, firewall, geodata файлы, внешние API,
-        захват пакетов.
+        Дашборд, наборы настроек, обнаружение конфигураций, мониторинг
+        соединений.
       </>
     ),
   },

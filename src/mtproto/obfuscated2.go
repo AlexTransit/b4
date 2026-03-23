@@ -142,19 +142,6 @@ func DialObfuscatedDC(addr string, dc int, mark uint) (*ObfuscatedConn, error) {
 	encStream.XORKeyStream(encrypted, encrypted)
 	copy(encrypted[8:56], frame[8:56])
 
-	verifyKey := make([]byte, 32)
-	copy(verifyKey, encrypted[8:40])
-	verifyIV := make([]byte, 16)
-	copy(verifyIV, encrypted[40:56])
-	verifyStream, _ := newAESCTR(verifyKey, verifyIV)
-	verifyBuf := make([]byte, obfuscatedFrameLen)
-	copy(verifyBuf, encrypted)
-	verifyStream.XORKeyStream(verifyBuf, verifyBuf)
-	verifyTag := binary.LittleEndian.Uint32(verifyBuf[56:60])
-	verifyDC := int16(binary.LittleEndian.Uint16(verifyBuf[60:62]))
-	log.Debugf("MTProto handshake verify: tag=0x%08x dc=%d (expect tag=0x%08x dc=%d)",
-		verifyTag, verifyDC, uint32(connectionTagPadded), dc)
-
 	if tc, ok := conn.(*net.TCPConn); ok {
 		tc.SetNoDelay(true)
 	}

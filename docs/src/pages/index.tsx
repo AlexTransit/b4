@@ -12,18 +12,18 @@ function HomepageHeader() {
       <div className="container">
         <h1 className="hero__title">{siteConfig.title}</h1>
         <p className="hero__subtitle">
-          Локальный модуль обхода DPI для Linux и роутеров
+          Обход блокировок на уровне сетевых пакетов для Linux и роутеров
         </p>
         <p className={styles.description}>
-          Манипуляция TCP/UDP пакетами, фрагментация, фейкинг SNI, интеграция с
-          GeoSite/GeoIP базами
+          Веб-интерфейс, автоматический подбор конфигурации, поддержка роутеров
+          и серверов
         </p>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
             to="/docs/intro"
           >
-            Установка
+            Начать
           </Link>
           <Link
             className="button button--outline button--secondary button--lg margin-left--md"
@@ -39,7 +39,7 @@ function HomepageHeader() {
 
 export default function Home() {
   return (
-    <Layout title="Документация" description="B4 — модуль обхода DPI для Linux">
+    <Layout title="Документация" description="B4 — обход блокировок для Linux">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

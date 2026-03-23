@@ -70,7 +70,7 @@ func (s *Server) Start() error {
 				log.Warnf("MTProto: failed to persist generated secret: %v", err)
 			}
 		}
-		log.Infof("MTProto secret generated and saved: %s", sec.Hex())
+		log.Infof("MTProto secret generated and saved")
 	} else {
 		return fmt.Errorf("MTProto: either secret or fake_sni must be configured")
 	}

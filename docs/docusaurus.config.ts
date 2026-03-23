@@ -4,24 +4,19 @@ import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
   title: "B4 - Bye Bye Big Bro",
-  tagline: "Продвинутая система обхода DPI",
+  tagline: "Продвинутая система обхода блокировок",
   favicon: "img/favicon.ico",
   url: "https://daniellavrushin.github.io/",
   baseUrl: "/b4",
 
+  markdown: {
+    mermaid: true,
+  },
+  themes: ["@docusaurus/theme-mermaid"],
+
   i18n: {
-    defaultLocale: "ru", // Russian as default
-    locales: ["ru", "en"],
-    localeConfigs: {
-      ru: {
-        label: "Русский",
-        htmlLang: "ru-RU",
-      },
-      en: {
-        label: "English",
-        htmlLang: "en-US",
-      },
-    },
+    defaultLocale: "ru",
+    locales: ["ru"],
   },
 
   presets: [
@@ -52,10 +47,6 @@ const config: Config = {
           sidebarId: "tutorialSidebar",
           position: "left",
           label: "Документация",
-        },
-        {
-          type: "localeDropdown",
-          position: "right",
         },
         {
           href: "https://github.com/DanielLavrushin/b4",

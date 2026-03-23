@@ -78,17 +78,17 @@ func (c *FakeTLSConn) Write(p []byte) (int, error) {
 		if chunk > maxTLSRecordPayload {
 			chunk = maxTLSRecordPayload
 		}
-		hdr := []byte{tlsRecordAppData, 0x03, 0x03, 0, 0}
-		binary.BigEndian.PutUint16(hdr[3:5], uint16(chunk))
+		rec := make([]byte, 5+chunk)
+		rec[0] = tlsRecordAppData
+		rec[1] = 0x03
+		rec[2] = 0x03
+		binary.BigEndian.PutUint16(rec[3:5], uint16(chunk))
+		copy(rec[5:], p[:chunk])
 
-		if _, err := c.Conn.Write(hdr); err != nil {
+		if _, err := c.Conn.Write(rec); err != nil {
 			return total, err
 		}
-		n, err := c.Conn.Write(p[:chunk])
-		total += n
-		if err != nil {
-			return total, err
-		}
+		total += chunk
 		p = p[chunk:]
 	}
 	return total, nil
