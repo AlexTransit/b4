@@ -3,6 +3,8 @@ package tables
 import (
 	"fmt"
 	"strings"
+
+	"github.com/daniellavrushin/b4/log"
 )
 
 const (
@@ -71,7 +73,14 @@ func (b *routeNftBackend) addElements(setName string, ips []string, ttlSec int) 
 			}
 		}
 		args = append(args, "}")
-		runLogged(fmt.Sprintf("routing: add %d element(s) to %s", len(chunk), setName), args...)
+		if out, err := run(args...); err != nil {
+			log.Tracef("routing: batch add to %s failed (%v: %s), falling back to individual adds", setName, err, strings.TrimSpace(out))
+			for _, ip := range chunk {
+				runLogged("routing: add element "+ip,
+					"nft", "add", "element", "inet", routeNftTable, setName,
+					"{", ip, "timeout", ttl, "}")
+			}
+		}
 	}
 }
 
@@ -159,10 +168,17 @@ func (b *routeNftBackend) deleteJumpRules(baseChain, targetChain string, _ bool)
 func (b *routeNftBackend) addMasqueradeRule(chain string, mark uint32, iface string, v6 bool) {
 	markHex := fmt.Sprintf("0x%x", mark)
 	hostCTMask := fmt.Sprintf("0x%x", hostRouteCTMark)
-	runLogged("routing: add masquerade rule",
+	runLogged("routing: add masquerade rule (host)",
 		"nft", "add", "rule", "inet", routeNftTable, chain,
 		"meta", "mark", markHex,
 		"ct", "mark", "&", hostCTMask, "==", hostCTMask,
+		"oifname", iface,
+		"masquerade",
+	)
+
+	runLogged("routing: add masquerade rule (forwarded)",
+		"nft", "add", "rule", "inet", routeNftTable, chain,
+		"meta", "mark", markHex,
 		"oifname", iface,
 		"masquerade",
 	)
