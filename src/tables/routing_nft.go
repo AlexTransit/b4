@@ -3,6 +3,8 @@ package tables
 import (
 	"fmt"
 	"strings"
+
+	"github.com/daniellavrushin/b4/log"
 )
 
 const (
@@ -71,7 +73,8 @@ func (b *routeNftBackend) addElements(setName string, ips []string, ttlSec int) 
 			}
 		}
 		args = append(args, "}")
-		if _, err := run(args...); err != nil {
+		if out, err := run(args...); err != nil {
+			log.Tracef("routing: batch add to %s failed (%v: %s), falling back to individual adds", setName, err, strings.TrimSpace(out))
 			for _, ip := range chunk {
 				runLogged("routing: add element "+ip,
 					"nft", "add", "element", "inet", routeNftTable, setName,
