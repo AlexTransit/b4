@@ -150,7 +150,11 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	// Ensure routing runtime state is applied at startup as well.
-	tables.RoutingSyncConfig(&cfg)
+	if !cfg.System.Tables.SkipSetup {
+		tables.RoutingSyncConfig(&cfg)
+	} else {
+		log.Tracef("Skipping routing sync due to --skip-tables")
+	}
 
 	// Start netfilter queue pool
 	log.Infof("Starting netfilter queue pool (queue: %d, threads: %d)", cfg.Queue.StartNum, cfg.Queue.Threads)
