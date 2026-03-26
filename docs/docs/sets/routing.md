@@ -74,7 +74,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph Вход
+    subgraph fill ["Наполнение IP-набора"]
         DNS["DNS-ответ для домена из сета"]
         STATIC["Статические IP из целей сета"]
     end
@@ -82,26 +82,29 @@ flowchart TB
     DNS -->|"IP + TTL"| IPSET["IP-набор<br/>(nftables set / ipset)"]
     STATIC -->|"IP"| IPSET
 
-    subgraph Firewall ["Цепочки firewall (per-set)"]
-        PRE["PREROUTING (mangle)<br/>Маркировка транзитного трафика"]
-        OUT["OUTPUT (mangle)<br/>Маркировка трафика от роутера"]
-        POST["POSTROUTING (nat)<br/>Masquerade"]
+    subgraph pkt ["Обработка пакетов"]
+        direction TB
+        MATCH["Пакет к IP из набора"]
+        MARK["PREROUTING / OUTPUT<br/>Маркировка (fwmark)"]
+        RULE["ip rule<br/>fwmark → таблица маршрутизации"]
+        ROUTE["Таблица маршрутизации<br/>default → выходной интерфейс"]
+        MASQ["POSTROUTING<br/>Masquerade"]
+        IFACE["wg0 / tun0 / ..."]
     end
 
-    IPSET --> PRE
-    IPSET --> OUT
-    PRE -->|"fwmark"| RULE["ip rule<br/>fwmark → таблица маршрутизации"]
-    OUT -->|"fwmark"| RULE
-    RULE --> ROUTE["ip route<br/>default via выходной интерфейс"]
-    ROUTE --> IFACE["wg0 / tun0 / ..."]
-    POST -->|"SNAT"| IFACE
+    IPSET -.->|"match dst IP"| MARK
+    MATCH --> MARK
+    MARK -->|"fwmark"| RULE
+    RULE --> ROUTE
+    ROUTE --> MASQ
+    MASQ --> IFACE
 
     style DNS fill:#4a9eff,color:#fff,stroke:none
     style STATIC fill:#4a9eff,color:#fff,stroke:none
     style IPSET fill:#ff9800,color:#fff,stroke:none
-    style PRE fill:#e91e63,color:#fff,stroke:none
-    style OUT fill:#e91e63,color:#fff,stroke:none
-    style POST fill:#e91e63,color:#fff,stroke:none
+    style MATCH fill:#e91e63,color:#fff,stroke:none
+    style MARK fill:#e91e63,color:#fff,stroke:none
+    style MASQ fill:#e91e63,color:#fff,stroke:none
     style RULE fill:#9c27b0,color:#fff,stroke:none
     style ROUTE fill:#9c27b0,color:#fff,stroke:none
     style IFACE fill:#4caf50,color:#fff,stroke:none
@@ -119,7 +122,7 @@ flowchart TB
 
 3. **Policy routing.** Для маркированных пакетов создаётся правило `ip rule`: пакеты с определённым `fwmark` направляются в отдельную таблицу маршрутизации, где default route указывает на выходной интерфейс.
 
-4. **Masquerade.** В цепочке **POSTROUTING** (nat) для трафика от роутера (помеченного через conntrack mark `0x40000000`) применяется masquerade — исходный IP пакета заменяется на IP выходного интерфейса. Для транзитного трафика masquerade также применяется.
+4. **Masquerade.** В цепочке **POSTROUTING** (nat) ко всему маркированному трафику, выходящему через целевой интерфейс, применяется masquerade — исходный IP пакета заменяется на IP выходного интерфейса. Это необходимо, чтобы ответные пакеты возвращались через тот же туннель.
 
 5. **Предварительное разрешение.** При включении маршрутизации b4 сразу резолвит все домены из целей сета и добавляет полученные IP в набор. Это обеспечивает маршрутизацию с первого запроса, не дожидаясь DNS-трафика через NFQUEUE.
 
@@ -128,6 +131,8 @@ flowchart TB
 1. Включите **Маршрутизацию**
 2. Выберите **Исходные интерфейсы** — с каких интерфейсов перехватывать трафик
 3. Выберите **Выходной интерфейс** — куда направить трафик
+
+![routing](../../static/img/routing/20260326230827.png)
 
 После включения в верхней части раздела отображается диаграмма потока:
 
@@ -190,10 +195,10 @@ b4 автоматически определяет доступный backend:
 
 Каждому выходному интерфейсу автоматически назначаются:
 
-- **fwmark** — метка пакета (диапазон `0x100`–`0x7E00`)
+- **fwmark** — метка пакета (диапазон `0x100`–`0x7EFF`)
 - **routing table** — номер таблицы маршрутизации (диапазон `100`–`2099`)
 
-Значения генерируются на основе хеша имени интерфейса (FNV-1a) и остаются стабильными между перезагрузками. Если несколько сетов используют один и тот же выходной интерфейс — они разделяют fwmark и таблицу.
+Значения вычисляются на основе имени интерфейса и остаются стабильными между перезагрузками. Если несколько сетов используют один и тот же выходной интерфейс — они разделяют `fwmark` и таблицу.
 
 :::info
 Ручное указание `fwmark` и `table` доступно через конфигурационный файл. В этом случае автоматическое назначение не используется.
