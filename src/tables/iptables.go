@@ -1,10 +1,12 @@
 package tables
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -17,10 +19,11 @@ type IPTablesManager struct {
 	cfg              *config.Config
 	useLegacy        bool
 	multiportSupport map[string]bool // per-binary cache (iptables vs ip6tables may differ)
+	connbytesSupport map[string]bool // per-binary cache
 }
 
 func NewIPTablesManager(cfg *config.Config, useLegacy bool) *IPTablesManager {
-	return &IPTablesManager{cfg: cfg, useLegacy: useLegacy, multiportSupport: make(map[string]bool)}
+	return &IPTablesManager{cfg: cfg, useLegacy: useLegacy, multiportSupport: make(map[string]bool), connbytesSupport: make(map[string]bool)}
 }
 
 func (im *IPTablesManager) iptablesBin() string {
@@ -35,6 +38,28 @@ func (im *IPTablesManager) ip6tablesBin() string {
 		return backendIP6TablesLegacy
 	}
 	return backendIP6Tables
+}
+
+func (im *IPTablesManager) checkConnbytesSupport(ipt string) error {
+	if result, ok := im.connbytesSupport[ipt]; ok {
+		if result {
+			return nil
+		}
+		return fmt.Errorf("xt_connbytes kernel module is not available")
+	}
+
+	testSpec := []string{"-p", "tcp", "-m", "connbytes", "--connbytes-dir", "original",
+		"--connbytes-mode", "packets", "--connbytes", "0:10", "-j", "ACCEPT"}
+	_, err := run(append([]string{ipt, "-w", "-t", "filter", "-A", "INPUT"}, testSpec...)...)
+	if err == nil {
+		_, _ = run(append([]string{ipt, "-w", "-t", "filter", "-D", "INPUT"}, testSpec...)...)
+		im.connbytesSupport[ipt] = true
+		log.Tracef("IPTABLES[%s]: connbytes module is available", ipt)
+		return nil
+	}
+
+	im.connbytesSupport[ipt] = false
+	return fmt.Errorf("xt_connbytes kernel module is not available for %s — install it with: modprobe xt_connbytes (or apt install xtables-addons-common / linux-modules-extra-$(uname -r))", ipt)
 }
 
 // hasMultiportSupport checks if iptables multiport module is available
@@ -192,13 +217,62 @@ func (s SysctlSetting) RevertBack() {
 	setSysctlOrProc(s.Name, s.Revert)
 }
 
+type IPSet struct {
+	Name    string
+	Family  string // "inet" for IPv4, "inet6" for IPv6
+	Entries []string
+}
+
+func (s IPSet) Create() error {
+	_, _ = run("ipset", "destroy", s.Name)
+
+	if _, err := run("ipset", "create", s.Name, "hash:net", "family", s.Family); err != nil {
+		return fmt.Errorf("failed to create ipset %s: %w", s.Name, err)
+	}
+
+	const batchSize = 10000
+	for i := 0; i < len(s.Entries); i += batchSize {
+		end := i + batchSize
+		if end > len(s.Entries) {
+			end = len(s.Entries)
+		}
+		var sb strings.Builder
+		for _, entry := range s.Entries[i:end] {
+			fmt.Fprintf(&sb, "add %s %s\n", s.Name, entry)
+		}
+		cmd := exec.Command("ipset", "restore", "-exist")
+		cmd.Stdin = strings.NewReader(sb.String())
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("failed to populate ipset %s (batch %d-%d): %w (%s)", s.Name, i, end, err, strings.TrimSpace(out.String()))
+		}
+	}
+
+	log.Tracef("Created ipset %s with %d entries", s.Name, len(s.Entries))
+	return nil
+}
+
+func (s IPSet) Destroy() {
+	if _, err := run("ipset", "destroy", s.Name); err != nil {
+		log.Tracef("Failed to destroy ipset %s: %v", s.Name, err)
+	}
+}
+
 type Manifest struct {
+	IPSets  []IPSet
 	Chains  []Chain
 	Rules   []Rule
 	Sysctls []SysctlSetting
 }
 
 func (m Manifest) Apply() error {
+	for _, s := range m.IPSets {
+		if err := s.Create(); err != nil {
+			return err
+		}
+	}
 	for _, c := range m.Chains {
 		c.Ensure()
 	}
@@ -222,6 +296,12 @@ func (m Manifest) RemoveRules() {
 func (m Manifest) RemoveChains() {
 	for i := len(m.Chains) - 1; i >= 0; i-- {
 		m.Chains[i].Remove()
+	}
+}
+
+func (m Manifest) DestroyIPSets() {
+	for _, s := range m.IPSets {
+		s.Destroy()
 	}
 }
 
@@ -253,6 +333,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		markAccept = "0x8000/0x8000"
 	}
 
+	var ipsets []IPSet
 	var chains []Chain
 	var rules []Rule
 
@@ -277,6 +358,10 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		tcpPorts := cfg.CollectTCPPorts()
 		for i, p := range tcpPorts {
 			tcpPorts[i] = strings.ReplaceAll(p, "-", ":")
+		}
+
+		if err := manager.checkConnbytesSupport(ipt); err != nil {
+			return Manifest{}, err
 		}
 
 		// TCP response and SYN-ACK rules (PREROUTING)
@@ -323,20 +408,26 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsResponseSpec},
 		)
 
-		// Duplication rules: queue ALL TCP packets on configured ports to specific IPs (no connbytes limit).
-		// Must come before the generic connbytes-limited TCP rule.
 		dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
 		var dupIPs []string
+		var dupSetName string
+		var dupSetFamily string
 		if strings.HasPrefix(ipt, "iptables") {
 			dupIPs = dupIPv4
+			dupSetName = "b4_dup_v4"
+			dupSetFamily = "inet"
 		} else {
 			dupIPs = dupIPv6
+			dupSetName = "b4_dup_v6"
+			dupSetFamily = "inet6"
 		}
-		for _, cidr := range dupIPs {
+		if len(dupIPs) > 0 {
+			ipsets = append(ipsets, IPSet{Name: dupSetName, Family: dupSetFamily, Entries: dupIPs})
 			if manager.hasMultiportSupport(ipt) {
 				for _, chunk := range chunkPorts(tcpPorts, 15) {
 					dupSpec := append(
-						[]string{"-p", "tcp", "-d", cidr, "-m", "multiport", "--dports", strings.Join(chunk, ",")},
+						[]string{"-p", "tcp", "-m", "set", "--match-set", dupSetName, "dst",
+							"-m", "multiport", "--dports", strings.Join(chunk, ",")},
 						manager.buildNFQSpec(queueNum, threads)...,
 					)
 					rules = append(rules,
@@ -346,7 +437,8 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			} else {
 				for _, port := range tcpPorts {
 					dupSpec := append(
-						[]string{"-p", "tcp", "-d", cidr, "--dport", port},
+						[]string{"-p", "tcp", "-m", "set", "--match-set", dupSetName, "dst",
+							"--dport", port},
 						manager.buildNFQSpec(queueNum, threads)...,
 					)
 					rules = append(rules,
@@ -530,7 +622,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		{Name: "net.netfilter.nf_conntrack_tcp_be_liberal", Desired: "1", Revert: "0"},
 	}
 
-	return Manifest{Chains: chains, Rules: rules, Sysctls: sysctls}, nil
+	return Manifest{IPSets: ipsets, Chains: chains, Rules: rules, Sysctls: sysctls}, nil
 }
 
 func (ipt *IPTablesManager) Apply() error {
@@ -560,6 +652,7 @@ func (ipt *IPTablesManager) Clear() error {
 	m.RemoveRules()
 	time.Sleep(30 * time.Millisecond)
 	m.RemoveChains()
+	m.DestroyIPSets()
 	return nil
 }
 

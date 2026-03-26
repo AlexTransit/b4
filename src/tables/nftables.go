@@ -90,6 +90,34 @@ func (n *NFTablesManager) createChain(chain, hook string, priority int, policy s
 	return nil
 }
 
+func (n *NFTablesManager) createSet(name, addrType, extraFlags string) error {
+	setDef := fmt.Sprintf("{ type %s ; %s }", addrType, extraFlags)
+	_, err := n.runNft("add", "set", "inet", nftTableName, name, setDef)
+	if err != nil {
+		return fmt.Errorf("failed to create set %s: %w", name, err)
+	}
+	log.Tracef("Created nftables set: %s", name)
+	return nil
+}
+
+func (n *NFTablesManager) addSetElements(name string, elements []string) error {
+	const batchSize = 10000
+	for i := 0; i < len(elements); i += batchSize {
+		end := i + batchSize
+		if end > len(elements) {
+			end = len(elements)
+		}
+		chunk := elements[i:end]
+		elemExpr := "{ " + strings.Join(chunk, ", ") + " }"
+		_, err := n.runNft("add", "element", "inet", nftTableName, name, elemExpr)
+		if err != nil {
+			return fmt.Errorf("failed to add elements to set %s (batch %d-%d): %w", name, i, end, err)
+		}
+	}
+	log.Tracef("Added %d elements to nftables set: %s", len(elements), name)
+	return nil
+}
+
 func (n *NFTablesManager) buildNFQueueAction() string {
 	if n.cfg.Queue.Threads > 1 {
 		return fmt.Sprintf("queue num %d-%d bypass", n.cfg.Queue.StartNum, n.cfg.Queue.StartNum+n.cfg.Queue.Threads-1)
@@ -224,25 +252,25 @@ func (n *NFTablesManager) Apply() error {
 	dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
 	queueAction := strings.Fields(n.buildNFQueueAction())
 	if len(dupIPv4) > 0 && cfg.Queue.IPv4Enabled {
-		var ipExpr string
-		if len(dupIPv4) == 1 {
-			ipExpr = dupIPv4[0]
-		} else {
-			ipExpr = "{ " + strings.Join(dupIPv4, ", ") + " }"
+		if err := n.createSet("b4_dup_v4", "ipv4_addr", "flags interval ;"); err != nil {
+			return err
 		}
-		args := append([]string{"meta", "nfproto", "ipv4", "ip", "daddr", ipExpr, "tcp", "dport", tcpPortExpr, "counter"}, queueAction...)
+		if err := n.addSetElements("b4_dup_v4", dupIPv4); err != nil {
+			return err
+		}
+		args := append([]string{"meta", "nfproto", "ipv4", "ip", "daddr", "@b4_dup_v4", "tcp", "dport", tcpPortExpr, "counter"}, queueAction...)
 		if err := n.addRule(nftChainName, args...); err != nil {
 			return err
 		}
 	}
 	if len(dupIPv6) > 0 && cfg.Queue.IPv6Enabled {
-		var ipExpr string
-		if len(dupIPv6) == 1 {
-			ipExpr = dupIPv6[0]
-		} else {
-			ipExpr = "{ " + strings.Join(dupIPv6, ", ") + " }"
+		if err := n.createSet("b4_dup_v6", "ipv6_addr", "flags interval ;"); err != nil {
+			return err
 		}
-		args := append([]string{"meta", "nfproto", "ipv6", "ip6", "daddr", ipExpr, "tcp", "dport", tcpPortExpr, "counter"}, queueAction...)
+		if err := n.addSetElements("b4_dup_v6", dupIPv6); err != nil {
+			return err
+		}
+		args := append([]string{"meta", "nfproto", "ipv6", "ip6", "daddr", "@b4_dup_v6", "tcp", "dport", tcpPortExpr, "counter"}, queueAction...)
 		if err := n.addRule(nftChainName, args...); err != nil {
 			return err
 		}
