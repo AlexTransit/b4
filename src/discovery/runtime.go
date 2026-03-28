@@ -1,6 +1,7 @@
 package discovery
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -11,6 +12,8 @@ import (
 	"github.com/daniellavrushin/b4/tables"
 )
 
+var ErrDiscoveryAlreadyRunning = errors.New("discovery is already running")
+
 type runtimeState struct {
 	pool              *nfq.Pool
 	discoveryStartNum int
@@ -18,6 +21,7 @@ type runtimeState struct {
 	discoveryFlowMark uint
 	discoveryInjMark  uint
 	activeSuiteID     string
+	stopping          bool
 }
 
 type StartResult struct {
@@ -53,7 +57,7 @@ func (m *Runtime) Start(cfg *config.Config) (*StartResult, error) {
 	defer m.mu.Unlock()
 
 	if m.state != nil {
-		return nil, fmt.Errorf("discovery is already running")
+		return nil, ErrDiscoveryAlreadyRunning
 	}
 
 	mainStart := cfg.Queue.StartNum
@@ -140,7 +144,7 @@ func (m *Runtime) StartSuite(cfg *config.Config, urls []string, opts StartSuiteO
 func (m *Runtime) Stop(cfg *config.Config, suiteID string) {
 	m.mu.Lock()
 	state := m.state
-	if state == nil {
+	if state == nil || state.stopping {
 		m.mu.Unlock()
 		return
 	}
@@ -148,8 +152,8 @@ func (m *Runtime) Stop(cfg *config.Config, suiteID string) {
 		m.mu.Unlock()
 		return
 	}
+	state.stopping = true
 	activeSuite := state.activeSuiteID
-	m.state = nil
 	m.mu.Unlock()
 
 	if activeSuite != "" {
@@ -160,4 +164,8 @@ func (m *Runtime) Stop(cfg *config.Config, suiteID string) {
 	state.pool.Stop()
 	tables.ClearDiscoverySteeringRules(cfg, state.discoveryFlowMark, state.discoveryInjMark)
 	log.Infof("Discovery runtime stopped: queue=%d-%d", state.discoveryStartNum, state.discoveryStartNum+state.discoveryThreads-1)
+
+	m.mu.Lock()
+	m.state = nil
+	m.mu.Unlock()
 }

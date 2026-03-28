@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -151,7 +152,11 @@ func (api *API) handleStartDiscovery(w http.ResponseWriter, r *http.Request) {
 		TLSVersion:      req.TLSVersion,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusConflict)
+		if errors.Is(err, discovery.ErrDiscoveryAlreadyRunning) {
+			http.Error(w, err.Error(), http.StatusConflict)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
