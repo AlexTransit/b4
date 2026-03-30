@@ -1036,7 +1036,7 @@
     "testingConfigurations": "Testing configurations...",
     "foundWorking": "Found a working configuration! Still testing {{remaining}} more configs — a faster option may be found.",
     "transportBlocked": "<strong>Transport blocked:</strong> This domain is blocked at the IP/network level — TCP connections cannot be established to any known IP address. DPI bypass strategies cannot help with IP-level blocking. A VPN or proxy is required for this domain.",
-    "allFailed": "All {{count}} tested configurations failed for this domain. Check your network connection and domain accessibility.",
+    "allFailed": "All {{count}} tested configurations failed for this domain.",
     "history": {
       "domainsTested": "{{count}} domain tested",
       "domainsTested_plural": "{{count}} domains tested",

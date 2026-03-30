@@ -5,6 +5,10 @@
 - FIXED: **Routing breaks when VPN/WireGuard restarts** — B4 now automatically detects when a network interface changes and refreshes routing rules. Previously, restarting WireGuard (or any VPN) while B4 was running would silently break routing until B4 was restarted.
 - IMPROVED: **Discovery no longer interrupts normal traffic** — discovery now runs on its own isolated flow, so your internet connection stays unaffected while discovery is testing strategies.
 - IMPROVED: **Stopping discovery is now reliable** — cancelling a running discovery now properly cleans up all firewall rules and stops immediately.
+- IMPROVED: **Discovery results grouped by strategy** — when multiple domains share the same bypass strategy, they are shown as one group instead of separate cards. One click applies the config to all domains at once.
+- IMPROVED: **Discovery UI redesigned** — cleaner layout with responsive grid for large screens, simplified logs (button + modal instead of inline panel), and expandable per-domain details during live testing.
+- IMPROVED: **Removed confusing speed numbers from discovery** — raw MB/s values that users mistook for browsing speed are replaced with ranked preset lists and improvement percentages.
+- FIXED: **Discovery history always showed "just now"** — timestamps were not saved correctly, so all history entries appeared as "just now" regardless of when they ran.
 - CHANGED: **Swagger UI moved to documentation site** — the embedded Swagger UI has been removed from the binary to reduce its size (~27MB → ~13MB). API documentation is now available at [daniellavrushin.github.io/b4/swagger](https://daniellavrushin.github.io/b4/swagger) with the ability to connect to a live B4 instance for testing. The `/swagger/` endpoint now redirects to the documentation site.
 
 ## [1.46.6] - 2026-03-26
