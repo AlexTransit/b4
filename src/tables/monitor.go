@@ -18,6 +18,8 @@ type Monitor struct {
 	interval time.Duration
 	backend  string
 
+	started bool
+
 	ifaceStateMu sync.Mutex
 	ifaceState   map[string]ifaceSnapshot
 }
@@ -54,14 +56,14 @@ func (m *Monitor) Start() {
 		return
 	}
 
+	m.started = true
 	m.wg.Add(1)
 	go m.monitorLoop()
 	log.Infof("Started tables monitor (backend: %s, interval: %v)", m.backend, m.interval)
 }
 
 func (m *Monitor) Stop() {
-	cfg := m.cfgPtr.Load()
-	if cfg.System.Tables.SkipSetup || cfg.System.Tables.MonitorInterval <= 0 {
+	if !m.started {
 		return
 	}
 

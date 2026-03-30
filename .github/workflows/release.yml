@@ -148,14 +148,21 @@ jobs:
           cat docs/static/swagger-versions/index.json
 
       - name: Commit swagger docs
+        id: swagger_commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add docs/static/swagger.json docs/static/swagger-versions/
-          git diff --cached --quiet && echo "No swagger changes" || \
-            (git commit -m "docs: update swagger spec to v${VERSION}" && git push)
+          if git diff --cached --quiet; then
+            echo "No swagger changes"
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "docs: update swagger spec to v${VERSION}" && git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Trigger docs deployment
+        if: steps.swagger_commit.outputs.pushed != 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh workflow run docs.yml --ref main

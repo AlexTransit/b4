@@ -66,9 +66,10 @@ func (api *API) updateSocks5Config(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	api.getCfg().System.Socks5 = req
+	cfg := api.getCfg()
+	cfg.System.Socks5 = req
 
-	if err := api.getCfg().SaveToFile(api.getCfg().ConfigPath); err != nil {
+	if err := cfg.SaveToFile(cfg.ConfigPath); err != nil {
 		log.Errorf("Failed to save SOCKS5 config: %v", err)
 		writeJsonError(w, http.StatusInternalServerError, "Failed to save configuration")
 		return
