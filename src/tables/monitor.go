@@ -297,7 +297,10 @@ func (m *Monitor) ForceRestore() error {
 func (m *Monitor) snapshotRoutingIfaces() {
 	m.ifaceStateMu.Lock()
 	defer m.ifaceStateMu.Unlock()
+	m.snapshotRoutingIfacesLocked()
+}
 
+func (m *Monitor) snapshotRoutingIfacesLocked() {
 	m.ifaceState = make(map[string]ifaceSnapshot)
 	for _, set := range m.cfg.Sets {
 		if set == nil || !set.Enabled || !set.Routing.Enabled || set.Routing.EgressInterface == "" {
@@ -319,6 +322,7 @@ func (m *Monitor) routingIfacesChanged() bool {
 	defer m.ifaceStateMu.Unlock()
 
 	if len(m.ifaceState) == 0 {
+		m.snapshotRoutingIfacesLocked()
 		return false
 	}
 
