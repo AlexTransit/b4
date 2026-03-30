@@ -64,7 +64,7 @@ func (api *API) handleMTProtoConfig(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		sendResponse(w, map[string]interface{}{
 			"success": true,
-			"config":  api.cfg.System.MTProto,
+			"config":  api.getCfg().System.MTProto,
 		})
 	case http.MethodPost:
 		api.updateMTProtoConfig(w, r)
@@ -119,9 +119,9 @@ func (api *API) updateMTProtoConfig(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	api.cfg.System.MTProto = req
+	api.getCfg().System.MTProto = req
 
-	if err := api.cfg.SaveToFile(api.cfg.ConfigPath); err != nil {
+	if err := api.getCfg().SaveToFile(api.getCfg().ConfigPath); err != nil {
 		log.Errorf("Failed to save MTProto config: %v", err)
 		writeJsonError(w, http.StatusInternalServerError, "Failed to save configuration")
 		return

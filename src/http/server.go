@@ -7,6 +7,7 @@ import (
 	"io"
 	stdhttp "net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
@@ -19,7 +20,8 @@ import (
 //go:embed ui/dist/*
 var uiDist embed.FS
 
-func StartServer(cfg *config.Config, pool *nfq.Pool) (*stdhttp.Server, error) {
+func StartServer(cfgPtr *atomic.Pointer[config.Config], pool *nfq.Pool) (*stdhttp.Server, error) {
+	cfg := cfgPtr.Load()
 	if cfg.System.WebServer.Port == 0 {
 		log.Infof("Web server disabled (port 0)")
 		return nil, nil
@@ -30,13 +32,13 @@ func StartServer(cfg *config.Config, pool *nfq.Pool) (*stdhttp.Server, error) {
 	handler.SetNFQPool(pool)
 	registerWebSocketEndpoints(mux)
 
-	registerAPIEndpoints(mux, cfg)
-	registerAuthEndpoints(mux, cfg)
+	registerAPIEndpoints(mux, cfgPtr)
+	registerAuthEndpoints(mux, cfgPtr)
 
 	handler.RegisterSpa(mux, uiDist)
 
 	var httpHandler stdhttp.Handler = mux
-	httpHandler = authMiddleware(cfg, httpHandler)
+	httpHandler = authMiddleware(cfgPtr, httpHandler)
 	httpHandler = cors(httpHandler)
 
 	if authEnabled(cfg) {
@@ -106,10 +108,10 @@ func registerWebSocketEndpoints(mux *stdhttp.ServeMux) {
 }
 
 // registerAPIEndpoints registers all REST API handlers
-func registerAPIEndpoints(mux *stdhttp.ServeMux, cfg *config.Config) {
+func registerAPIEndpoints(mux *stdhttp.ServeMux, cfgPtr *atomic.Pointer[config.Config]) {
 
-	api := handler.NewAPIHandler(cfg)
-	api.RegisterEndpoints(mux, cfg)
+	api := handler.NewAPIHandler(cfgPtr)
+	api.RegisterEndpoints(mux, cfgPtr)
 
 	log.Tracef("REST API endpoints registered")
 }
