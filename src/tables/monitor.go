@@ -16,6 +16,14 @@ type Monitor struct {
 	wg       sync.WaitGroup
 	interval time.Duration
 	backend  string
+
+	ifaceStateMu sync.Mutex
+	ifaceState   map[string]ifaceSnapshot
+}
+
+type ifaceSnapshot struct {
+	v4 string
+	v6 string
 }
 
 var (
@@ -29,10 +37,11 @@ func NewMonitor(cfg *config.Config) *Monitor {
 	}
 
 	return &Monitor{
-		cfg:      cfg,
-		stop:     make(chan struct{}),
-		interval: interval,
-		backend:  detectFirewallBackend(cfg),
+		cfg:        cfg,
+		stop:       make(chan struct{}),
+		interval:   interval,
+		backend:    detectFirewallBackend(cfg),
+		ifaceState: make(map[string]ifaceSnapshot),
 	}
 }
 
@@ -65,6 +74,8 @@ func (m *Monitor) monitorLoop() {
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
 
+	m.snapshotRoutingIfaces()
+
 	for {
 		select {
 		case <-m.stop:
@@ -77,6 +88,12 @@ func (m *Monitor) monitorLoop() {
 				} else {
 					log.Infof("Tables rules restored successfully")
 				}
+				m.snapshotRoutingIfaces()
+			} else if m.routingIfacesChanged() {
+				log.Warnf("Routing interface change detected, resyncing routing rules...")
+				RoutingSyncConfig(m.cfg)
+				m.snapshotRoutingIfaces()
+				log.Tracef("Routing rules resynced after interface change")
 			}
 		}
 	}
@@ -275,4 +292,45 @@ func (m *Monitor) restoreRules() error {
 func (m *Monitor) ForceRestore() error {
 	log.Infof("Manual rule restoration triggered")
 	return m.restoreRules()
+}
+
+func (m *Monitor) snapshotRoutingIfaces() {
+	m.ifaceStateMu.Lock()
+	defer m.ifaceStateMu.Unlock()
+
+	m.ifaceState = make(map[string]ifaceSnapshot)
+	for _, set := range m.cfg.Sets {
+		if set == nil || !set.Enabled || !set.Routing.Enabled || set.Routing.EgressInterface == "" {
+			continue
+		}
+		iface := set.Routing.EgressInterface
+		if _, ok := m.ifaceState[iface]; ok {
+			continue
+		}
+		m.ifaceState[iface] = ifaceSnapshot{
+			v4: routeGetIfaceAddr(iface, false),
+			v6: routeGetIfaceAddr(iface, true),
+		}
+	}
+}
+
+func (m *Monitor) routingIfacesChanged() bool {
+	m.ifaceStateMu.Lock()
+	defer m.ifaceStateMu.Unlock()
+
+	if len(m.ifaceState) == 0 {
+		return false
+	}
+
+	for iface, old := range m.ifaceState {
+		curV4 := routeGetIfaceAddr(iface, false)
+		curV6 := routeGetIfaceAddr(iface, true)
+
+		if curV4 != old.v4 || curV6 != old.v6 {
+			log.Tracef("Monitor: interface %s changed (v4: %q->%q, v6: %q->%q)",
+				iface, old.v4, curV4, old.v6, curV6)
+			return true
+		}
+	}
+	return false
 }
