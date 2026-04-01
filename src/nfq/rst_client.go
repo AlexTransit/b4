@@ -33,7 +33,7 @@ func (w *Worker) sendRSTToClientV4(raw []byte, ihl int, srcIP, dstIP net.IP) {
 	binary.BigEndian.PutUint16(rst[22:24], clientPort)
 	binary.BigEndian.PutUint32(rst[24:28], clientAck)
 	rst[32] = 0x50
-	rst[33] = 0x14
+	rst[33] = 0x04
 
 	sock.FixIPv4Checksum(rst[:20])
 	sock.FixTCPChecksum(rst)
