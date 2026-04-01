@@ -52,6 +52,11 @@ const (
 	bufferSize     = 32 * 1024
 )
 
+type IPBlockCache interface {
+	IsBlocked(dstIPPort string) bool
+	AddBlocked(dstIPPort string)
+}
+
 // Server is a SOCKS5 proxy server.
 type Server struct {
 	cfg      *config.Config
@@ -63,8 +68,13 @@ type Server struct {
 	activeConns atomic.Int64
 	connSem     chan struct{} // semaphore for connection limiting
 
-	bufferPool sync.Pool
-	matcher    atomic.Value // stores *sni.SuffixSet
+	bufferPool   sync.Pool
+	matcher      atomic.Value // stores *sni.SuffixSet
+	ipBlockCache IPBlockCache
+}
+
+func (s *Server) SetIPBlockCache(cache IPBlockCache) {
+	s.ipBlockCache = cache
 }
 
 // NewServer creates a new SOCKS5 server.
@@ -292,7 +302,7 @@ func (s *Server) handleRequest(conn net.Conn) error {
 		return fmt.Errorf("read address: %w", err)
 	}
 
-	log.Infof("SOCKS5 request from %s: cmd=%d, dest=%s", conn.RemoteAddr(), hdr[1], dest)
+	log.Tracef("SOCKS5 request from %s: cmd=%d, dest=%s", conn.RemoteAddr(), hdr[1], dest)
 
 	switch hdr[1] {
 	case cmdConnect:
@@ -308,6 +318,12 @@ func (s *Server) handleRequest(conn net.Conn) error {
 // --- TCP CONNECT ---
 
 func (s *Server) handleConnect(conn net.Conn, dest string) error {
+	if s.ipBlockCache != nil && s.ipBlockCache.IsBlocked(dest) {
+		log.Tracef("SOCKS5 blocked cached IP: %s", dest)
+		sendReply(conn, repHostUnreachable, nil)
+		return fmt.Errorf("destination %s is cached as blocked", dest)
+	}
+
 	remote, err := net.DialTimeout("tcp", dest, dialTimeout)
 	if err != nil {
 		log.Tracef("SOCKS5 connect to %s failed: %v", dest, err)
@@ -516,7 +532,7 @@ func (s *Server) UpdateConfig(newCfg *config.Config) {
 	} else if old != nil {
 		s.matcher.Store((*sni.SuffixSet)(nil))
 	}
-	log.Infof("SOCKS5 matcher refreshed from config update")
+	log.Tracef("SOCKS5 matcher refreshed from config update")
 }
 
 func (s *Server) matchDestination(dest string) (bool, string, bool, string) {

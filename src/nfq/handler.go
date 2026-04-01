@@ -306,6 +306,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	host := ""
+	isClientHello := false
 	var tlsVersion uint16
 	matchedIP := st != nil
 	matchedSNI := false
@@ -326,6 +327,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 
 		host, tlsVersion, _ = sni.ParseTLSClientHelloSNI(payload)
+		isClientHello = host != ""
 
 		if host != "" && tlsVersion != 0 {
 			w.tlsCache.Store(connKey, host, tlsVersion)
@@ -379,7 +381,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		ipTarget = st.Name
 	}
 
-	if matched && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+	if matched && isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
 		ibd := &set.TCP.IPBlockDetect
 		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 
@@ -415,7 +417,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if matched {
-		if set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+		if isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
 			ibd := &set.TCP.IPBlockDetect
 			dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 			ibConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)

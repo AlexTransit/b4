@@ -93,6 +93,11 @@ type ipBlockEntry struct {
 	host        string
 }
 
+type IPBlockCache interface {
+	IsBlocked(dstIPPort string) bool
+	AddBlocked(dstIPPort string)
+}
+
 type ipBlockTracker struct {
 	mu      sync.RWMutex
 	conns   map[string]*ipBlockEntry
