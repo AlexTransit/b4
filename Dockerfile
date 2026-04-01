@@ -1,4 +1,13 @@
-# Stage 1: Build the web UI
+# Stage 1: Generate UI defaults from Go config
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS defaults-gen
+
+WORKDIR /app
+COPY src/go.mod src/go.sum ./src/
+RUN cd src && go mod download
+COPY src/ ./src/
+RUN cd src && go run tools/gendefaults.go
+
+# Stage 2: Build the web UI
 FROM --platform=$BUILDPLATFORM node:22-alpine AS ui-builder
 
 RUN corepack enable && corepack prepare pnpm@10.18.2 --activate
@@ -8,11 +17,12 @@ COPY src/http/ui/package.json src/http/ui/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
 COPY src/http/ui/ ./
+COPY --from=defaults-gen /app/src/http/ui/src/models/defaults.json ./src/models/defaults.json
 ARG VERSION=dev
 ENV VITE_APP_VERSION=${VERSION}
 RUN pnpm build
 
-# Stage 2: Build the Go binary
+# Stage 3: Build the Go binary
 FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS go-builder
 
 WORKDIR /app
@@ -36,7 +46,7 @@ RUN COMMIT=$(echo "docker" ) && \
     -ldflags "-s -w -X main.Version=${VERSION} -X main.Commit=${COMMIT} -X main.Date=${DATE}" \
     -o /b4
 
-# Stage 3: Runtime image
+# Stage 4: Runtime image
 FROM alpine:3.23.3
 
 RUN apk add --no-cache \

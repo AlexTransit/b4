@@ -44,6 +44,15 @@ jobs:
           cache-dependency-path: |
             ./src/http/ui/pnpm-lock.yaml
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+
+      - name: Generate UI defaults
+        working-directory: src
+        run: go run tools/gendefaults.go
+
       - name: Build web UI
         working-directory: src/http/ui
         run: |
