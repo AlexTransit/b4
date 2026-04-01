@@ -67,7 +67,7 @@ func (w *Worker) sendRSTToClientV6(raw []byte, srcIP, dstIP net.IP) {
 	binary.BigEndian.PutUint16(rst[42:44], clientPort)
 	binary.BigEndian.PutUint32(rst[44:48], clientAck)
 	rst[52] = 0x50
-	rst[53] = 0x14
+	rst[53] = 0x04
 
 	sock.FixTCPChecksumV6(rst)
 

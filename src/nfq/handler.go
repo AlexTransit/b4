@@ -384,7 +384,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 
 		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
-			log.LogConnection("TCP", "", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
+			log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
 			if pkt.ver == IPv4 {
 				w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
 			} else {
@@ -439,7 +439,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 					if ibd.CacheBlockedIPs {
 						w.ipBlocker.AddBlocked(dstIPPort)
 					}
-					log.LogConnection("TCP", "", host, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
+					log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
 					m := metrics.GetMetricsCollector()
 					m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
 				}
