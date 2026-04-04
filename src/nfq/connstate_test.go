@@ -32,6 +32,30 @@ func TestRecordServerTTL(t *testing.T) {
 	}
 }
 
+func TestRegisterOutgoing_PreservesState(t *testing.T) {
+	tracker := newTrackerWithConn()
+	tracker.RecordServerTTL("10.0.0.1", 12345, "1.2.3.4", 443, 52)
+
+	info := tracker.conns["10.0.0.1:12345->1.2.3.4:443"]
+	if !info.ttlRecorded || info.serverTTL != 52 {
+		t.Fatal("TTL should be recorded")
+	}
+
+	set2 := &config.SetConfig{Name: "updated"}
+	tracker.RegisterOutgoing("10.0.0.1:12345->1.2.3.4:443", set2)
+
+	info = tracker.conns["10.0.0.1:12345->1.2.3.4:443"]
+	if !info.ttlRecorded || info.serverTTL != 52 {
+		t.Fatal("re-registration should preserve TTL state")
+	}
+	if !info.responseSeen {
+		t.Fatal("re-registration should preserve responseSeen")
+	}
+	if info.set.Name != "updated" {
+		t.Fatal("re-registration should update the set config")
+	}
+}
+
 func TestRecordServerTTL_NoConnection(t *testing.T) {
 	tracker := &connStateTracker{conns: make(map[string]*connInfo)}
 	tracker.RecordServerTTL("10.0.0.1", 12345, "1.2.3.4", 443, 52)

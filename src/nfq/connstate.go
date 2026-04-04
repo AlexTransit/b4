@@ -239,9 +239,14 @@ func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfi
 		}
 	}
 
-	t.conns[connKey] = &connInfo{
-		set:      set,
-		lastSeen: time.Now(),
+	if existing, ok := t.conns[connKey]; ok {
+		existing.set = set
+		existing.lastSeen = time.Now()
+	} else {
+		t.conns[connKey] = &connInfo{
+			set:      set,
+			lastSeen: time.Now(),
+		}
 	}
 }
 
