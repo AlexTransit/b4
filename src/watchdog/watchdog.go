@@ -254,6 +254,7 @@ func (w *Watchdog) healBatch(domains []string) {
 		st.ConsecutiveFailures = 0
 		st.Interval = wdCfg.IntervalSec
 		st.LastHeal = time.Now()
+		st.LastError = ""
 		st.CooldownUntil = time.Now().Add(time.Duration(wdCfg.Cooldown) * time.Second)
 	}
 }

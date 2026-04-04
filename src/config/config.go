@@ -248,7 +248,7 @@ var DefaultConfig = Config{
 				IntervalSec:     300,
 				FailureInterval: 60,
 				Cooldown:        900,
-				TimeoutSec:      10,
+				TimeoutSec:      15,
 				MaxRetries:      3,
 			},
 		},

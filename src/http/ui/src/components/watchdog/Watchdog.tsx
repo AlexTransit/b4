@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Link as RouterLink } from "react-router";
 import {
@@ -5,6 +6,7 @@ import {
   IconButton,
   Link,
   Stack,
+  TextField,
   Table,
   TableBody,
   TableCell,
@@ -19,11 +21,13 @@ import {
   RefreshIcon,
   DeleteIcon,
   StartIcon,
+  AddIcon,
   SuccessIcon,
   WarningIcon,
   ErrorIcon,
   TimerIcon,
 } from "@b4.icons";
+import { colors } from "@design";
 import { B4Section, B4Alert } from "@b4.elements";
 import { useWatchdog } from "@hooks/useWatchdog";
 import { WatchdogDomainStatus } from "@models/watchdog";
@@ -123,20 +127,19 @@ function DomainRow({
         )}
       </TableCell>
       <TableCell>
-        <Tooltip title={domain.last_error || ""}>
-          <Typography
-            variant="body2"
-            color="error"
-            sx={{
-              maxWidth: 250,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {domain.last_error || "-"}
-          </Typography>
-        </Tooltip>
+        {domain.last_error ? (
+          <Tooltip title={domain.last_error}>
+            <Chip
+              label={domain.last_error}
+              color="error"
+              size="small"
+              variant="outlined"
+              sx={{ maxWidth: 250 }}
+            />
+          </Tooltip>
+        ) : (
+          <Typography variant="body2" color="text.secondary">-</Typography>
+        )}
       </TableCell>
       <TableCell align="right">
         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
@@ -168,11 +171,20 @@ function DomainRow({
 
 export function WatchdogMonitor() {
   const { t } = useTranslation();
-  const { state, loading, forceCheck, removeDomain, toggleEnabled, refresh } =
+  const { state, loading, forceCheck, addDomain, removeDomain, toggleEnabled, refresh } =
     useWatchdog();
+  const [newDomain, setNewDomain] = useState("");
 
   const handleRefresh = () => {
     refresh().catch(() => {});
+  };
+
+  const handleAddDomain = () => {
+    const domain = newDomain.trim();
+    if (!domain) return;
+    addDomain(domain)
+      .then(() => setNewDomain(""))
+      .catch(() => {});
   };
 
   if (loading || !state) {
@@ -230,6 +242,35 @@ export function WatchdogMonitor() {
               components={{ link: <Link component={RouterLink} to="/settings/discovery" /> }}
             />
           </B4Alert>
+        )}
+
+        {state.enabled && (
+          <Stack direction="row" spacing={1} alignItems="center">
+            <TextField
+              size="small"
+              value={newDomain}
+              onChange={(e) => setNewDomain(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddDomain();
+                }
+              }}
+              placeholder={t("watchdog.addPlaceholder")}
+              sx={{ flex: 1, maxWidth: 400 }}
+            />
+            <IconButton
+              onClick={handleAddDomain}
+              disabled={!newDomain.trim()}
+              sx={{
+                bgcolor: colors.accent.secondary,
+                color: colors.secondary,
+                "&:hover": { bgcolor: colors.accent.secondaryHover },
+              }}
+            >
+              <AddIcon />
+            </IconButton>
+          </Stack>
         )}
 
         {state.enabled && domains.length === 0 && (

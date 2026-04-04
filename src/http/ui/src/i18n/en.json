@@ -1408,6 +1408,7 @@
     "issues": "issues",
     "disabledHint": "Watchdog is disabled. Enable it in <link>Settings > Discovery</link> to start monitoring domains.",
     "noDomainsHint": "No domains configured. Add domains in <link>Settings > Discovery</link> > Watchdog section.",
+    "addPlaceholder": "Add domain to monitor, e.g. youtube.com",
     "forceCheck": "Force check now",
     "removeDomain": "Remove from watchdog",
     "status": {
