@@ -230,6 +230,22 @@ func (w *Watchdog) healBatch(domains []string) {
 		case <-pollTicker.C:
 		}
 
+		currentCfg := w.cfgPtr.Load()
+		if !currentCfg.System.Checker.Watchdog.Enabled {
+			log.Infof("[WATCHDOG] disabled during healing, canceling discovery")
+			discovery.CancelCheckSuite(suite.Id)
+			w.discoveryRT.Stop(currentCfg, suite.Id)
+			w.mu.Lock()
+			for _, domain := range domains {
+				if st, ok := w.domainStates[domain]; ok {
+					st.Status = StatusDegraded
+					st.ConsecutiveFailures = 0
+				}
+			}
+			w.mu.Unlock()
+			return
+		}
+
 		cs, ok := discovery.GetCheckSuite(suite.Id)
 		if !ok {
 			break
