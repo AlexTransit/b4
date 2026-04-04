@@ -62,7 +62,19 @@ func (api *API) handleWatchdogForceCheck(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	globalWatchdog.ForceCheck(domain)
+	cfg := api.getCfg()
+	found := false
+	for _, d := range cfg.System.Checker.Watchdog.Domains {
+		if d == domain || watchdog.ExtractDomain(d) == domain {
+			found = true
+			globalWatchdog.ForceCheck(d)
+			break
+		}
+	}
+	if !found {
+		http.Error(w, "domain not in watchdog list", http.StatusNotFound)
+		return
+	}
 	log.Infof("[WATCHDOG] forced check requested for %s", domain)
 
 	setJsonHeader(w)
@@ -117,7 +129,7 @@ func (api *API) handleWatchdogDeleteDomain(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	domain := r.PathValue("domain")
+	domain := strings.ToLower(strings.TrimSpace(r.PathValue("domain")))
 	if domain == "" {
 		http.Error(w, "domain is required", http.StatusBadRequest)
 		return

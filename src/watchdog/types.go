@@ -41,6 +41,9 @@ func ExtractDomain(input string) string {
 			return u.Hostname()
 		}
 	}
+	if i := strings.IndexAny(input, "/:?"); i >= 0 {
+		return input[:i]
+	}
 	return input
 }
 
