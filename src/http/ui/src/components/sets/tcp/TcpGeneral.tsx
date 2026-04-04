@@ -27,9 +27,10 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
     timeout_ms: 3000,
     cache_blocked_ips: true,
   };
-  const rstProt = config.tcp.rst_protection ?? {
+  const rstProt = {
     enabled: false,
     ttl_tolerance: 3,
+    ...config.tcp.rst_protection,
   };
 
   return (
