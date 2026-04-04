@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/watchdog"
 )
 
 func (api *API) RegisterWatchdogApi() {
@@ -51,18 +52,23 @@ func (api *API) handleWatchdogForceCheck(w http.ResponseWriter, r *http.Request)
 	var req struct {
 		Domain string `json:"domain"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Domain == "" {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "domain is required", http.StatusBadRequest)
+		return
+	}
+	domain := strings.ToLower(strings.TrimSpace(req.Domain))
+	if domain == "" {
 		http.Error(w, "domain is required", http.StatusBadRequest)
 		return
 	}
 
-	globalWatchdog.ForceCheck(req.Domain)
-	log.Infof("[WATCHDOG] forced check requested for %s", req.Domain)
+	globalWatchdog.ForceCheck(domain)
+	log.Infof("[WATCHDOG] forced check requested for %s", domain)
 
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success": true,
-		"message": "check scheduled for " + req.Domain,
+		"message": "check scheduled for " + domain,
 	})
 }
 
@@ -81,7 +87,7 @@ func (api *API) handleWatchdogDomains(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := api.getCfg().Clone()
-	domain := strings.TrimSpace(req.Domain)
+	domain := strings.ToLower(strings.TrimSpace(req.Domain))
 
 	for _, d := range cfg.System.Checker.Watchdog.Domains {
 		if d == domain {
@@ -121,7 +127,7 @@ func (api *API) handleWatchdogDeleteDomain(w http.ResponseWriter, r *http.Reques
 	found := false
 	var filtered []string
 	for _, d := range cfg.System.Checker.Watchdog.Domains {
-		if d == domain {
+		if d == domain || watchdog.ExtractDomain(d) == domain {
 			found = true
 			continue
 		}

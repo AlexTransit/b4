@@ -94,6 +94,9 @@ func applyGroup(cfg *config.Config, group []domainWithSet) {
 
 	var existingSet *config.SetConfig
 	for _, set := range cfg.Sets {
+		if !set.Enabled {
+			continue
+		}
 		if setContainsAnyDomain(set, groupDomains) {
 			existingSet = set
 			break
@@ -110,6 +113,7 @@ func applyGroup(cfg *config.Config, group []domainWithSet) {
 		for _, domain := range groupDomains {
 			if !domainInSNIList(existingSet.Targets.SNIDomains, domain) {
 				existingSet.Targets.SNIDomains = append(existingSet.Targets.SNIDomains, domain)
+				existingSet.Targets.DomainsToMatch = append(existingSet.Targets.DomainsToMatch, domain)
 			}
 		}
 
@@ -121,6 +125,7 @@ func applyGroup(cfg *config.Config, group []domainWithSet) {
 		newSet.Name = "watchdog-" + groupDomains[0]
 		newSet.Enabled = true
 		newSet.Targets.SNIDomains = groupDomains
+		newSet.Targets.DomainsToMatch = groupDomains
 		newSet.TCP = refSet.TCP
 		newSet.UDP = refSet.UDP
 		newSet.Fragmentation = refSet.Fragmentation

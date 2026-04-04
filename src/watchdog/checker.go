@@ -51,6 +51,20 @@ func checkDomain(input string, mark uint, timeout time.Duration) CheckResult {
 	client := &http.Client{
 		Timeout:   timeout,
 		Transport: transport,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) > 0 {
+				locLower := strings.ToLower(req.URL.String())
+				for _, marker := range discovery.BlockPageRedirectMarkers {
+					if strings.Contains(locLower, marker) {
+						return fmt.Errorf("ISP block page (redirect to %s)", req.URL.String())
+					}
+				}
+			}
+			if len(via) >= 3 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", checkURL, nil)
@@ -68,15 +82,6 @@ func checkDomain(input string, mark uint, timeout time.Duration) CheckResult {
 
 	if resp.StatusCode == 451 {
 		return CheckResult{Error: "ISP block page (HTTP 451)"}
-	}
-
-	if loc := resp.Header.Get("Location"); loc != "" {
-		locLower := strings.ToLower(loc)
-		for _, marker := range discovery.BlockPageRedirectMarkers {
-			if strings.Contains(locLower, marker) {
-				return CheckResult{Error: "ISP block page (redirect to " + loc + ")"}
-			}
-		}
 	}
 
 	buf := make([]byte, 16*1024)

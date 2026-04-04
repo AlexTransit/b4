@@ -54,8 +54,9 @@ func (w *Watchdog) GetState() WatchdogState {
 			copy = *existing
 		} else {
 			copy = DomainStatus{
-				Domain: d,
-				Status: StatusHealthy,
+				Domain:   d,
+				Status:   StatusHealthy,
+				Interval: cfg.System.Checker.Watchdog.IntervalSec,
 			}
 		}
 		domain := ExtractDomain(d)
@@ -80,10 +81,16 @@ func (w *Watchdog) GetState() WatchdogState {
 
 func (w *Watchdog) ForceCheck(domain string) {
 	w.mu.Lock()
-	if st, ok := w.domainStates[domain]; ok {
-		st.LastCheck = time.Time{}
-		st.CooldownUntil = time.Time{}
+	st, ok := w.domainStates[domain]
+	if !ok {
+		st = &DomainStatus{
+			Domain: domain,
+			Status: StatusHealthy,
+		}
+		w.domainStates[domain] = st
 	}
+	st.LastCheck = time.Time{}
+	st.CooldownUntil = time.Time{}
 	w.mu.Unlock()
 }
 
@@ -211,6 +218,8 @@ func (w *Watchdog) healBatch(domains []string) {
 		return
 	}
 
+	pollTicker := time.NewTicker(2 * time.Second)
+	defer pollTicker.Stop()
 	for {
 		select {
 		case <-w.stop:
@@ -218,7 +227,7 @@ func (w *Watchdog) healBatch(domains []string) {
 			discovery.CancelCheckSuite(suite.Id)
 			w.discoveryRT.Stop(cfg, suite.Id)
 			return
-		case <-time.After(2 * time.Second):
+		case <-pollTicker.C:
 		}
 
 		cs, ok := discovery.GetCheckSuite(suite.Id)

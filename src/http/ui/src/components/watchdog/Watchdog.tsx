@@ -54,6 +54,7 @@ function StatusIcon({ status }: Readonly<{ status: string }>) {
     case "degraded":
       return <WarningIcon sx={{ fontSize: 18, color: "#ff9800" }} />;
     case "escalating":
+    case "queued":
       return <TimerIcon sx={{ fontSize: 18, color: "#2196f3" }} />;
     default:
       return <ErrorIcon sx={{ fontSize: 18, color: "#f44336" }} />;
