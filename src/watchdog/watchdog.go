@@ -49,30 +49,28 @@ func (w *Watchdog) GetState() WatchdogState {
 
 	domains := make([]*DomainStatus, 0)
 	for _, d := range cfg.System.Checker.Watchdog.Domains {
-		var st *DomainStatus
+		var copy DomainStatus
 		if existing, ok := w.domainStates[d]; ok {
-			st = existing
+			copy = *existing
 		} else {
-			st = &DomainStatus{
+			copy = DomainStatus{
 				Domain: d,
 				Status: StatusHealthy,
 			}
 		}
-		st.MatchedSet = ""
-		st.MatchedSetId = ""
 		domain := ExtractDomain(d)
-		st.DisplayDomain = domain
+		copy.DisplayDomain = domain
 		for _, set := range cfg.Sets {
 			if !set.Enabled {
 				continue
 			}
 			if setContainsAnyDomain(set, []string{domain}) {
-				st.MatchedSet = set.Name
-				st.MatchedSetId = set.Id
+				copy.MatchedSet = set.Name
+				copy.MatchedSetId = set.Id
 				break
 			}
 		}
-		domains = append(domains, st)
+		domains = append(domains, &copy)
 	}
 	return WatchdogState{
 		Enabled: cfg.System.Checker.Watchdog.Enabled,
@@ -143,7 +141,10 @@ func (w *Watchdog) tick() {
 	w.mu.Lock()
 	var needsHealing []string
 	for domain, result := range results {
-		st := w.domainStates[domain]
+		st, ok := w.domainStates[domain]
+		if !ok {
+			continue
+		}
 		st.LastCheck = now
 
 		if result.OK {
@@ -213,6 +214,9 @@ func (w *Watchdog) healBatch(domains []string) {
 	for {
 		select {
 		case <-w.stop:
+			log.Infof("[WATCHDOG] shutting down, canceling active discovery")
+			discovery.CancelCheckSuite(suite.Id)
+			w.discoveryRT.Stop(cfg, suite.Id)
 			return
 		case <-time.After(2 * time.Second):
 		}
