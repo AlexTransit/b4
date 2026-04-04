@@ -885,7 +885,7 @@ func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
 					IPTTLSeconds:    600,
 				},
 				Targets: config.TargetsConfig{
-					SNIDomains: []string{"example.com"},
+					SNIDomains: []string{"short.invalid"},
 				},
 			},
 			{
@@ -897,14 +897,13 @@ func TestRoutePeriodicReResolve_PerSetScheduling(t *testing.T) {
 					IPTTLSeconds:    86400,
 				},
 				Targets: config.TargetsConfig{
-					SNIDomains: []string{"other.com"},
+					SNIDomains: []string{"long.invalid"},
 				},
 			},
 		},
 	}
 
 	RoutingPeriodicReResolve(cfg)
-	time.Sleep(50 * time.Millisecond)
 
 	routeMu.Lock()
 	shortUpdated := !routeLastReResolve["set-short"].Equal(shortInitial)

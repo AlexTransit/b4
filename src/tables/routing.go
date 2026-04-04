@@ -383,6 +383,9 @@ func RoutingPeriodicReResolve(cfg *config.Config) {
 		if _, ok := routeRuleCache[set.Id]; !ok {
 			continue
 		}
+		if len(set.Targets.SNIDomains) == 0 {
+			continue
+		}
 		ttl := set.Routing.IPTTLSeconds
 		if ttl <= 0 {
 			ttl = 3600
