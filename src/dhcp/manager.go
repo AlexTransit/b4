@@ -126,6 +126,14 @@ func (m *Manager) refresh() {
 		}
 		log.Tracef("DHCP: %s -> %s (dev: %s)", entry.IP, mac, entry.Device)
 	}
+
+	for ip, mac := range m.ipToMAC {
+		if m.macToIP[mac] != ip {
+			delete(m.ipToMAC, ip)
+			log.Tracef("DHCP: removed stale ARP entry %s -> %s", ip, mac)
+		}
+	}
+
 	count := len(m.ipToMAC)
 	m.mu.Unlock()
 

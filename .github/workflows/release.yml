@@ -66,9 +66,26 @@ jobs:
           path: src/http/ui/dist
           retention-days: 1
 
+  test:
+    name: Run Tests
+    needs: build-ui
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: src/go.mod
+
+      - name: Run tests
+        working-directory: src
+        run: go test ./...
+
   build-linux:
     name: Build Linux ${{ matrix.arch }}
-    needs: build-ui
+    needs: test
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
