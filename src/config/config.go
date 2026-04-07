@@ -4,9 +4,7 @@ import (
 	"github.com/daniellavrushin/b4/log"
 )
 
-var (
-	CreateSetSentinel = "00000000-0000-0000-0000-000000000000"
-)
+var CreateSetSentinel = "00000000-0000-0000-0000-000000000000"
 
 type Config struct {
 	Version    int    `json:"version"`
@@ -235,7 +233,7 @@ var DefaultConfig = Config{
 		},
 
 		Logging: Logging{
-			Level:      log.LevelInfo,
+			Level:      log.LevelError,
 			Instaflush: true,
 			Syslog:     false,
 			ErrorFile:  "/var/log/b4/errors.log",
