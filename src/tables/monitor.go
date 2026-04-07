@@ -30,7 +30,8 @@ type ifaceSnapshot struct {
 }
 
 var (
-	dnsPortMatch = "sport 53"
+	dnsResponsePortMatch = "sport 53"
+	dnsRequestPortMatch  = "dport 53"
 )
 
 func NewMonitor(cfgPtr *atomic.Pointer[config.Config]) *Monitor {
@@ -154,10 +155,11 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 		}
 
 		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "PREROUTING")
-		hasDNS := strings.Contains(out, dnsPortMatch) && strings.Contains(out, "NFQUEUE")
+		hasDNSResponse := strings.Contains(out, dnsResponsePortMatch) && strings.Contains(out, "NFQUEUE")
+		hasDNSRequest := strings.Contains(out, dnsRequestPortMatch) && strings.Contains(out, "NFQUEUE")
 		hasTCP := strings.Contains(out, "tcp") && strings.Contains(out, "NFQUEUE")
-		if !hasDNS || !hasTCP {
-			log.Tracef("Monitor: PREROUTING response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
+		if !hasDNSResponse || !hasDNSRequest || !hasTCP {
+			log.Tracef("Monitor: PREROUTING rules missing (dnsReq=%v, dnsResp=%v, tcp=%v)", hasDNSRequest, hasDNSResponse, hasTCP)
 			return false
 		}
 
@@ -167,7 +169,7 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 		}
 
 		out, _ = run(ipt, "-w", "-t", "mangle", "-S", "OUTPUT")
-		if !strings.Contains(out, dnsPortMatch) || !strings.Contains(out, "NFQUEUE") {
+		if !strings.Contains(out, dnsResponsePortMatch) || !strings.Contains(out, "NFQUEUE") {
 			log.Tracef("Monitor: OUTPUT DNS response rule missing")
 			return false
 		}
@@ -243,10 +245,11 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 		return false
 	}
 	out, _ := nft.runNft("list", "chain", "inet", nftTableName, "prerouting")
-	hasDNS := strings.Contains(out, dnsPortMatch) && strings.Contains(out, "queue")
+	hasDNSResponse := strings.Contains(out, dnsResponsePortMatch) && strings.Contains(out, "queue")
+	hasDNSRequest := strings.Contains(out, dnsRequestPortMatch) && strings.Contains(out, "queue")
 	hasTCP := strings.Contains(out, "tcp sport") && strings.Contains(out, "queue")
-	if !hasDNS || !hasTCP {
-		log.Tracef("Monitor: prerouting response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
+	if !hasDNSResponse || !hasDNSRequest || !hasTCP {
+		log.Tracef("Monitor: prerouting rules missing (dnsReq=%v, dnsResp=%v, tcp=%v)", hasDNSRequest, hasDNSResponse, hasTCP)
 		return false
 	}
 
@@ -256,7 +259,7 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 	}
 
 	out, _ = nft.runNft("list", "chain", "inet", nftTableName, "output")
-	if !strings.Contains(out, dnsPortMatch) || !strings.Contains(out, "queue") {
+	if !strings.Contains(out, dnsResponsePortMatch) || !strings.Contains(out, "queue") {
 		log.Tracef("Monitor: output DNS response rule missing")
 		return false
 	}

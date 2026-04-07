@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.48.2] - 2026-04-07
+
+- FIXED: **GeoSite routing not working with encrypted DNS** — when using DoH/DoT (e.g. `https-dns-proxy`), domains from `GeoSite` categories were not added to routing sets. B4 now intercepts DNS queries earlier so routing works regardless of how upstream DNS is configured.
+
 ## [1.48.1] - 2026-04-05
 
 - ADDED: **UDP Reject mode** — new option for QUIC/UDP handling that sends an ICMP "Port Unreachable" response instead of silently dropping packets. Clients fall back to TCP almost instantly instead of waiting for timeouts.

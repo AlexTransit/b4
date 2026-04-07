@@ -9,6 +9,7 @@ import (
 	"github.com/daniellavrushin/b4/dns"
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/sock"
+	"github.com/daniellavrushin/b4/utils"
 	"github.com/florianl/go-nfqueue"
 )
 
@@ -91,7 +92,20 @@ func (w *Worker) processDnsPacket(ipVersion byte, sport uint16, dport uint16, pa
 						}
 					}
 				}
-				if !(set.DNS.Enabled && set.DNS.TargetDNS != "") {
+				dnsRedirect := set.DNS.Enabled && set.DNS.TargetDNS != ""
+				if dnsRedirect {
+					var dstIP net.IP
+					switch ipVersion {
+					case IPv4:
+						dstIP = net.IP(raw[16:20])
+					case IPv6:
+						dstIP = net.IP(raw[24:40])
+					}
+					if dstIP != nil && utils.IsPrivateIP(dstIP) {
+						dnsRedirect = false
+					}
+				}
+				if !dnsRedirect {
 					if err := w.q.SetVerdict(id, nfqueue.NfAccept); err != nil {
 						log.Tracef("failed to set verdict on packet %d: %v", id, err)
 					}
