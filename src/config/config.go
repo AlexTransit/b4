@@ -235,7 +235,7 @@ var DefaultConfig = Config{
 		},
 
 		Logging: Logging{
-			Level:      log.LevelInfo,
+			Level:      log.LevelError,
 			Instaflush: true,
 			Syslog:     false,
 			ErrorFile:  "/var/log/b4/errors.log",
