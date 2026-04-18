@@ -737,6 +737,28 @@ func (ipt *IPTablesManager) clearB4JumpRules() {
 			}
 		}
 
+		for {
+			out, _ := run(iptBin, "-w", "-t", "mangle", "--line-numbers", "-nL", "PREROUTING")
+			lines := strings.Split(out, "\n")
+			removed := false
+			for _, line := range lines {
+				isDNS := strings.Contains(line, "spt:53") && strings.Contains(line, "NFQUEUE")
+				isTCP := strings.Contains(line, "tcp") && strings.Contains(line, "NFQUEUE")
+				if isDNS || isTCP {
+					parts := strings.Fields(line)
+					if len(parts) > 0 {
+						if _, err := run(iptBin, "-w", "-t", "mangle", "-D", "PREROUTING", parts[0]); err == nil {
+							removed = true
+							break
+						}
+					}
+				}
+			}
+			if !removed {
+				break
+			}
+		}
+
 		// Clean OUTPUT - parse and remove any B4 mark rules
 		for {
 			out, _ := run(iptBin, "-w", "-t", "mangle", "-S", "OUTPUT")

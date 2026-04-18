@@ -1,7 +1,7 @@
 package sock
 
 import (
-	"math/rand"
+	"crypto/rand"
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
@@ -17,7 +17,9 @@ func GetPayload(faking *config.FakingConfig) []byte {
 	switch faking.SNIType {
 	case config.FakePayloadRandom:
 		p := make([]byte, 1200)
-		rand.Read(p)
+		if _, err := rand.Read(p); err != nil {
+			log.Warnf("crypto/rand read failed: %v", err)
+		}
 		return p
 	case config.FakePayloadZero:
 		return make([]byte, 1200)

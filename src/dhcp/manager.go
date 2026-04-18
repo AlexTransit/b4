@@ -84,10 +84,16 @@ func (m *Manager) Start() {
 		}
 	}()
 
-	if m.available {
+	m.mu.RLock()
+	hasManual := len(m.manualDevices) > 0
+	m.mu.RUnlock()
+	switch {
+	case m.available:
 		log.Infof("DHCP manager started (source: arp)")
-	} else {
+	case hasManual:
 		log.Infof("DHCP manager started (manual devices only)")
+	default:
+		log.Infof("DHCP manager started (no DHCP sources available)")
 	}
 }
 

@@ -33,16 +33,81 @@ import {
 import { useDevices, DevicesSettingsProps } from "@b4.devices";
 import { sortDevices } from "@utils";
 
-const generateSyntheticMAC = (ip: string): string => {
-  const parts = ip.trim().split(".");
-  if (parts.length !== 4) return "";
-  const octets = parts.map((p) => {
-    if (!/^\d+$/.test(p)) return -1;
+const toMac = (bytes: number[]): string =>
+  `02:B4:${bytes.map((b) => b.toString(16).toUpperCase().padStart(2, "0")).join(":")}`;
+
+const parseIPv4 = (ip: string): number[] | null => {
+  const parts = ip.split(".");
+  if (parts.length !== 4) return null;
+  const octets: number[] = [];
+  for (const p of parts) {
+    if (!/^\d+$/.test(p)) return null;
     const n = Number(p);
-    return n >= 0 && n <= 255 ? n : -1;
-  });
-  if (octets.some((o) => o < 0)) return "";
-  return `02:B4:${octets.map((o) => o.toString(16).toUpperCase().padStart(2, "0")).join(":")}`;
+    if (n < 0 || n > 255) return null;
+    octets.push(n);
+  }
+  return octets;
+};
+
+const splitIPv6 = (ip: string): { head: string[]; tail: string[] } | null => {
+  const dblIdx = ip.indexOf("::");
+  if (dblIdx < 0) return { head: ip.split(":"), tail: [] };
+  if (ip.slice(dblIdx + 1).includes("::")) return null;
+  const left = ip.slice(0, dblIdx);
+  const right = ip.slice(dblIdx + 2);
+  return {
+    head: left ? left.split(":") : [],
+    tail: right ? right.split(":") : [],
+  };
+};
+
+const extractEmbeddedIPv4 = (head: string[], tail: string[]): number[] | null | undefined => {
+  const last = tail.length ? tail.at(-1) : head.at(-1);
+  if (!last?.includes(".")) return undefined;
+  const v4 = parseIPv4(last);
+  if (!v4) return null;
+  if (tail.length) tail.pop();
+  else head.pop();
+  return v4;
+};
+
+const groupsToBytes = (groups: string[]): number[] | null => {
+  const bytes: number[] = [];
+  for (const g of groups) {
+    if (!/^[0-9a-fA-F]{1,4}$/.test(g)) return null;
+    const n = Number.parseInt(g, 16);
+    bytes.push((n >> 8) & 0xff, n & 0xff);
+  }
+  return bytes;
+};
+
+const parseIPv6 = (raw: string): number[] | null => {
+  const zoneIdx = raw.indexOf("%");
+  const ip = zoneIdx >= 0 ? raw.slice(0, zoneIdx) : raw;
+  if (!ip.includes(":")) return null;
+  const split = splitIPv6(ip);
+  if (!split) return null;
+  const { head, tail } = split;
+  const embedded = extractEmbeddedIPv4(head, tail);
+  if (embedded === null) return null;
+  const groupsCount = 8 - (embedded ? 2 : 0);
+  const fillCount = groupsCount - head.length - tail.length;
+  const hasDouble = ip.includes("::");
+  if (fillCount < 0 || (!hasDouble && fillCount !== 0)) return null;
+  const groups = [...head, ...new Array<string>(fillCount).fill("0"), ...tail];
+  const bytes = groupsToBytes(groups);
+  if (!bytes) return null;
+  if (embedded) bytes.push(...embedded);
+  return bytes.length === 16 ? bytes : null;
+};
+
+const generateSyntheticMAC = (ip: string): string => {
+  const trimmed = ip.trim();
+  const v4 = parseIPv4(trimmed);
+  if (v4) return toMac(v4);
+  const v6 = parseIPv6(trimmed);
+  if (v6) return toMac(v6.slice(12));
+  return "";
 };
 
 export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
@@ -90,11 +155,12 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
   };
 
   const handleSelectAll = (selectAll: boolean) => {
-    const current = [...configDevices];
-    const allMacs = new Set(devices.map((d) => d.mac.toUpperCase()));
-    const updated = current.map((d) =>
-      allMacs.has(d.mac.toUpperCase()) ? { ...d, selected: selectAll } : d
-    );
+    const visibleMacs = new Set(devices.map((d) => d.mac.toUpperCase()));
+    const updated = configDevices.map((d) => {
+      if (selectAll && !visibleMacs.has(d.mac.toUpperCase())) return d;
+      if (!selectAll && d.is_manual) return d;
+      return { ...d, selected: selectAll };
+    });
     if (selectAll) {
       for (const d of devices) {
         if (!updated.some((u) => u.mac.toUpperCase() === d.mac.toUpperCase())) {
@@ -314,7 +380,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                               {editingMac === device.mac ? (
                                 <B4InlineEdit
                                   value={findConfigDevice(device.mac)?.name || device.alias || device.vendor || ""}
-                                  onSave={async (name) => {
+                                  onSave={(name) => {
                                     updateDevice(device.mac, { name });
                                     setEditingMac(null);
                                   }}

@@ -576,18 +576,21 @@ export const DiscoveryRunner = () => {
                 gap: 2,
               }}
             >
-              {strategyGroups.map((group) => (
+              {strategyGroups.map((group) => {
+                const groupKey = `${group.family}::${group.winnerPreset}`;
+                return (
                 <StrategyGroupCard
-                  key={group.winnerPreset}
+                  key={groupKey}
                   group={group}
-                  expanded={expandedDomains.has(group.winnerPreset)}
-                  onToggleExpand={() => toggleDomainExpand(group.winnerPreset)}
+                  expanded={expandedDomains.has(groupKey)}
+                  onToggleExpand={() => toggleDomainExpand(groupKey)}
                   onApply={() => handleAddGroupStrategy(group)}
                   addingPreset={addingPreset}
                   familyNames={familyNames}
                   domainResults={suite.domain_discovery_results}
                 />
-              ))}
+                );
+              })}
 
               {failedDomains.map((dr) => (
                 <FailedDomainCard

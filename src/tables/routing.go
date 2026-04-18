@@ -722,6 +722,9 @@ func routeResolveIDs(cfg *config.Config, set *config.SetConfig) (uint32, int) {
 		}
 		mark++
 		table++
+		if table > 249 {
+			table = 100
+		}
 	}
 	routeIfaceAuto[set.Routing.EgressInterface] = routeState{mark: mark, table: table}
 	return mark, table
