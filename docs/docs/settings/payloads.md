@@ -3,7 +3,7 @@ sidebar_position: 4
 title: Payloads
 ---
 
-![payloads](/img/payloads/20260323222921.png)
+![20260418233650](../../static/img/payloads/20260418233650.png)
 
 ## Why payloads exist
 

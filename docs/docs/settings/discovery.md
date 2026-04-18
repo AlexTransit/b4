@@ -5,7 +5,7 @@ title: Discovery
 
 Parameters that affect the automatic configuration search and the DPI detector. Configured in **Settings -> Discovery**.
 
-![discovery](/img/discovery/20260323220046.png)
+![20260418233744](../../static/img/discovery/20260418233744.png)
 
 ## Parameters
 

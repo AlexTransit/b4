@@ -7,7 +7,7 @@ title: Backup
 
 The **Download** button creates a `.tar.gz` archive with the full b4 configuration. The archive contains the contents of the configuration directory, except for `.dat` files (GeoSite/GeoIP) and the OUI database (vendor lookup).
 
-![backup](/img/backup/20260323215742.png)
+![20260418233824](../../static/img/backup/20260418233824.png)
 
 ## Restore from a backup
 
