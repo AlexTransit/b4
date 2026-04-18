@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "docusaurus start",
+    "dev:ru": "docusaurus start --locale ru",
+    "dev:en": "docusaurus start --locale en",
     "docusaurus": "docusaurus",
     "start": "docusaurus start",
     "build": "docusaurus build",
@@ -11,6 +13,7 @@
     "deploy": "docusaurus deploy",
     "clear": "docusaurus clear",
     "serve": "docusaurus serve",
+    "preview": "docusaurus build && docusaurus serve",
     "write-translations": "docusaurus write-translations",
     "write-heading-ids": "docusaurus write-heading-ids",
     "typecheck": "tsc"

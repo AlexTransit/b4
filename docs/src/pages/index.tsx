@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import Link from "@docusaurus/Link";
+import Translate, { translate } from "@docusaurus/Translate";
 import useDocusaurusContext from "@docusaurus/useDocusaurusContext";
 import Layout from "@theme/Layout";
 import HomepageFeatures from "@site/src/components/HomepageFeatures";
@@ -12,24 +13,28 @@ function HomepageHeader() {
       <div className="container">
         <h1 className="hero__title">{siteConfig.title}</h1>
         <p className="hero__subtitle">
-          Обход блокировок на уровне сетевых пакетов для Linux и роутеров
+          <Translate id="home.subtitle">
+            Packet-level censorship bypass for Linux and routers
+          </Translate>
         </p>
         <p className={styles.description}>
-          Веб-интерфейс, автоматический подбор конфигурации, поддержка роутеров
-          и серверов
+          <Translate id="home.description">
+            Web UI, automatic configuration discovery, support for routers and
+            servers
+          </Translate>
         </p>
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
             to="/docs/intro"
           >
-            Начать
+            <Translate id="home.cta.start">Get started</Translate>
           </Link>
           <Link
             className="button button--outline button--secondary button--lg margin-left--md"
             to="https://github.com/DanielLavrushin/b4"
           >
-            GitHub
+            <Translate id="home.cta.github">GitHub</Translate>
           </Link>
         </div>
       </div>
@@ -39,7 +44,13 @@ function HomepageHeader() {
 
 export default function Home() {
   return (
-    <Layout title="Документация" description="B4 — обход блокировок для Linux">
+    <Layout
+      title={translate({ id: "home.title", message: "Documentation" })}
+      description={translate({
+        id: "home.meta.description",
+        message: "b4 - censorship bypass for Linux",
+      })}
+    >
       <HomepageHeader />
       <main>
         <HomepageFeatures />

@@ -3,12 +3,4 @@ sidebar_position: 2
 title: TCP
 ---
 
-# TCP
-
-Вкладка TCP — основная часть настройки обхода DPI. Содержит три подвкладки, соответствующие трём аспектам обработки пакетов:
-
-- [Общее](./general) — лимиты, задержки, дублирование
-- [Фрагментация](./splitting) — разбиение пакетов на части
-- [Faking](./faking) — отправка ложных пакетов, десинхронизация, мутация
-
-<!-- screenshot: вкладка TCP с тремя подвкладками -->
+English translation is in progress. See the [Russian version](/ru/docs/sets/tcp).

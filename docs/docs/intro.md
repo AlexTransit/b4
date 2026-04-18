@@ -1,23 +1,23 @@
 ---
 sidebar_position: 1
-title: Введение
+title: Introduction
 ---
 
-## Что такое b4
+## What b4 is
 
-**b4** (Bye Bye Big Bro) — это программа, которая помогает открывать сайты, заблокированные вашим интернет-провайдером. Провайдеры используют технологию DPI (глубокий анализ пакетов), чтобы распознавать и блокировать трафик к определённым ресурсам. b4 изменяет сетевые пакеты таким образом, что система блокировки не может их распознать — при этом сайт получает данные без изменений и работает как обычно.
+**b4** (Bye Bye Big Bro) is a service that helps open websites blocked by your internet provider. Providers use DPI technology (Deep Packet Inspection) to recognize and block traffic to specific resources. b4 modifies network packets so that the blocking system cannot recognize them - the destination site still receives the data unchanged and works as usual.
 
-b4 работает на Linux-устройствах: обычных компьютерах, серверах и роутерах. Если установить b4 на роутер — обход блокировок работает сразу для всех устройств в домашней сети без дополнительных настроек на каждом из них.
+b4 runs on Linux devices: regular computers, servers, and routers. When installed on a router, bypass works for every device on the home network without any configuration on the individual devices.
 
-Управление происходит через **веб-интерфейс** в браузере.
+Management is done through a **web interface** in the browser.
 
-## Как это работает
+## How it works
 
 ```mermaid
 flowchart LR
-    A["Ваше устройство"] --> B["b4"]
-    B --> C{"DPI провайдера"}
-    C -->|"Не распознал"| D["Сайт работает"]
+    A["Your device"] --> B["b4"]
+    B --> C{"Provider DPI"}
+    C -->|"Not recognized"| D["Site works"]
 
     style A fill:#4a9eff,color:#fff,stroke:none
     style B fill:#e91e63,color:#fff,stroke:none
@@ -25,56 +25,56 @@ flowchart LR
     style D fill:#4caf50,color:#fff,stroke:none
 ```
 
-**Без b4:** вы открываете сайт — провайдер видит, куда вы идёте, и блокирует соединение.
+**Without b4:** you open a site - the provider sees where you are going and blocks the connection.
 
-**С b4:** пакеты модифицируются до того, как попадут к провайдеру. DPI-система не может определить, какой сайт вы запрашиваете, и пропускает трафик. Сам сайт при этом собирает пакеты обратно и работает нормально.
+**With b4:** packets are modified before they reach the provider. The DPI system cannot determine which site you are requesting and lets the traffic through. The site itself reassembles the packets and works normally.
 
-Основные методы обхода:
+Main bypass methods:
 
-- **Фрагментация** — запрос разбивается на части, которые DPI не может собрать воедино
-- **Подмена** — отправка ложных пакетов, которые сбивают DPI с толку
-- **Модификация** — изменение служебных полей пакета, чтобы они не совпадали с сигнатурами блокировки
+- **Fragmentation** - the request is split into parts that the DPI cannot reassemble
+- **Faking** - sending decoy packets that confuse the DPI
+- **Modification** - altering packet header fields so they do not match blocking signatures
 
-Разбираться в деталях не обязательно — в b4 есть механизм автоматического подбора конфигурации под вашего провайдера.
+You do not need to understand the details - b4 includes an automatic mechanism that picks a working configuration for your provider.
 
-## Основные возможности
+## Main features
 
-b4 состоит из нескольких частей, которые подробно описаны в соответствующих разделах документации:
+b4 consists of several parts, each described in detail in its own documentation section:
 
-- **Наборы настроек (сеты)** — конфигурации обхода для TCP/UDP трафика с разными стратегиями
-- **Обнаружение** — автоматический подбор рабочей конфигурации
-- **Детектор DPI** — определение методов блокировки у вашего провайдера
-- **Мониторинг соединений** — просмотр трафика в реальном времени
-- **GeoSite/GeoIP** — работа с категориями сайтов и IP-адресов
-- **Фильтрация по устройствам** — разные правила для разных устройств в сети
-- **Маршрутизация** — направление трафика через заданный интерфейс (VPN, WireGuard и т.д.)
-- **SOCKS5-прокси** — для приложений, которые поддерживают прокси
-- **MTProto-прокси** — прокси для Telegram
+- **Sets** - bypass configurations for TCP/UDP traffic with different strategies
+- **Discovery** - automatic selection of a working configuration
+- **DPI Detector** - identifies the blocking methods used by your provider
+- **Connections monitor** - view traffic in real time
+- **GeoSite/GeoIP** - work with site categories and IP addresses
+- **Per-device filtering** - different rules for different devices on the network
+- **Routing** - direct traffic through a specific interface (VPN, WireGuard, etc.)
+- **SOCKS5 proxy** - for applications that support proxies
+- **MTProto proxy** - a proxy for Telegram
 
-## Системные требования
+## System requirements
 
-### Поддерживаемые платформы
+### Supported platforms
 
-| Платформа   | Описание                                                      |
-| ----------- | ------------------------------------------------------------- |
-| Linux | Любой дистрибутив с ядром 3.13+ (Ubuntu, Debian, Alpine и др.) |
-| OpenWRT | Роутеры с прошивкой OpenWRT |
-| ASUS Merlin | Роутеры ASUS с прошивкой Merlin (через Entware) |
-| Keenetic | Роутеры Keenetic с поддержкой OPKG |
-| MikroTik | RouterOS 7.x с поддержкой контейнеров |
-| Docker | Любая система с Docker |
+| Platform | Description |
+| --- | --- |
+| Linux | Any distribution with kernel 3.13+ (Ubuntu, Debian, Alpine, etc.) |
+| OpenWRT | Routers running OpenWRT firmware |
+| ASUS Merlin | ASUS routers with Merlin firmware (via Entware) |
+| Keenetic | Keenetic routers with OPKG support |
+| MikroTik | RouterOS 7.x with container support |
+| Docker | Any system with Docker |
 
-### Поддерживаемые архитектуры
+### Supported architectures
 
 `amd64`, `arm64`, `armv7`, `armv6`, `armv5`, `386`, `mips`, `mipsle`, `mips64`, `mips64le`
 
-### Минимальные требования
+### Minimum requirements
 
-- **RAM:** 64 МБ свободной памяти
-- **Диск:** ~30 МБ для бинарника + место для конфигурации и geodata
-- **Ядро Linux:** 3.13+ с поддержкой NFQUEUE (`nfnetlink_queue`)
-- **Права:** root (для работы с netfilter)
+- **RAM:** 64 MB of free memory
+- **Disk:** ~30 MB for the binary plus space for configuration and geodata
+- **Linux kernel:** 3.13+ with NFQUEUE support (`nfnetlink_queue`)
+- **Privileges:** root (required for netfilter)
 
 :::info
-При установке на роутер обход работает для всех устройств в сети без настройки на каждом из них.
+When installed on a router, bypass works for every device on the network without any per-device setup.
 :::

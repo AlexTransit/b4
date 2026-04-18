@@ -4,10 +4,12 @@ import type * as Preset from "@docusaurus/preset-classic";
 
 const config: Config = {
   title: "B4 - Bye Bye Big Bro",
-  tagline: "Продвинутая система обхода блокировок",
+  tagline: "Advanced censorship bypass system",
   favicon: "img/favicon.ico",
   url: "https://daniellavrushin.github.io/",
   baseUrl: "/b4",
+
+  onBrokenLinks: "warn",
 
   markdown: {
     mermaid: true,
@@ -15,8 +17,12 @@ const config: Config = {
   themes: ["@docusaurus/theme-mermaid"],
 
   i18n: {
-    defaultLocale: "ru",
-    locales: ["ru"],
+    defaultLocale: "en",
+    locales: ["en", "ru"],
+    localeConfigs: {
+      en: { label: "English" },
+      ru: { label: "Русский" },
+    },
   },
 
   presets: [
@@ -25,7 +31,8 @@ const config: Config = {
       {
         docs: {
           sidebarPath: "./sidebars.ts",
-          editUrl: "https://github.com/DanielLavrushin/b4/tree/main/docs/",
+          editUrl:
+            "https://github.com/DanielLavrushin/b4/tree/main/docs/",
         },
         theme: {
           customCss: "./src/css/custom.css",
@@ -46,12 +53,16 @@ const config: Config = {
           type: "docSidebar",
           sidebarId: "tutorialSidebar",
           position: "left",
-          label: "Документация",
+          label: "Docs",
         },
         {
           to: "/swagger",
           label: "API",
           position: "left",
+        },
+        {
+          type: "localeDropdown",
+          position: "right",
         },
         {
           href: "https://github.com/DanielLavrushin/b4",
