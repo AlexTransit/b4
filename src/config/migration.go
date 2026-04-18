@@ -618,8 +618,6 @@ func (c *Config) LoadWithMigration(path string) error {
 		}
 	}
 
-	ApplyConfigDefaults(c)
-
 	if c.Version < CurrentConfigVersion {
 		log.Infof("Config version %d is older than current version %d, migrating",
 			c.Version, CurrentConfigVersion)

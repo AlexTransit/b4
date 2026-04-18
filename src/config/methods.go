@@ -95,8 +95,6 @@ func (c *Config) LoadFromFile(path string) error {
 		}
 	}
 
-	ApplyConfigDefaults(c)
-
 	return nil
 }
 
