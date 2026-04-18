@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { Box, Container, Fab, Paper, Tooltip } from "@mui/material";
-import { StartIcon, StopIcon } from "@b4.icons";
+import { Box, Container, Fab, Paper, Tooltip, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { StartIcon, StopIcon, DashboardIcon, LogsIcon } from "@b4.icons";
 import { DomainsControlBar } from "./ControlBar";
 import { AddSniModal } from "./AddSniModal";
 import { DomainsTable, SortColumn } from "./Table";
+import { AggregatedView } from "./views/AggregatedView";
 import { SortDirection } from "@common/SortableTableCell";
 import {
   useDomainActions,
@@ -72,6 +73,11 @@ export function ConnectionsPage() {
     resetDomainsBadge,
   } = useWebSocket();
 
+  const [view, setView] = useState<"aggregated" | "raw">(() => {
+    const saved = localStorage.getItem("b4_connections_view");
+    return saved === "raw" ? "raw" : "aggregated";
+  });
+
   const [filter, setFilter] = useState(() => {
     return localStorage.getItem("b4_connections_filter") || "";
   });
@@ -101,12 +107,17 @@ export function ConnectionsPage() {
   const [ipInfoToken, setIpInfoToken] = useState<string>("");
   const [devicesEnabled, setDevicesEnabled] = useState<boolean>(false);
   const [deviceMap, setDeviceMap] = useState<Record<string, string>>({});
+  const [configDeviceNames, setConfigDeviceNames] = useState<Record<string, string>>({});
   const [enrichingIps, setEnrichingIps] = useState<Set<string>>(new Set());
   const [asnVersion, setAsnVersion] = useState(0);
 
   useEffect(() => {
     localStorage.setItem("b4_connections_filter", filter);
   }, [filter]);
+
+  useEffect(() => {
+    localStorage.setItem("b4_connections_view", view);
+  }, [view]);
 
   useEffect(() => {
     saveSortState(sortColumn, sortDirection);
@@ -125,7 +136,7 @@ export function ConnectionsPage() {
 
   useEffect(() => {
     if (!devicesEnabled) {
-      setDeviceMap({});
+      setDeviceMap({ ...configDeviceNames });
       return;
     }
     devicesApi
@@ -136,10 +147,13 @@ export function ConnectionsPage() {
           const normalized = d.mac.toUpperCase().replace(/-/g, ":");
           map[normalized] = d.alias || d.vendor || "";
         }
+        for (const [mac, name] of Object.entries(configDeviceNames)) {
+          map[mac] = name;
+        }
         setDeviceMap(map);
       })
       .catch(() => {});
-  }, [devicesEnabled]);
+  }, [devicesEnabled, configDeviceNames]);
 
   const fetchSets = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -153,6 +167,13 @@ export function ConnectionsPage() {
           setIpInfoToken(data.system.api.ipinfo_token);
         }
         setDevicesEnabled(data.queue?.devices?.enabled || data.queue?.devices?.vendor_lookup || false);
+        const names: Record<string, string> = {};
+        for (const d of data.queue?.devices?.devices || []) {
+          if (d.mac && d.name) {
+            names[d.mac.toUpperCase().replaceAll("-", ":")] = d.name;
+          }
+        }
+        setConfigDeviceNames(names);
       }
     } catch (error) {
       if ((error as Error).name !== "AbortError") {
@@ -314,52 +335,112 @@ export function ConnectionsPage() {
           transition: "border-color 0.3s",
         }}
       >
-        <DomainsControlBar
-          filter={filter}
-          onFilterChange={setFilter}
-          totalCount={enrichedLogs.length}
-          filteredCount={filteredLogs.length}
-          sortColumn={sortColumn}
-          showAll={showAll}
-          onShowAllChange={setShowAll}
-          onClearSort={handleClearSort}
-          onReset={clearDomains}
-        />
-
-        <Box sx={{ position: "relative", flex: 1, overflow: "hidden", display: "flex" }}>
-          <DomainsTable
-            data={sortedData}
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onDomainClick={handleDomainClick}
-            onIpClick={handleIpClick}
-            onEnrichIp={handleEnrichIp}
-            onDeleteAsn={handleDeleteAsn}
-            enrichingIps={enrichingIps}
-            asnVersion={asnVersion}
-            onScrollStateChange={handleScrollStateChange}
-          />
-
-          <Tooltip title={pauseDomains ? t("connections.page.resumeStreaming") : t("connections.page.pauseStreaming")} placement="left">
-            <Fab
-              size="small"
-              onClick={() => setPauseDomains(!pauseDomains)}
-              sx={{
-                position: "absolute",
-                bottom: 16,
-                right: 16,
-                bgcolor: pauseDomains ? colors.secondary : colors.border.strong,
-                color: colors.background.default,
-                "&:hover": {
-                  bgcolor: pauseDomains ? colors.secondary : colors.border.default,
-                },
-              }}
-            >
-              {pauseDomains ? <StartIcon /> : <StopIcon />}
-            </Fab>
-          </Tooltip>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            px: 2,
+            pt: 1,
+            pb: 0.5,
+            borderBottom: `1px solid ${colors.border.light}`,
+            bgcolor: colors.background.control,
+          }}
+        >
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={view}
+            onChange={(_, v: "aggregated" | "raw" | null) => v && setView(v)}
+            sx={{
+              "& .MuiToggleButton-root": {
+                px: 1.2,
+                py: 0.2,
+                color: colors.text.secondary,
+                borderColor: colors.border.default,
+                fontSize: 12,
+              },
+              "& .Mui-selected": {
+                color: `${colors.secondary} !important`,
+                bgcolor: `${colors.accent.secondary} !important`,
+              },
+            }}
+          >
+            <ToggleButton value="aggregated">
+              <DashboardIcon sx={{ fontSize: 14, mr: 0.5 }} />
+              {t("connections.aggregated.tabAggregated")}
+            </ToggleButton>
+            <ToggleButton value="raw">
+              <LogsIcon sx={{ fontSize: 14, mr: 0.5 }} />
+              {t("connections.aggregated.tabRaw")}
+            </ToggleButton>
+          </ToggleButtonGroup>
         </Box>
+
+        {view === "aggregated" ? (
+          <AggregatedView
+            lines={domains}
+            deviceMap={deviceMap}
+            paused={pauseDomains}
+            onTogglePause={() => setPauseDomains(!pauseDomains)}
+            showAll={showAll}
+            onShowAllChange={setShowAll}
+            onReset={clearDomains}
+            filter={filter}
+            onFilterChange={setFilter}
+            enrichingIps={enrichingIps}
+            onAddDomain={handleDomainClick}
+            onAddIp={handleIpClick}
+            onEnrichAsn={(ip) => { void handleEnrichIp(ip); }}
+            onDeleteAsn={handleDeleteAsn}
+          />
+        ) : (
+          <>
+            <DomainsControlBar
+              filter={filter}
+              onFilterChange={setFilter}
+              totalCount={enrichedLogs.length}
+              filteredCount={filteredLogs.length}
+              sortColumn={sortColumn}
+              showAll={showAll}
+              onShowAllChange={setShowAll}
+              onClearSort={handleClearSort}
+              onReset={clearDomains}
+            />
+            <Box sx={{ position: "relative", flex: 1, overflow: "hidden", display: "flex" }}>
+              <DomainsTable
+                data={sortedData}
+                sortColumn={sortColumn}
+                sortDirection={sortDirection}
+                onSort={handleSort}
+                onDomainClick={handleDomainClick}
+                onIpClick={handleIpClick}
+                onEnrichIp={handleEnrichIp}
+                onDeleteAsn={handleDeleteAsn}
+                enrichingIps={enrichingIps}
+                asnVersion={asnVersion}
+                onScrollStateChange={handleScrollStateChange}
+              />
+              <Tooltip title={pauseDomains ? t("connections.page.resumeStreaming") : t("connections.page.pauseStreaming")} placement="left">
+                <Fab
+                  size="small"
+                  onClick={() => setPauseDomains(!pauseDomains)}
+                  sx={{
+                    position: "absolute",
+                    bottom: 16,
+                    right: 16,
+                    bgcolor: pauseDomains ? colors.secondary : colors.border.strong,
+                    color: colors.background.default,
+                    "&:hover": {
+                      bgcolor: pauseDomains ? colors.secondary : colors.border.default,
+                    },
+                  }}
+                >
+                  {pauseDomains ? <StartIcon /> : <StopIcon />}
+                </Fab>
+              </Tooltip>
+            </Box>
+          </>
+        )}
       </Paper>
 
       <AddSniModal
