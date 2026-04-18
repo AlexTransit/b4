@@ -154,12 +154,20 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 			}
 		}
 
-		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "PREROUTING")
+		if _, err := run(ipt, "-w", "-t", "mangle", "-S", "B4_PREROUTING"); err != nil {
+			log.Tracef("Monitor: B4_PREROUTING chain missing")
+			return false
+		}
+		if _, err := run(ipt, "-w", "-t", "mangle", "-C", "PREROUTING", "-j", "B4_PREROUTING"); err != nil {
+			log.Tracef("Monitor: PREROUTING->B4_PREROUTING jump missing")
+			return false
+		}
+		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "B4_PREROUTING")
 		hasDNSResponse := strings.Contains(out, dnsResponsePortMatch) && strings.Contains(out, "NFQUEUE")
 		hasDNSRequest := strings.Contains(out, dnsRequestPortMatch) && strings.Contains(out, "NFQUEUE")
 		hasTCP := strings.Contains(out, "tcp") && strings.Contains(out, "NFQUEUE")
 		if !hasDNSResponse || !hasDNSRequest || !hasTCP {
-			log.Tracef("Monitor: PREROUTING rules missing (dnsReq=%v, dnsResp=%v, tcp=%v)", hasDNSRequest, hasDNSResponse, hasTCP)
+			log.Tracef("Monitor: B4_PREROUTING rules missing (dnsReq=%v, dnsResp=%v, tcp=%v)", hasDNSRequest, hasDNSResponse, hasTCP)
 			return false
 		}
 

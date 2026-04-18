@@ -118,7 +118,7 @@ func (b *routeIptBackend) deleteChain(chain string, isMangle bool) {
 }
 
 func (b *routeIptBackend) addBypassRule(chain string, mark uint32) {
-	markHex := fmt.Sprintf("0x%x", mark)
+	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	for _, cmd := range b.iptBoth() {
 		if !hasBinary(cmd) {
 			continue
@@ -185,7 +185,7 @@ func (b *routeIptBackend) addMasqueradeRule(chain string, mark uint32, iface str
 	if !hasBinary(cmd) {
 		return
 	}
-	markHex := fmt.Sprintf("0x%x", mark)
+	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	ctMask := fmt.Sprintf("0x%x/0x%x", hostRouteCTMark, hostRouteCTMark)
 
 	runLogged("routing: add masquerade rule (host)",
