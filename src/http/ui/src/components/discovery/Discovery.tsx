@@ -180,7 +180,7 @@ export const DiscoveryRunner = () => {
   };
 
   const handleAddGroupStrategy = (group: StrategyGroup) => {
-    let presetName = familyNames[group.family];
+    let presetName = group.winnerPreset || familyNames[group.family];
     if (options.tlsVersion === "tls12") presetName += "-tls12";
     else if (options.tlsVersion === "tls13") presetName += "-tls13";
 
@@ -560,7 +560,10 @@ export const DiscoveryRunner = () => {
         Object.keys(suite.domain_discovery_results).length > 0 &&
         (() => {
           const { success: strategyGroups, failed: failedDomains } =
-            groupByStrategy(suite.domain_discovery_results);
+            groupByStrategy(
+              suite.domain_discovery_results,
+              suite.strategy_groups,
+            );
           return (
             <Box
               sx={{
@@ -575,10 +578,10 @@ export const DiscoveryRunner = () => {
             >
               {strategyGroups.map((group) => (
                 <StrategyGroupCard
-                  key={group.family}
+                  key={group.winnerPreset}
                   group={group}
-                  expanded={expandedDomains.has(group.family)}
-                  onToggleExpand={() => toggleDomainExpand(group.family)}
+                  expanded={expandedDomains.has(group.winnerPreset)}
+                  onToggleExpand={() => toggleDomainExpand(group.winnerPreset)}
                   onApply={() => handleAddGroupStrategy(group)}
                   addingPreset={addingPreset}
                   familyNames={familyNames}

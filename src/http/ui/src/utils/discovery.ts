@@ -1,8 +1,13 @@
 import { B4SetConfig } from "@models/config";
-import { StrategyFamily, DiscoveryResult } from "@models/discovery";
+import {
+  StrategyFamily,
+  DiscoveryResult,
+  BackendStrategyGroup,
+} from "@models/discovery";
 
 export interface StrategyGroup {
   family: StrategyFamily;
+  winnerPreset: string;
   domains: {
     domain: string;
     speed: number;
@@ -16,53 +21,76 @@ export interface StrategyGroup {
 
 export function groupByStrategy(
   results: Record<string, DiscoveryResult>,
+  backendGroups?: BackendStrategyGroup[],
 ): { success: StrategyGroup[]; failed: DiscoveryResult[] } {
-  const groups: Record<string, StrategyGroup> = {};
   const failed: DiscoveryResult[] = [];
+  const grouped = new Set<string>();
+  const success: StrategyGroup[] = [];
 
+  if (backendGroups && backendGroups.length > 0) {
+    backendGroups.forEach((bg) => {
+      const domains = bg.domains.map((d) => {
+        grouped.add(d);
+        const dr = results[d];
+        const winnerResult = dr?.results?.[bg.winner_preset];
+        const speed = winnerResult?.speed ?? dr?.best_speed ?? 0;
+        return {
+          domain: d,
+          speed,
+          improvement: dr?.improvement,
+          presetName: dr?.best_preset || bg.winner_preset,
+        };
+      });
+      const speeds = domains.map((d) => d.speed).filter((s) => s > 0);
+      success.push({
+        family: bg.family,
+        winnerPreset: bg.winner_preset,
+        domains,
+        minSpeed: speeds.length ? Math.min(...speeds) : 0,
+        maxSpeed: speeds.length ? Math.max(...speeds) : 0,
+        representativeSet: bg.set ?? null,
+      });
+    });
+  }
+
+  // Fallback for ungrouped successful domains (e.g. mid-cancel, before backend
+  // has finished building groups). Groups by winning preset so each domain still
+  // shows up as a success with an applicable set.
+  const fallback: Record<string, StrategyGroup> = {};
   Object.values(results).forEach((dr) => {
     if (!dr.best_success || !dr.best_preset) {
       failed.push(dr);
       return;
     }
+    if (grouped.has(dr.domain)) return;
     const bestResult = dr.results[dr.best_preset];
     if (!bestResult) {
       failed.push(dr);
       return;
     }
     const family = bestResult.family || "none";
-    if (!groups[family]) {
-      groups[family] = {
+    const key = `${family}::${dr.best_preset}`;
+    if (!fallback[key]) {
+      fallback[key] = {
         family,
+        winnerPreset: dr.best_preset,
         domains: [],
         minSpeed: dr.best_speed,
         maxSpeed: dr.best_speed,
         representativeSet: bestResult.set || null,
       };
     }
-    groups[family].domains.push({
+    fallback[key].domains.push({
       domain: dr.domain,
       speed: dr.best_speed,
       improvement: dr.improvement,
       presetName: dr.best_preset,
     });
-    if (dr.best_speed > groups[family].maxSpeed) {
-      groups[family].maxSpeed = dr.best_speed;
-      groups[family].representativeSet =
-        bestResult.set || groups[family].representativeSet;
-    }
-    if (!groups[family].representativeSet && bestResult.set) {
-      groups[family].representativeSet = bestResult.set;
-    }
-    groups[family].minSpeed = Math.min(
-      groups[family].minSpeed,
-      dr.best_speed,
-    );
+    fallback[key].maxSpeed = Math.max(fallback[key].maxSpeed, dr.best_speed);
+    fallback[key].minSpeed = Math.min(fallback[key].minSpeed, dr.best_speed);
   });
+  Object.values(fallback).forEach((g) => success.push(g));
 
-  const success = Object.values(groups).sort(
-    (a, b) => b.maxSpeed - a.maxSpeed,
-  );
   return { success, failed };
 }
 

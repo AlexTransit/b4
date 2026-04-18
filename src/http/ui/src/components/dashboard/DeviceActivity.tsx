@@ -271,6 +271,7 @@ const DomainRow = ({
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adding, setAdding] = useState(false);
+  const enabledSets = sets.filter((s) => s.enabled);
 
   const handleAdd = async (setId: string) => {
     setAnchorEl(null);
@@ -308,11 +309,12 @@ const DomainRow = ({
         <B4Badge label={formatNumber(count)} />
       </Stack>
 
-      {isTargeted ? (
+      {isTargeted && (
         <Tooltip title={t("dashboard.deviceActivity.alreadyInSet")}>
           <CheckIcon sx={{ color: "#4caf50", fontSize: 16, ml: 1 }} />
         </Tooltip>
-      ) : (
+      )}
+      {!isTargeted && enabledSets.length > 0 && (
         <>
           <Tooltip title={t("core.addToSet")}>
             <IconButton
@@ -341,17 +343,15 @@ const DomainRow = ({
               },
             }}
           >
-            {sets
-              .filter((s) => s.enabled)
-              .map((set) => (
-                <MenuItem
-                  key={set.id}
-                  onClick={() => void handleAdd(set.id)}
-                  sx={{ color: colors.text.primary, fontSize: "0.8rem" }}
-                >
-                  {set.name}
-                </MenuItem>
-              ))}
+            {enabledSets.map((set) => (
+              <MenuItem
+                key={set.id}
+                onClick={() => void handleAdd(set.id)}
+                sx={{ color: colors.text.primary, fontSize: "0.8rem" }}
+              >
+                {set.name}
+              </MenuItem>
+            ))}
           </Menu>
         </>
       )}

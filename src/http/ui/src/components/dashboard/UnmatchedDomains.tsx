@@ -107,6 +107,7 @@ const UnmatchedRow = ({
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adding, setAdding] = useState(false);
+  const enabledSets = sets.filter((s) => s.enabled);
 
   const handleAdd = async (setId: string) => {
     setAnchorEl(null);
@@ -144,45 +145,47 @@ const UnmatchedRow = ({
         <B4Badge label={formatNumber(count)} />
       </Stack>
 
-      <Tooltip title={t("core.addToSet")}>
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            setAnchorEl(e.currentTarget);
-          }}
-          disabled={adding}
-          sx={{ color: colors.secondary, ml: 0.5, p: 0.25 }}
-        >
-          <AddIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => {
-          setAnchorEl(null);
-        }}
-        slotProps={{
-          paper: {
-            sx: {
-              bgcolor: colors.background.default,
-              border: `1px solid ${colors.border.default}`,
-            },
-          },
-        }}
-      >
-        {sets
-          .filter((s) => s.enabled)
-          .map((set) => (
-            <MenuItem
-              key={set.id}
-              onClick={() => void handleAdd(set.id)}
-              sx={{ color: colors.text.primary, fontSize: "0.8rem" }}
+      {enabledSets.length > 0 && (
+        <>
+          <Tooltip title={t("core.addToSet")}>
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                setAnchorEl(e.currentTarget);
+              }}
+              disabled={adding}
+              sx={{ color: colors.secondary, ml: 0.5, p: 0.25 }}
             >
-              {set.name}
-            </MenuItem>
-          ))}
-      </Menu>
+              <AddIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => {
+              setAnchorEl(null);
+            }}
+            slotProps={{
+              paper: {
+                sx: {
+                  bgcolor: colors.background.default,
+                  border: `1px solid ${colors.border.default}`,
+                },
+              },
+            }}
+          >
+            {enabledSets.map((set) => (
+              <MenuItem
+                key={set.id}
+                onClick={() => void handleAdd(set.id)}
+                sx={{ color: colors.text.primary, fontSize: "0.8rem" }}
+              >
+                {set.name}
+              </MenuItem>
+            ))}
+          </Menu>
+        </>
+      )}
     </Box>
   );
 };

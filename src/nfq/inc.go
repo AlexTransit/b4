@@ -22,6 +22,9 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 		tcp := raw[ihl:]
 		tcpFlags := tcp[13]
 		isRst := (tcpFlags & 0x04) != 0
+		hasACK := (tcpFlags & 0x10) != 0
+		tcpHdrLen := int((tcp[12] >> 4) * 4)
+		hasOpts := tcpHdrLen > 20
 
 		var pktTTL uint8
 		if v == IPv4 && len(raw) > 8 {
@@ -31,7 +34,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 		}
 
 		if !isRst && pktTTL > 0 {
-			w.connTracker.RecordServerTTL(dstStr, dport, srcStr, sport, pktTTL)
+			w.connTracker.RecordServerResponse(dstStr, dport, srcStr, sport, pktTTL, hasOpts)
 		}
 
 		if isRst && incomingSet.TCP.RSTProtection.Enabled {
@@ -39,7 +42,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			if tolerance <= 0 {
 				tolerance = 3
 			}
-			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, tolerance); drop {
+			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, hasOpts, hasACK, tolerance); drop {
 				log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
 				metrics.GetMetricsCollector().RecordRSTDrop()
 				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {

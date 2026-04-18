@@ -1366,6 +1366,7 @@ func (ds *DiscoverySuite) storeResult(preset ConfigPreset, result CheckResult) {
 		PresetName: preset.Name,
 		Family:     preset.Family,
 		Phase:      preset.Phase,
+		Priority:   preset.Priority,
 		Status:     result.Status,
 		Duration:   result.Duration,
 		Speed:      result.Speed,
@@ -1412,6 +1413,7 @@ func (ds *DiscoverySuite) storeResultsMulti(preset ConfigPreset, results map[str
 			PresetName: preset.Name,
 			Family:     preset.Family,
 			Phase:      preset.Phase,
+			Priority:   preset.Priority,
 			Status:     result.Status,
 			Duration:   result.Duration,
 			Speed:      result.Speed,
@@ -1745,6 +1747,8 @@ func (ds *DiscoverySuite) finalize() {
 	}
 	ds.CheckSuite.mu.Unlock()
 
+	ds.buildStrategyGroups()
+
 	// Persist results to history
 	if ds.cfg != nil {
 		SaveToHistory(ds.CheckSuite, ds.cfg.ConfigPath)
@@ -1756,6 +1760,138 @@ func (ds *DiscoverySuite) finalize() {
 		delete(activeSuites, ds.Id)
 		suitesMu.Unlock()
 	}()
+}
+
+func (ds *DiscoverySuite) buildStrategyGroups() {
+	ds.CheckSuite.mu.Lock()
+	defer ds.CheckSuite.mu.Unlock()
+
+	ds.StrategyGroups = nil
+	if len(ds.domainResults) == 0 {
+		return
+	}
+
+	type presetInfo struct {
+		phase    DiscoveryPhase
+		priority int
+		family   StrategyFamily
+		set      *config.SetConfig
+		speeds   map[string]float64
+	}
+
+	presets := map[string]*presetInfo{}
+	remaining := map[string]bool{}
+
+	for domain, dr := range ds.domainResults {
+		if dr == nil || !dr.BestSuccess {
+			continue
+		}
+		remaining[domain] = true
+		for name, r := range dr.Results {
+			if r == nil || r.Status != CheckStatusComplete || name == "no-bypass" {
+				continue
+			}
+			info := presets[name]
+			if info == nil {
+				info = &presetInfo{
+					phase:    r.Phase,
+					priority: r.Priority,
+					family:   r.Family,
+					set:      r.Set,
+					speeds:   map[string]float64{},
+				}
+				presets[name] = info
+			}
+			if info.set == nil && r.Set != nil {
+				info.set = r.Set
+			}
+			info.speeds[domain] = r.Speed
+		}
+	}
+
+	phaseRank := func(p DiscoveryPhase) int {
+		switch p {
+		case PhaseBaseline, PhaseCached:
+			return 0
+		case PhaseStrategy:
+			return 1
+		case PhaseOptimize:
+			return 2
+		case PhaseCombination:
+			return 3
+		default:
+			return 4
+		}
+	}
+
+	betterWinner := func(a, b string) bool {
+		ai, bi := presets[a], presets[b]
+		ap, bp := phaseRank(ai.phase), phaseRank(bi.phase)
+		if ap != bp {
+			return ap < bp
+		}
+		if ai.priority != bi.priority {
+			return ai.priority < bi.priority
+		}
+		return a < b
+	}
+
+	var groups []StrategyGroup
+
+	for len(remaining) > 0 {
+		var winner string
+		var winnerCoverage int
+		for name, info := range presets {
+			count := 0
+			for d := range info.speeds {
+				if remaining[d] {
+					count++
+				}
+			}
+			if count == 0 {
+				continue
+			}
+			if count > winnerCoverage || (count == winnerCoverage && winner != "" && betterWinner(name, winner)) {
+				winner = name
+				winnerCoverage = count
+			}
+		}
+		if winner == "" {
+			break
+		}
+
+		info := presets[winner]
+		var groupDomains []string
+		var speeds []float64
+		for d, s := range info.speeds {
+			if remaining[d] {
+				groupDomains = append(groupDomains, d)
+				speeds = append(speeds, s)
+				delete(remaining, d)
+			}
+		}
+		sort.Strings(groupDomains)
+		sort.Float64s(speeds)
+
+		var median float64
+		if n := len(speeds); n > 0 {
+			if n%2 == 1 {
+				median = speeds[n/2]
+			} else {
+				median = (speeds[n/2-1] + speeds[n/2]) / 2
+			}
+		}
+
+		groups = append(groups, StrategyGroup{
+			WinnerPreset: winner,
+			Family:       info.family,
+			Domains:      groupDomains,
+			Set:          info.set,
+			MedianSpeed:  median,
+		})
+	}
+
+	ds.StrategyGroups = groups
 }
 
 func (ds *DiscoverySuite) logDiscoverySummary() {
