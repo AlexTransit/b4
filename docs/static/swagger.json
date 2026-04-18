@@ -604,6 +604,31 @@
                 }
             }
         },
+        "/config/reset": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Resets configuration to defaults, preserving sets, web server settings and geo file paths.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Config"
+                ],
+                "summary": "Reset configuration to defaults",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/handler.ConfigResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/detector/cancel/{id}": {
             "delete": {
                 "security": [
