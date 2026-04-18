@@ -13,6 +13,25 @@ import (
 func (api *API) RegisterMTProtoApi() {
 	api.mux.HandleFunc("/api/mtproto/generate-secret", api.handleMTProtoGenerateSecret)
 	api.mux.HandleFunc("/api/mtproto/config", api.handleMTProtoConfig)
+	api.mux.HandleFunc("/api/mtproto/refresh-dcs", api.handleMTProtoRefreshDCs)
+}
+
+func (api *API) handleMTProtoRefreshDCs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := mtproto.RefreshDCs(); err != nil {
+		log.Warnf("MTProto manual DC refresh failed: %v", err)
+		writeJsonError(w, http.StatusBadGateway, err.Error())
+		return
+	}
+	snap := mtproto.DCSnapshot()
+	sendResponse(w, map[string]interface{}{
+		"success": true,
+		"count":   len(snap),
+		"dcs":     snap,
+	})
 }
 
 // @Summary Generate MTProto secret

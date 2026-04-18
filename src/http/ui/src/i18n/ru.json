@@ -227,6 +227,10 @@
       "secret": "Secret",
       "secretHelp": "Вставьте в настройки MTProto прокси в Telegram",
       "generateSecret": "Сгенерировать Secret",
+      "refreshDCs": "Обновить список DC Telegram",
+      "refreshingDCs": "Загрузка…",
+      "refreshDCsOk": "Загружено {{count}} записей DC от Telegram.",
+      "refreshDCsErr": "Не удалось обновить: {{error}}",
       "restartNote": "Перезапустите B4 после изменения настроек MTProto."
     },
     "MSSClamping": {

@@ -64,7 +64,7 @@ export function SNIResults({
           <Box key={r.asn} sx={{ flex: "1 1 300px", minWidth: 0 }}>
             <ResultCard
               index={index}
-              status={status as "ok" | "error" | "warning"}
+              status={status}
               title={`${r.provider} (AS${r.asn})`}
               subtitle={`IP: ${r.ip}`}
               badge={<StatusChip status={r.status} />}

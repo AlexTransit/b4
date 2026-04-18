@@ -22,6 +22,35 @@ interface MTProtoSettingsProps {
 export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
   const { t } = useTranslation();
   const [generating, setGenerating] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshResult, setRefreshResult] = useState<
+    | { ok: true; count: number; dcs: Record<string, string> }
+    | { ok: false; error: string }
+    | null
+  >(null);
+
+  const handleRefreshDCs = async () => {
+    setRefreshing(true);
+    setRefreshResult(null);
+    try {
+      const res = await fetch("/api/mtproto/refresh-dcs", { method: "POST" });
+      const data = (await res.json()) as {
+        success: boolean;
+        count?: number;
+        dcs?: Record<string, string>;
+        error?: string;
+      };
+      if (data.success && typeof data.count === "number" && data.dcs) {
+        setRefreshResult({ ok: true, count: data.count, dcs: data.dcs });
+      } else {
+        setRefreshResult({ ok: false, error: data.error || "unknown error" });
+      }
+    } catch (e) {
+      setRefreshResult({ ok: false, error: String(e) });
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleGenerateSecret = async () => {
     const sni = config.system.mtproto?.fake_sni || "storage.googleapis.com";
@@ -119,6 +148,40 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
         {config.system.mtproto?.enabled && (
           <B4Alert severity="info">{t("settings.MTProto.restartNote")}</B4Alert>
         )}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => void handleRefreshDCs()}
+            disabled={refreshing}
+          >
+            {refreshing
+              ? t("settings.MTProto.refreshingDCs")
+              : t("settings.MTProto.refreshDCs")}
+          </Button>
+          {refreshResult?.ok && (
+            <B4Alert severity="success">
+              {t("settings.MTProto.refreshDCsOk", { count: refreshResult.count })}
+              <Box
+                component="ul"
+                sx={{ m: 0, pl: 2, fontFamily: "monospace", fontSize: "0.8rem" }}
+              >
+                {Object.entries(refreshResult.dcs)
+                  .sort((a, b) => Number(a[0]) - Number(b[0]))
+                  .map(([id, addr]) => (
+                    <li key={id}>
+                      DC{id} → {addr}
+                    </li>
+                  ))}
+              </Box>
+            </B4Alert>
+          )}
+          {refreshResult && !refreshResult.ok && (
+            <B4Alert severity="error">
+              {t("settings.MTProto.refreshDCsErr", { error: refreshResult.error })}
+            </B4Alert>
+          )}
+        </Box>
       </B4FormGroup>
     </B4Section>
   );

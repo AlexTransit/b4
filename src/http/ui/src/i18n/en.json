@@ -227,6 +227,10 @@
       "secret": "Secret",
       "secretHelp": "Paste this into Telegram MTProto proxy settings",
       "generateSecret": "Generate Secret",
+      "refreshDCs": "Refresh Telegram DC list",
+      "refreshingDCs": "Fetching…",
+      "refreshDCsOk": "Loaded {{count}} DC entries from Telegram.",
+      "refreshDCsErr": "Refresh failed: {{error}}",
       "restartNote": "Restart B4 after changing MTProto settings for changes to take effect."
     },
     "MSSClamping": {

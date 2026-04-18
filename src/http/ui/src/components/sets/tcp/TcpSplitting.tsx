@@ -34,7 +34,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
   const isTls = strategy === "tls";
   const isActive = strategy !== "none";
 
-  const pool = (config.fragmentation.strategy_pool ?? []) as FragmentationStrategy[];
+  const pool = (config.fragmentation.strategy_pool ?? []);
   const hasPool = pool.length > 0;
 
   const togglePoolStrategy = (value: FragmentationStrategy) => {

@@ -9,6 +9,15 @@ import (
 	"github.com/daniellavrushin/b4/watchdog"
 )
 
+type WatchdogDomainRequest struct {
+	Domain string `json:"domain" example:"example.com"`
+}
+
+type WatchdogActionResponse struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"added example.com to watchdog"`
+}
+
 func (api *API) RegisterWatchdogApi() {
 	api.mux.HandleFunc("/api/watchdog/status", api.handleWatchdogStatus)
 	api.mux.HandleFunc("/api/watchdog/check", api.handleWatchdogForceCheck)
@@ -18,6 +27,14 @@ func (api *API) RegisterWatchdogApi() {
 	api.mux.HandleFunc("/api/watchdog/disable", api.handleWatchdogDisable)
 }
 
+// @Summary Get watchdog status
+// @Description Returns the current enabled state of the watchdog and the status of each monitored domain (last check, failures, cooldown, matched set, etc.).
+// @Tags Watchdog
+// @Produce json
+// @Success 200 {object} watchdog.WatchdogState
+// @Failure 405 {string} string "Method not allowed"
+// @Security BearerAuth
+// @Router /watchdog/status [get]
 func (api *API) handleWatchdogStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -38,6 +55,19 @@ func (api *API) handleWatchdogStatus(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(state)
 }
 
+// @Summary Force an immediate watchdog check
+// @Description Schedules an out-of-band check for a domain that is already present in the watchdog list. The domain may be passed as a bare host or a full URL; both forms are matched against the stored list.
+// @Tags Watchdog
+// @Accept json
+// @Produce json
+// @Param body body WatchdogDomainRequest true "Domain to force-check"
+// @Success 200 {object} WatchdogActionResponse
+// @Failure 400 {string} string "domain is required"
+// @Failure 404 {string} string "domain not in watchdog list"
+// @Failure 405 {string} string "Method not allowed"
+// @Failure 503 {string} string "watchdog is not running"
+// @Security BearerAuth
+// @Router /watchdog/check [post]
 func (api *API) handleWatchdogForceCheck(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -84,6 +114,19 @@ func (api *API) handleWatchdogForceCheck(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// @Summary Add a domain to the watchdog list
+// @Description Adds a domain to the list of monitored targets. Duplicates (including different URL forms that resolve to the same host) are rejected. The configuration is persisted and pushed to running services.
+// @Tags Watchdog
+// @Accept json
+// @Produce json
+// @Param body body WatchdogDomainRequest true "Domain to add"
+// @Success 200 {object} WatchdogActionResponse
+// @Failure 400 {string} string "domain is required"
+// @Failure 405 {string} string "Method not allowed"
+// @Failure 409 {string} string "domain already in watchdog list"
+// @Failure 500 {string} string "failed to save configuration"
+// @Security BearerAuth
+// @Router /watchdog/domains [post]
 func (api *API) handleWatchdogDomains(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -124,6 +167,18 @@ func (api *API) handleWatchdogDomains(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary Remove a domain from the watchdog list
+// @Description Removes a domain from the monitored list. The path parameter may be either the exact stored value or the bare host extracted from a stored URL.
+// @Tags Watchdog
+// @Produce json
+// @Param domain path string true "Domain or host to remove"
+// @Success 200 {object} WatchdogActionResponse
+// @Failure 400 {string} string "domain is required"
+// @Failure 404 {string} string "domain not found in watchdog list"
+// @Failure 405 {string} string "Method not allowed"
+// @Failure 500 {string} string "failed to save configuration"
+// @Security BearerAuth
+// @Router /watchdog/domains/{domain} [delete]
 func (api *API) handleWatchdogDeleteDomain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -167,6 +222,15 @@ func (api *API) handleWatchdogDeleteDomain(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+// @Summary Enable the watchdog
+// @Description Turns the watchdog on and persists the change in the configuration. Monitoring of configured domains resumes on the next tick.
+// @Tags Watchdog
+// @Produce json
+// @Success 200 {object} WatchdogActionResponse
+// @Failure 405 {string} string "Method not allowed"
+// @Failure 500 {string} string "failed to save configuration"
+// @Security BearerAuth
+// @Router /watchdog/enable [post]
 func (api *API) handleWatchdogEnable(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -189,6 +253,15 @@ func (api *API) handleWatchdogEnable(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary Disable the watchdog
+// @Description Turns the watchdog off and persists the change in the configuration. No further domain checks are performed until it is re-enabled.
+// @Tags Watchdog
+// @Produce json
+// @Success 200 {object} WatchdogActionResponse
+// @Failure 405 {string} string "Method not allowed"
+// @Failure 500 {string} string "failed to save configuration"
+// @Security BearerAuth
+// @Router /watchdog/disable [post]
 func (api *API) handleWatchdogDisable(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
