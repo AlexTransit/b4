@@ -1,8 +1,9 @@
 # B4 - Bye Bye Big Bro
 
-## [1.4x.x] - 2026-04-xx
+## [1.49.1] - 2026-04-20
 
-- FIXED: **Routing stopped working after restarting tun2socks / sing-box** — if the proxy's network interface was recreated, or wasn't ready yet when B4 started, traffic routing silently broke until B4 was restarted too. B4 now detects these changes automatically and restores routing within a second.
+- FIXED: **Routing stopped working after restarting tun2socks / sing-box** - if the proxy's network interface was recreated, or wasn't ready yet when B4 started, traffic routing silently broke until B4 was restarted too. B4 now detects these changes automatically and restores routing within a second.
+- FIXED: **Connections page - Aggregated view layout** - the set name was shown twice when a set matched both by domain and by IP, and the SOCKS5 "proxy" label could overlap the domain column.
 
 ## [1.49.0] - 2026-04-18
 

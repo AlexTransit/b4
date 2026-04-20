@@ -72,7 +72,7 @@ export const GroupList = ({
           zIndex: 1,
         }}
       >
-        <Box sx={{ width: 110, flexShrink: 0 }}>
+        <Box sx={{ width: 170, flexShrink: 0 }}>
           <Typography sx={{ color: colors.secondary, fontWeight: 600, fontSize: 14 }}>
             {t("connections.table.protocol")}
           </Typography>

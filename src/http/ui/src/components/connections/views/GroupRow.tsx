@@ -60,7 +60,7 @@ export const GroupRow = memo<Props>(
           transition: "background-color 80ms",
         }}
       >
-        <Box sx={{ width: 110, flexShrink: 0 }}>
+        <Box sx={{ width: 170, flexShrink: 0, overflow: "hidden" }}>
           <ProtocolChip protocol={group.protocol} flags={group.flags} />
         </Box>
 
@@ -192,7 +192,9 @@ export const GroupRow = memo<Props>(
             {group.hostSet && (
               <B4Badge color="secondary" label={group.hostSet} />
             )}
-            {group.ipSet && <B4Badge color="secondary" label={group.ipSet} />}
+            {group.ipSet && group.ipSet !== group.hostSet && (
+              <B4Badge color="secondary" label={group.ipSet} />
+            )}
           </Stack>
         </Box>
 

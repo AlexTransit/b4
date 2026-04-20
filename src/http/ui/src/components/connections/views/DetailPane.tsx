@@ -290,7 +290,7 @@ export const DetailPane = memo<Props>(
                 {group.hostSet && (
                   <B4Badge color="secondary" label={group.hostSet} />
                 )}
-                {group.ipSet && (
+                {group.ipSet && group.ipSet !== group.hostSet && (
                   <B4Badge color="secondary" label={group.ipSet} />
                 )}
               </Stack>
