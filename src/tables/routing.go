@@ -555,20 +555,62 @@ func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 b
 	markStrMask := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	tableStr := fmt.Sprintf("%d", table)
 	prioStr := fmt.Sprintf("%d", prio)
-	ifaceV4 := routeGetIfaceAddr(iface, false)
-	ifaceV6 := routeGetIfaceAddr(iface, true)
 
+	// Policy rules only reference the mark/table and are safe to install
+	// even if the egress interface doesn't yet exist.
 	if ipv4 {
 		routeDelRuleLoop(false, markStr, tableStr)
 		routeDelRuleLoop(false, markStrMask, tableStr)
 		runLogged("routing: add ip rule v4", "ip", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
-		routeReplaceDefaultRoute(iface, ifaceV4, tableStr, false)
 	}
 	if ipv6 {
 		routeDelRuleLoop(true, markStr, tableStr)
 		routeDelRuleLoop(true, markStrMask, tableStr)
 		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
+	}
+
+	// The default route needs the interface to exist. If it's not present
+	// (e.g. tun0 from tun2socks/sing-box hasn't come up yet), defer the
+	// install — linkWatcher triggers RoutingReinstallForInterface when the
+	// interface appears.
+	if _, err := net.InterfaceByName(iface); err != nil {
+		log.Infof("Routing: interface %s not present; default route deferred until it appears", iface)
+		return
+	}
+
+	ifaceV4 := routeGetIfaceAddr(iface, false)
+	ifaceV6 := routeGetIfaceAddr(iface, true)
+	if ipv4 {
+		routeReplaceDefaultRoute(iface, ifaceV4, tableStr, false)
+	}
+	if ipv6 {
 		routeReplaceDefaultRoute(iface, ifaceV6, tableStr, true)
+	}
+}
+
+// RoutingReinstallForInterface re-runs policy routing setup for every set
+// whose EgressInterface matches iface. Called by linkWatcher when an
+// interface (re)appears — the kernel purges routes from the custom table
+// when the interface is torn down, so we must reinstall the default route.
+func RoutingReinstallForInterface(cfg *config.Config, iface string) {
+	if cfg == nil || iface == "" || !hasBinary("ip") {
+		return
+	}
+	routeMu.Lock()
+	defer routeMu.Unlock()
+
+	ipv4 := cfg.Queue.IPv4Enabled
+	ipv6 := cfg.Queue.IPv6Enabled
+	count := 0
+	for _, st := range routeRuleCache {
+		if st.iface != iface {
+			continue
+		}
+		routeEnsurePolicyRouting(st.iface, st.mark, st.table, ipv4, ipv6)
+		count++
+	}
+	if count > 0 {
+		log.Infof("Routing: reinstalled policy routes for interface %s (%d set(s))", iface, count)
 	}
 }
 

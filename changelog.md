@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.4x.x] - 2026-04-xx
+
+- FIXED: **Routing stopped working after restarting tun2socks / sing-box** — if the proxy's network interface was recreated, or wasn't ready yet when B4 started, traffic routing silently broke until B4 was restarted too. B4 now detects these changes automatically and restores routing within a second.
+
 ## [1.49.0] - 2026-04-18
 
 - ADDED: **Manual devices** — you can now add IP addresses of devices behind another router that are not visible in the ARP table. Added devices appear in device lists and can be used for per-device filtering and MSS clamping. Find it in Settings → Device Filtering. ([#185](https://github.com/DanielLavrushin/b4/issues/185))
