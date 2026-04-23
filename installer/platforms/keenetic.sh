@@ -106,8 +106,7 @@ _keenetic_load_kmods() {
         log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
     fi
 
-    # xt_connbytes is mandatory for the iptables backend (b4's tables rules).
-    if ! _kmod_available "xt_connbytes" && ! _kmod_available "nf_tables"; then
+    if ! _kmod_available "xt_connbytes" && ! _nft_functional; then
         log_warn "xt_connbytes kernel module not available — b4 will fail to start on iptables"
         log_info "Enable it via router web UI: System settings > Component options"
         log_info "  look for 'Netfilter kernel modules' / 'xtables-addons' / 'Connection tracking extensions'"
