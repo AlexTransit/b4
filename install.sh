@@ -493,6 +493,11 @@ _kmod_available() {
     return 1
 }
 
+_nft_functional() {
+    command_exists nft || return 1
+    nft list ruleset >/dev/null 2>&1
+}
+
 is_b4_running() {
     for pf in /var/run/b4.pid /opt/var/run/b4.pid; do
         if [ -f "$pf" ]; then
@@ -1025,7 +1030,7 @@ platform_keenetic_match() {
     fi
 
     if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ] && [ ! -w "/etc" ] &&
-       [ ! -d "/jffs" ] && [ ! -f /etc/openwrt_release ]; then
+        [ ! -d "/jffs" ] && [ ! -f /etc/openwrt_release ]; then
         [ -d /tmp/ndm ] && return 0
     fi
 
@@ -1093,6 +1098,14 @@ _keenetic_load_kmods() {
         log_warn "No netfilter queue module available — b4 may not work"
         log_info "Check that your Keenetic firmware supports Netfilter Queue"
         log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
+    fi
+
+    if ! _kmod_available "xt_connbytes" && ! _nft_functional; then
+        log_warn "xt_connbytes kernel module not available — b4 will fail to start on iptables"
+        log_info "Enable it via router web UI: System settings > Component options"
+        log_info "  look for 'Netfilter kernel modules' / 'xtables-addons' / 'Connection tracking extensions'"
+        log_info "Or try (Entware, kernel must match):"
+        log_info "  opkg update && opkg install kmod-ipt-conntrack-extra"
     fi
 }
 
@@ -1393,6 +1406,18 @@ _openwrt_check_recommended() {
         fi
         if ! _kmod_available "nf_nat"; then
             rec_missing="${rec_missing} kmod-nft-nat"
+        fi
+    fi
+
+    if ! _nft_functional; then
+        if ! command_exists ipset; then
+            rec_missing="${rec_missing} ipset"
+            if [ "$B4_PKG_MANAGER" = "opkg" ]; then
+                _kmod_available "ip_set" || rec_missing="${rec_missing} kmod-ipt-ipset"
+            fi
+        fi
+        if ! _kmod_available "xt_connbytes" && [ "$B4_PKG_MANAGER" = "opkg" ]; then
+            rec_missing="${rec_missing} kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
         fi
     fi
 
@@ -3170,7 +3195,15 @@ action_sysinfo() {
             sha256sum) printf "    ${YELLOW}missing${NC} %s ${DIM}(checksum verify skipped)${NC}\n" "$tool" >&2 ;;
             nohup)     printf "    ${YELLOW}missing${NC} %s ${DIM}(service may stop on session close)${NC}\n" "$tool" >&2 ;;
             modprobe)  printf "    ${YELLOW}missing${NC} %s ${DIM}(kernel modules loaded via insmod)${NC}\n" "$tool" >&2 ;;
-            ipset)     printf "    ${YELLOW}missing${NC} %s ${DIM}(needed for routing on iptables systems)${NC}\n" "$tool" >&2 ;;
+            ipset)
+                if _nft_functional; then
+                    printf "    ${YELLOW}missing${NC} %s ${DIM}(needed for routing on iptables systems)${NC}\n" "$tool" >&2
+                elif command_exists iptables || command_exists iptables-legacy; then
+                    printf "    ${RED}missing${NC} %s ${DIM}(required — iptables backend in use, install ipset)${NC}\n" "$tool" >&2
+                else
+                    printf "    ${YELLOW}missing${NC} %s ${DIM}(no firewall backend detected — backend availability unclear)${NC}\n" "$tool" >&2
+                fi
+                ;;
             *) ;;
             esac
         fi

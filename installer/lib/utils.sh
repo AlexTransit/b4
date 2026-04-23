@@ -476,6 +476,11 @@ _kmod_available() {
     return 1
 }
 
+_nft_functional() {
+    command_exists nft || return 1
+    nft list ruleset >/dev/null 2>&1
+}
+
 # --- Process management ---
 is_b4_running() {
     # Check PID files first (most reliable)
