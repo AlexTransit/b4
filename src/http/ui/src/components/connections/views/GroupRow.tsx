@@ -7,7 +7,7 @@ import {
   B4CountPill,
   B4MiniBars,
 } from "@b4.elements";
-import { ProtocolChip } from "@common/ProtocolChip";
+import { ProtocolChip, FlagBadges } from "@common/ProtocolChip";
 import { colors, fonts } from "@design";
 import { formatRelativeShort } from "@utils";
 import type { EnrichedGroup } from "@hooks/useConnectionGroups";
@@ -105,8 +105,8 @@ export const GroupRow = memo<Props>(
           transition: "background-color 120ms ease",
         }}
       >
-        <Box sx={{ width: 170, flexShrink: 0, overflow: "hidden" }}>
-          <ProtocolChip protocol={group.protocol} flags={group.flags} />
+        <Box sx={{ width: 80, flexShrink: 0 }}>
+          <ProtocolChip protocol={group.protocol} />
         </Box>
 
         <Box sx={{ flex: 2, minWidth: 0 }}>
@@ -133,6 +133,7 @@ export const GroupRow = memo<Props>(
             >
               {group.domain || t("connections.aggregated.noDomain")}
             </Typography>
+            <FlagBadges flags={group.flags} />
             {hasDomain && !group.hostSet && (
               <Tooltip
                 title={t("connections.aggregated.addDomain")}

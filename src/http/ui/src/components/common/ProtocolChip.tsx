@@ -7,20 +7,19 @@ interface ProtocolChipProps {
   flags?: string;
 }
 
-export const ProtocolChip = ({ protocol, flags }: ProtocolChipProps) => {
-  const icon = protocol === "TCP" ? <TcpIcon /> : <UdpIcon />;
+interface FlagBadgesProps {
+  flags?: string;
+}
+
+export const FlagBadges = ({ flags }: FlagBadgesProps) => {
   const isBlocked = flags?.startsWith("ipblock");
   const isSocks5 = flags === "socks5";
   const isDuplicate = flags === "tcp-dup";
 
+  if (!isBlocked && !isSocks5 && !isDuplicate) return null;
+
   return (
     <Stack direction="row" spacing={0.5} alignItems="center">
-      <B4Badge
-        icon={icon}
-        label={protocol}
-        variant="outlined"
-        color={protocol === "TCP" ? "primary" : "secondary"}
-      />
       {isSocks5 && (
         <B4Badge
           icon={<ProxyIcon />}
@@ -48,6 +47,22 @@ export const ProtocolChip = ({ protocol, flags }: ProtocolChipProps) => {
           color="error"
         />
       )}
+    </Stack>
+  );
+};
+
+export const ProtocolChip = ({ protocol, flags }: ProtocolChipProps) => {
+  const icon = protocol === "TCP" ? <TcpIcon /> : <UdpIcon />;
+
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center">
+      <B4Badge
+        icon={icon}
+        label={protocol}
+        variant="outlined"
+        color={protocol === "TCP" ? "primary" : "secondary"}
+      />
+      <FlagBadges flags={flags} />
     </Stack>
   );
 };
