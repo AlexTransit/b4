@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Box, Button, Typography, Paper } from "@mui/material";
 import { B4TextField } from "@b4.fields";
 import { B4Alert } from "@b4.elements";
-import { colors } from "@design";
+import { colors, radiusPx } from "@design";
 import { useAuth } from "@context/AuthProvider";
 import { Logo } from "@common/Logo";
 import { useTranslation } from "react-i18next";
@@ -34,8 +34,8 @@ export function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: `radial-gradient(ellipse at 20% 80%, rgba(245, 173, 24, 0.08) 0%, transparent 50%),
-                     radial-gradient(ellipse at 80% 20%, rgba(158, 28, 96, 0.12) 0%, transparent 50%),
+        background: `radial-gradient(ellipse 80% 60% at 22% 80%, rgba(245, 173, 24, 0.10) 0%, transparent 60%),
+                     radial-gradient(ellipse 60% 50% at 78% 22%, rgba(158, 28, 96, 0.18) 0%, transparent 65%),
                      ${colors.background.default}`,
       }}
     >
@@ -46,7 +46,7 @@ export function LoginPage() {
           width: 380,
           bgcolor: colors.background.paper,
           border: `1px solid ${colors.border.default}`,
-          borderRadius: 2,
+          borderRadius: `${radiusPx.md}px`,
         }}
       >
         <Box sx={{ textAlign: "center", mb: 3 }}>
@@ -87,11 +87,7 @@ export function LoginPage() {
               variant="contained"
               fullWidth
               disabled={loading || !username || !password}
-              sx={{
-                mt: 1,
-                bgcolor: colors.primary,
-                "&:hover": { bgcolor: colors.tertiary },
-              }}
+              sx={{ mt: 1 }}
             >
               {loading ? t("login.signingIn") : t("login.signIn")}
             </Button>

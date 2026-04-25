@@ -1,10 +1,7 @@
 import { useState } from "react";
-import { Box, Stack, Typography, Chip, Button } from "@mui/material";
-import {
-  Circle as CircleIcon,
-  DeleteForever as ClearIcon,
-} from "@mui/icons-material";
-import { colors } from "@design";
+import { Box, Button, Stack, Typography } from "@mui/material";
+import { DeleteForever as ClearIcon } from "@mui/icons-material";
+import { colors, fonts, radiusPx } from "@design";
 import { B4Dialog } from "@common/B4Dialog";
 import { useTranslation } from "react-i18next";
 import type { Metrics } from "./Page";
@@ -12,7 +9,6 @@ import type { Metrics } from "./Page";
 interface HealthBannerProps {
   metrics: Metrics;
   connected: boolean;
-  version: string | null;
 }
 
 type HealthLevel = "healthy" | "degraded" | "critical";
@@ -33,24 +29,106 @@ function deriveHealth(metrics: Metrics, connected: boolean): HealthLevel {
   return "healthy";
 }
 
-const healthColors: Record<HealthLevel, string> = {
-  healthy: "#4caf50",
-  degraded: "#ff9800",
-  critical: "#f44336",
+const stateStyle: Record<
+  HealthLevel,
+  { bg: string; dot: string; name: string; state: string; glow: string }
+> = {
+  healthy: {
+    bg: "rgba(102, 187, 106, 0.10)",
+    dot: colors.state.success,
+    name: "#9bd49d",
+    state: "#cbe8cc",
+    glow:
+      "0 0 0 2px rgba(102, 187, 106, 0.18), 0 0 6px rgba(102, 187, 106, 0.55)",
+  },
+  degraded: {
+    bg: "rgba(245, 173, 24, 0.10)",
+    dot: colors.state.warning,
+    name: "#ffd699",
+    state: "#ffe0b2",
+    glow:
+      "0 0 0 2px rgba(255, 167, 38, 0.18), 0 0 6px rgba(255, 167, 38, 0.55)",
+  },
+  critical: {
+    bg: "rgba(244, 67, 54, 0.10)",
+    dot: colors.state.error,
+    name: "#f8a5a0",
+    state: "#fcc9c5",
+    glow:
+      "0 0 0 2px rgba(244, 67, 54, 0.18), 0 0 6px rgba(244, 67, 54, 0.55)",
+  },
 };
+
+const HAIRLINE = "rgba(245, 173, 24, 0.08)";
+
+const MetricCell = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
+  <Box
+    sx={{
+      display: "inline-flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      px: "18px",
+      minWidth: 0,
+      borderRight: `1px solid ${HAIRLINE}`,
+    }}
+  >
+    <Typography
+      component="span"
+      sx={{
+        fontSize: 9,
+        letterSpacing: "0.16em",
+        textTransform: "uppercase",
+        color: colors.text.secondary,
+        opacity: 0.85,
+        lineHeight: 1,
+      }}
+    >
+      {label}
+    </Typography>
+    <Typography
+      component="span"
+      sx={{
+        fontSize: 13,
+        color: colors.text.primary,
+        fontWeight: 600,
+        mt: "3px",
+        lineHeight: 1,
+        fontFeatureSettings: '"tnum"',
+      }}
+    >
+      {children}
+    </Typography>
+  </Box>
+);
+
+const Mono = ({ children }: { children: React.ReactNode }) => (
+  <Box
+    component="span"
+    sx={{ fontFamily: fonts.mono, fontSize: 12.5 }}
+  >
+    {children}
+  </Box>
+);
 
 export const HealthBanner = ({
   metrics,
   connected,
-  version,
 }: HealthBannerProps) => {
   const { t } = useTranslation();
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
 
   const health = deriveHealth(metrics, connected);
-  const healthColor = healthColors[health] ?? "#f44336";
-  const healthLabel = t(`dashboard.health.${health === "healthy" ? "running" : health}`);
+  const style = stateStyle[health];
+  const healthLabel = t(
+    `dashboard.health.${health === "healthy" ? "running" : health}`,
+  );
   const activeWorkers = metrics.worker_status.filter(
     (w) => w.status === "active",
   ).length;
@@ -62,7 +140,7 @@ export const HealthBanner = ({
     try {
       await fetch("/api/metrics/reset", { method: "POST" });
     } catch {
-      // ignore — metrics will refresh via websocket
+      // metrics will refresh via websocket
     } finally {
       setResetting(false);
     }
@@ -72,92 +150,125 @@ export const HealthBanner = ({
     <>
       <Box
         sx={{
-          px: 2,
-          py: 1,
+          display: "flex",
+          alignItems: "stretch",
+          height: 46,
           mb: 1.5,
-          borderRadius: 1,
           bgcolor: colors.background.paper,
           border: `1px solid ${colors.border.default}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 1,
+          borderRadius: `${radiusPx.md}px`,
+          overflow: "hidden",
         }}
       >
-        <Stack
-          direction="row"
-          spacing={2}
-          alignItems="center"
-          flexWrap="wrap"
-          useFlexGap
+        <Box
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            pl: "12px",
+            pr: "14px",
+            bgcolor: style.bg,
+            borderRight: `1px solid ${colors.border.default}`,
+          }}
         >
-          <Stack direction="row" spacing={0.5} alignItems="center">
-            <CircleIcon sx={{ fontSize: 10, color: healthColor }} />
+          <Box
+            sx={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              bgcolor: style.dot,
+              boxShadow: style.glow,
+              flexShrink: 0,
+            }}
+          />
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              lineHeight: 1,
+              gap: "3px",
+            }}
+          >
             <Typography
-              variant="body2"
-              sx={{ color: colors.text.primary, fontWeight: 600 }}
+              component="span"
+              sx={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: "0.16em",
+                textTransform: "uppercase",
+                color: style.name,
+              }}
             >
-              b4 {healthLabel}
+              B4
             </Typography>
-          </Stack>
-
-          <Chip
-            label={`${t("dashboard.health.nfqueue")}: ${metrics.nfqueue_status}`}
-            size="small"
-            sx={{
-              bgcolor: `${healthColor}15`,
-              color: colors.text.secondary,
-              fontSize: "0.75rem",
-              height: 24,
-            }}
-          />
-
-          <Chip
-            label={`${t("dashboard.health.firewall")}: ${metrics.tables_status}`}
-            size="small"
-            sx={{
-              bgcolor: `${healthColor}15`,
-              color: colors.text.secondary,
-              fontSize: "0.75rem",
-              height: 24,
-            }}
-          />
-
-          <Chip
-            label={`${t("dashboard.health.workers")}: ${activeWorkers}/${totalWorkers} ${t("dashboard.health.active")}`}
-            size="small"
-            sx={{
-              bgcolor:
-                activeWorkers === totalWorkers && totalWorkers > 0
-                  ? "#4caf5015"
-                  : "#ff980015",
-              color: colors.text.secondary,
-              fontSize: "0.75rem",
-              height: 24,
-            }}
-          />
-
-          <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-            {t("dashboard.health.uptime")}: {metrics.uptime}
-          </Typography>
-
-          {version && (
-            <Typography variant="caption" sx={{ color: colors.text.disabled }}>
-              v{version}
+            <Typography
+              component="span"
+              sx={{ fontSize: 12, color: style.state, fontWeight: 500 }}
+            >
+              {healthLabel}
             </Typography>
-          )}
-        </Stack>
+          </Box>
+        </Box>
 
-        <Button
-          size="small"
-          variant="outlined"
-          startIcon={<ClearIcon />}
+        <MetricCell label={t("dashboard.health.nfqueue")}>
+          {metrics.nfqueue_status}
+        </MetricCell>
+        <MetricCell label={t("dashboard.health.firewall")}>
+          <Mono>{metrics.tables_status}</Mono>
+        </MetricCell>
+        <MetricCell label={t("dashboard.health.workers")}>
+          {activeWorkers}
+          <Box
+            component="span"
+            sx={{ color: colors.text.secondary, fontWeight: 500 }}
+          >
+            {" / "}
+            {totalWorkers}
+          </Box>
+        </MetricCell>
+        <MetricCell label={t("dashboard.health.uptime")}>
+          <Mono>{metrics.uptime}</Mono>
+        </MetricCell>
+
+        <Box sx={{ flex: 1, borderRight: `1px solid ${HAIRLINE}` }} />
+
+        <Box
+          component="button"
+          type="button"
           onClick={() => setResetOpen(true)}
           disabled={resetting}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            px: "14px",
+            color: colors.text.primary,
+            bgcolor: "transparent",
+            border: 0,
+            borderLeft: `1px solid ${colors.border.default}`,
+            cursor: resetting ? "not-allowed" : "pointer",
+            fontSize: 11,
+            fontWeight: 600,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            fontFamily: "inherit",
+            transition: "background 150ms ease",
+            "&:hover": {
+              bgcolor: "rgba(158, 28, 96, 0.18)",
+              color: "#fff",
+            },
+            "&:disabled": {
+              opacity: 0.5,
+            },
+          }}
         >
-          {resetting ? t("dashboard.health.resetting") : t("dashboard.health.resetStats")}
-        </Button>
+          <ClearIcon
+            sx={{ fontSize: 13, color: colors.primary, flexShrink: 0 }}
+          />
+          {resetting
+            ? t("dashboard.health.resetting")
+            : t("dashboard.health.resetStats")}
+        </Box>
       </Box>
 
       <B4Dialog

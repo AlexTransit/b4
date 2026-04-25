@@ -9,12 +9,13 @@ import {
   Typography,
   Divider,
 } from "@mui/material";
-import { colors, spacing, radius } from "@design";
+import { colors, radius, radiusPx } from "@design";
 
 interface B4DialogProps extends Omit<DialogProps, "title"> {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
+  headerAlert?: React.ReactNode;
   actions?: React.ReactNode;
   onClose: () => void;
 }
@@ -23,6 +24,7 @@ export const B4Dialog = ({
   title,
   subtitle,
   icon,
+  headerAlert,
   children,
   actions,
   onClose,
@@ -36,6 +38,7 @@ export const B4Dialog = ({
           bgcolor: colors.background.default,
           border: `2px solid ${colors.border.default}`,
           borderRadius: radius.md,
+          boxShadow: `0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(245,173,24,0.04)`,
         },
       },
     }}
@@ -46,28 +49,51 @@ export const B4Dialog = ({
         bgcolor: colors.background.dark,
         color: colors.text.primary,
         borderBottom: `1px solid ${colors.border.default}`,
+        p: "14px 18px",
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={spacing.md}>
+      <Stack direction="row" alignItems="center" gap="14px">
         {icon && (
           <Box
             sx={{
-              p: 1.5,
-              borderRadius: radius.md,
+              width: 38,
+              height: 38,
+              borderRadius: radiusPx.sm,
               bgcolor: colors.accent.secondary,
               color: colors.secondary,
               display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
             }}
           >
             {icon}
           </Box>
         )}
-        <Box>
-          <Typography sx={{ mt: 1.5, lineHeight: 0, mb: subtitle ? 0 : 1.5 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Typography
+            component="div"
+            sx={{
+              fontSize: 15,
+              fontWeight: 600,
+              lineHeight: 1.25,
+              letterSpacing: "0.02em",
+              textTransform: "uppercase",
+              color: colors.text.primary,
+            }}
+          >
             {title}
           </Typography>
           {subtitle && (
-            <Typography variant="caption" sx={{ color: colors.text.secondary }}>
+            <Typography
+              component="div"
+              sx={{
+                fontSize: 11,
+                lineHeight: 1.3,
+                color: colors.text.secondary,
+                mt: "2px",
+              }}
+            >
               {subtitle}
             </Typography>
           )}
@@ -75,14 +101,29 @@ export const B4Dialog = ({
       </Stack>
     </DialogTitle>
 
-    <DialogContent sx={{ mt: spacing.md, bgcolor: colors.background.default }}>
+    <DialogContent
+      sx={{
+        bgcolor: colors.background.default,
+        p: "18px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+      }}
+    >
+      {headerAlert}
       {children}
     </DialogContent>
 
     {actions && (
       <>
         <Divider sx={{ borderColor: colors.border.default }} />
-        <DialogActions sx={{ p: spacing.md, bgcolor: colors.background.paper }}>
+        <DialogActions
+          sx={{
+            p: "12px 14px",
+            bgcolor: colors.background.paper,
+            gap: "8px",
+          }}
+        >
           {actions}
         </DialogActions>
       </>

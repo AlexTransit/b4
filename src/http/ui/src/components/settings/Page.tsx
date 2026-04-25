@@ -359,7 +359,14 @@ export function SettingsPage() {
             sx={{ mb: 2 }}
           >
             <Stack direction="row" spacing={2} alignItems="center">
-              <Typography variant="h6" sx={{ color: colors.text.primary }}>
+              <Typography
+                sx={{
+                  color: colors.text.primary,
+                  fontSize: 18,
+                  fontWeight: 600,
+                  lineHeight: 1.3,
+                }}
+              >
                 {t("core.configuration")}
               </Typography>
               {hasChanges && (
@@ -367,10 +374,8 @@ export function SettingsPage() {
                   label={t("core.modified")}
                   size="small"
                   icon={<WarningIcon />}
-                  sx={{
-                    bgcolor: colors.accent.secondary,
-                    color: colors.secondary,
-                  }}
+                  color="secondary"
+                  variant="outlined"
                 />
               )}
             </Stack>

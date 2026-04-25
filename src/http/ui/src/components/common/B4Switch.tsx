@@ -22,49 +22,45 @@ export const B4Switch = ({
   onChange,
   disabled,
   ...props
-}: B4SwitchProps) => {
-  return (
-    <Box>
-      <FormControlLabel
-        control={
-          <Switch
-            checked={checked}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onChange(e.target.checked)
-            }
-            disabled={disabled}
-            sx={{
-              "& .MuiSwitch-switchBase.Mui-checked": {
-                color: colors.secondary,
-              },
-              "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                backgroundColor: colors.secondary,
-              },
-            }}
-            {...props}
-          />
-        }
-        label={
-          <Typography sx={{ color: colors.text.primary, fontWeight: 500 }}>
-            {label}
-          </Typography>
-        }
+}: B4SwitchProps) => (
+  <FormControlLabel
+    disabled={disabled}
+    control={
+      <Switch
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        {...props}
       />
-      {description && (
-        <Typography
-          variant="caption"
-          sx={{
-            display: "block",
-            color: colors.text.secondary,
-            ml: 6,
-            mt: -1,
-          }}
-        >
-          {description}
+    }
+    label={
+      <Box>
+        <Typography sx={{ color: colors.text.primary, fontWeight: 500 }}>
+          {label}
         </Typography>
-      )}
-    </Box>
-  );
-};
+        {description && (
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              color: colors.text.secondary,
+              mt: "2px",
+            }}
+          >
+            {description}
+          </Typography>
+        )}
+      </Box>
+    }
+    sx={{
+      alignItems: "flex-start",
+      ml: 0,
+      mr: 0,
+      gap: "12px",
+      "& .MuiFormControlLabel-label": {
+        marginTop: "1px",
+      },
+    }}
+  />
+);
 
 export default B4Switch;

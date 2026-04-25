@@ -1,4 +1,4 @@
-import { Grid, FormControlLabel, Switch, Typography, Box } from "@mui/material";
+import { Grid } from "@mui/material";
 import { B4SetConfig, QueueConfig } from "@models/config";
 import {
   B4Slider,
@@ -7,6 +7,7 @@ import {
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
+import { B4Switch } from "@common/B4Switch";
 import { useTranslation } from "react-i18next";
 
 interface TcpGeneralProps {
@@ -83,24 +84,11 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={config.tcp.drop_sack || false}
-                onChange={(e) => onChange("tcp.drop_sack", e.target.checked)}
-                color="primary"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>
-                  {t("sets.tcp.general.dropSack")}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t("sets.tcp.general.dropSackDesc")}
-                </Typography>
-              </Box>
-            }
+          <B4Switch
+            label={t("sets.tcp.general.dropSack")}
+            description={t("sets.tcp.general.dropSackDesc")}
+            checked={config.tcp.drop_sack || false}
+            onChange={(checked) => onChange("tcp.drop_sack", checked)}
           />
         </Grid>
       </Grid>
@@ -110,26 +98,11 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       <Grid container spacing={3}>
         <B4Alert>{t("sets.tcp.general.dupAlert")}</B4Alert>
         <Grid size={{ xs: 12, md: 6 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={dup.enabled}
-                onChange={(e) =>
-                  onChange("tcp.duplicate.enabled", e.target.checked)
-                }
-                color="primary"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>
-                  {t("sets.tcp.general.dupEnable")}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t("sets.tcp.general.dupEnableDesc")}
-                </Typography>
-              </Box>
-            }
+          <B4Switch
+            label={t("sets.tcp.general.dupEnable")}
+            description={t("sets.tcp.general.dupEnableDesc")}
+            checked={dup.enabled}
+            onChange={(checked) => onChange("tcp.duplicate.enabled", checked)}
           />
         </Grid>
         {dup.enabled && (
@@ -154,25 +127,12 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       <Grid container spacing={3}>
         <B4Alert>{t("sets.tcp.general.ibdAlert")}</B4Alert>
         <Grid size={{ xs: 12, md: 6 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={ibd.enabled}
-                onChange={(e) =>
-                  onChange("tcp.ip_block_detect.enabled", e.target.checked)
-                }
-                color="primary"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>
-                  {t("sets.tcp.general.ibdEnable")}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t("sets.tcp.general.ibdEnableDesc")}
-                </Typography>
-              </Box>
+          <B4Switch
+            label={t("sets.tcp.general.ibdEnable")}
+            description={t("sets.tcp.general.ibdEnableDesc")}
+            checked={ibd.enabled}
+            onChange={(checked) =>
+              onChange("tcp.ip_block_detect.enabled", checked)
             }
           />
         </Grid>
@@ -212,28 +172,12 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
               />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={ibd.cache_blocked_ips}
-                    onChange={(e) =>
-                      onChange(
-                        "tcp.ip_block_detect.cache_blocked_ips",
-                        e.target.checked,
-                      )
-                    }
-                    color="primary"
-                  />
-                }
-                label={
-                  <Box>
-                    <Typography variant="body1" fontWeight={500}>
-                      {t("sets.tcp.general.ibdCache")}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {t("sets.tcp.general.ibdCacheDesc")}
-                    </Typography>
-                  </Box>
+              <B4Switch
+                label={t("sets.tcp.general.ibdCache")}
+                description={t("sets.tcp.general.ibdCacheDesc")}
+                checked={ibd.cache_blocked_ips}
+                onChange={(checked) =>
+                  onChange("tcp.ip_block_detect.cache_blocked_ips", checked)
                 }
               />
             </Grid>
@@ -246,25 +190,12 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       <Grid container spacing={3}>
         <B4Alert>{t("sets.tcp.general.rstAlert")}</B4Alert>
         <Grid size={{ xs: 12, md: 6 }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={rstProt.enabled}
-                onChange={(e) =>
-                  onChange("tcp.rst_protection.enabled", e.target.checked)
-                }
-                color="primary"
-              />
-            }
-            label={
-              <Box>
-                <Typography variant="body1" fontWeight={500}>
-                  {t("sets.tcp.general.rstEnable")}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t("sets.tcp.general.rstEnableDesc")}
-                </Typography>
-              </Box>
+          <B4Switch
+            label={t("sets.tcp.general.rstEnable")}
+            description={t("sets.tcp.general.rstEnableDesc")}
+            checked={rstProt.enabled}
+            onChange={(checked) =>
+              onChange("tcp.rst_protection.enabled", checked)
             }
           />
         </Grid>

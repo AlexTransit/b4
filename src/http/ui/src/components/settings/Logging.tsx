@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Grid } from "@mui/material";
+import { Grid, Stack } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { LogsIcon } from "@b4.icons";
 import { B4Section, B4Select, B4Switch, B4TextField } from "@b4.elements";
@@ -53,51 +53,55 @@ export const LoggingSettings = ({ config, onChange }: LoggingSettingsProps) => {
     >
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <B4Select
-            label={t("settings.Logging.logLevel")}
-            value={config.system.logging.level}
-            options={LOG_LEVELS}
-            onChange={(e) =>
-              onChange("system.logging.level", Number(e.target.value))
-            }
-            helperText={t("settings.Logging.logLevelHelp")}
-          />
-          <B4TextField
-            label={t("settings.Logging.errorFilePath")}
-            value={config.system.logging.error_file}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              onChange("system.logging.error_file", e.target.value)
-            }
-            placeholder={t("settings.Logging.errorFilePathPlaceholder")}
-            helperText={t("settings.Logging.errorFilePathHelp")}
-          />
-          <B4Select
-            label={t("settings.Logging.timezone")}
-            value={config.system.timezone ?? ""}
-            options={TIMEZONES}
-            onChange={(e) =>
-              onChange("system.timezone", String(e.target.value))
-            }
-            helperText={t("settings.Logging.timezoneHelp")}
-          />
+          <Stack spacing={2}>
+            <B4Select
+              label={t("settings.Logging.logLevel")}
+              value={config.system.logging.level}
+              options={LOG_LEVELS}
+              onChange={(e) =>
+                onChange("system.logging.level", Number(e.target.value))
+              }
+              helperText={t("settings.Logging.logLevelHelp")}
+            />
+            <B4TextField
+              label={t("settings.Logging.errorFilePath")}
+              value={config.system.logging.error_file}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                onChange("system.logging.error_file", e.target.value)
+              }
+              placeholder={t("settings.Logging.errorFilePathPlaceholder")}
+              helperText={t("settings.Logging.errorFilePathHelp")}
+            />
+            <B4Select
+              label={t("settings.Logging.timezone")}
+              value={config.system.timezone ?? ""}
+              options={TIMEZONES}
+              onChange={(e) =>
+                onChange("system.timezone", String(e.target.value))
+              }
+              helperText={t("settings.Logging.timezoneHelp")}
+            />
+          </Stack>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <B4Switch
-            label={t("settings.Logging.instantFlush")}
-            checked={config?.system?.logging?.instaflush}
-            onChange={(checked: boolean) =>
-              onChange("system.logging.instaflush", Boolean(checked))
-            }
-            description={t("settings.Logging.instantFlushDesc")}
-          />
-          <B4Switch
-            label={t("settings.Logging.syslog")}
-            checked={config?.system?.logging?.syslog}
-            onChange={(checked: boolean) =>
-              onChange("system.logging.syslog", Boolean(checked))
-            }
-            description={t("settings.Logging.syslogDesc")}
-          />
+          <Stack spacing={2}>
+            <B4Switch
+              label={t("settings.Logging.instantFlush")}
+              checked={config?.system?.logging?.instaflush}
+              onChange={(checked: boolean) =>
+                onChange("system.logging.instaflush", Boolean(checked))
+              }
+              description={t("settings.Logging.instantFlushDesc")}
+            />
+            <B4Switch
+              label={t("settings.Logging.syslog")}
+              checked={config?.system?.logging?.syslog}
+              onChange={(checked: boolean) =>
+                onChange("system.logging.syslog", Boolean(checked))
+              }
+              description={t("settings.Logging.syslogDesc")}
+            />
+          </Stack>
         </Grid>
       </Grid>
     </B4Section>

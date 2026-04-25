@@ -1,10 +1,14 @@
 import { memo } from "react";
 import { Box, Stack, Typography, Tooltip } from "@mui/material";
 import { AddIcon, NetworkIcon } from "@b4.icons";
-import { B4Badge } from "@common/B4Badge";
+import {
+  B4Badge,
+  B4ConfidencePill,
+  B4CountPill,
+  B4MiniBars,
+} from "@b4.elements";
 import { ProtocolChip } from "@common/ProtocolChip";
-import { colors } from "@design";
-import { Sparkline } from "./Sparkline";
+import { colors, fonts } from "@design";
 import { formatRelativeShort } from "@utils";
 import type { EnrichedGroup } from "@hooks/useConnectionGroups";
 import { useTranslation } from "react-i18next";
@@ -38,7 +42,48 @@ export const GroupRow = memo<Props>(
     const isEnriching = enrichingIps.has(ipBase);
     const hasDomain = !!group.domain;
     const deviceLabel = group.deviceName || group.mac;
-    const matched = !!group.hostSet || !!group.ipSet;
+
+    let asnSlot: React.ReactNode = null;
+    if (group.asnName) {
+      asnSlot = (
+        <Typography
+          sx={{
+            fontFamily: fonts.mono,
+            fontSize: 11,
+            color: colors.text.secondary,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+          }}
+          title={group.asnName}
+        >
+          {group.asnName}
+        </Typography>
+      );
+    } else if (group.destIp) {
+      asnSlot = (
+        <Tooltip
+          title={t("connections.table.enrichAsn")}
+          arrow
+          placement="top"
+        >
+          <NetworkIcon
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!isEnriching) onEnrichAsn(group.destIp);
+            }}
+            sx={{
+              fontSize: 14,
+              color: isEnriching
+                ? colors.text.disabled
+                : `${colors.secondary}88`,
+              "&:hover": { color: colors.secondary },
+            }}
+          />
+        </Tooltip>
+      );
+    }
 
     return (
       <Box
@@ -55,9 +100,9 @@ export const GroupRow = memo<Props>(
           "&:hover": {
             bgcolor: selected
               ? colors.accent.primaryHover
-              : colors.accent.primaryStrong,
+              : "rgba(255, 255, 255, 0.025)",
           },
-          transition: "background-color 80ms",
+          transition: "background-color 120ms ease",
         }}
       >
         <Box sx={{ width: 170, flexShrink: 0, overflow: "hidden" }}>
@@ -71,17 +116,18 @@ export const GroupRow = memo<Props>(
             alignItems="center"
             sx={{ minWidth: 0 }}
           >
-            {group.tls && (
-              <B4Badge variant="outlined" color="primary" label={group.tls} />
-            )}
+            {group.tls && <B4ConfidencePill score={group.tls} />}
             <Typography
               sx={{
+                fontFamily: fonts.mono,
+                fontSize: 11,
+                letterSpacing: "0.04em",
                 color: hasDomain ? colors.text.primary : colors.text.disabled,
-                fontSize: 13,
+                textTransform: hasDomain ? "uppercase" : "none",
+                fontStyle: hasDomain ? "normal" : "italic",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                fontStyle: hasDomain ? "normal" : "italic",
                 minWidth: 0,
               }}
             >
@@ -120,9 +166,9 @@ export const GroupRow = memo<Props>(
           >
             <Typography
               sx={{
-                fontFamily: "monospace",
-                fontSize: 12,
-                color: colors.text.secondary,
+                fontFamily: fonts.mono,
+                fontSize: 11,
+                color: colors.text.primary,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -130,33 +176,7 @@ export const GroupRow = memo<Props>(
             >
               {group.destIp || "—"}
             </Typography>
-            {group.asnName ? (
-              <B4Badge
-                variant="outlined"
-                color="primary"
-                label={group.asnName}
-              />
-            ) : group.destIp ? (
-              <Tooltip
-                title={t("connections.table.enrichAsn")}
-                arrow
-                placement="top"
-              >
-                <NetworkIcon
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isEnriching) onEnrichAsn(group.destIp);
-                  }}
-                  sx={{
-                    fontSize: 14,
-                    color: isEnriching
-                      ? colors.text.disabled
-                      : `${colors.secondary}88`,
-                    "&:hover": { color: colors.secondary },
-                  }}
-                />
-              </Tooltip>
-            ) : null}
+            {asnSlot}
             {group.destIps.length > 1 && (
               <B4Badge
                 label={`+${group.destIps.length - 1}`}
@@ -189,11 +209,9 @@ export const GroupRow = memo<Props>(
 
         <Box sx={{ width: 130, flexShrink: 0 }}>
           <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {group.hostSet && (
-              <B4Badge color="secondary" label={group.hostSet} />
-            )}
+            {group.hostSet && <B4CountPill value={group.hostSet} />}
             {group.ipSet && group.ipSet !== group.hostSet && (
-              <B4Badge color="secondary" label={group.ipSet} />
+              <B4CountPill value={group.ipSet} />
             )}
           </Stack>
         </Box>
@@ -206,7 +224,7 @@ export const GroupRow = memo<Props>(
                 color: deviceLabel
                   ? colors.text.secondary
                   : colors.text.disabled,
-                fontFamily: group.deviceName ? "inherit" : "monospace",
+                fontFamily: group.deviceName ? "inherit" : fonts.mono,
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
@@ -218,15 +236,15 @@ export const GroupRow = memo<Props>(
         </Box>
 
         <Box sx={{ width: 120, flexShrink: 0 }}>
-          <Sparkline data={group.buckets} width={120} height={20} />
+          <B4MiniBars data={group.buckets} height={20} />
         </Box>
 
         <Box sx={{ width: 60, flexShrink: 0, textAlign: "right" }}>
           <Typography
             sx={{
-              fontFamily: "monospace",
+              fontFamily: fonts.mono,
               fontSize: 12,
-              color: colors.text.secondary,
+              color: colors.text.primary,
             }}
           >
             {group.packets}
@@ -236,9 +254,9 @@ export const GroupRow = memo<Props>(
         <Box sx={{ width: 48, flexShrink: 0, textAlign: "right" }}>
           <Typography
             sx={{
-              fontFamily: "monospace",
+              fontFamily: fonts.mono,
               fontSize: 11,
-              color: colors.text.disabled,
+              color: colors.text.secondary,
             }}
           >
             {formatRelativeShort(t, group.lastSeen, now)}

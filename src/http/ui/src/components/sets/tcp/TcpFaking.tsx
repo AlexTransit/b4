@@ -18,14 +18,7 @@ import {
   MutationMode,
   WindowMode,
 } from "@models/config";
-import {
-  Box,
-  FormControlLabel,
-  Grid,
-  Stack,
-  Switch,
-  Typography,
-} from "@mui/material";
+import { Box, Grid, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -472,46 +465,20 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
         </B4Alert>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.tcp.syn_fake || false}
-                  onChange={(e) => onChange("tcp.syn_fake", e.target.checked)}
-                  color="primary"
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="body1" fontWeight={500}>
-                    {t("sets.faking.synFake.enable")}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("sets.faking.synFake.enableDesc")}
-                  </Typography>
-                </Box>
-              }
+            <B4Switch
+              label={t("sets.faking.synFake.enable")}
+              description={t("sets.faking.synFake.enableDesc")}
+              checked={config.tcp.syn_fake || false}
+              onChange={(checked) => onChange("tcp.syn_fake", checked)}
             />
           </Grid>
 
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.faking.tcp_md5 || false}
-                  onChange={(e) => onChange("faking.tcp_md5", e.target.checked)}
-                  color="primary"
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="body1" fontWeight={500}>
-                    {t("sets.faking.synFake.md5Enable")}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("sets.faking.synFake.md5Desc")}
-                  </Typography>
-                </Box>
-              }
+            <B4Switch
+              label={t("sets.faking.synFake.md5Enable")}
+              description={t("sets.faking.synFake.md5Desc")}
+              checked={config.faking.tcp_md5 || false}
+              onChange={(checked) => onChange("faking.tcp_md5", checked)}
             />
           </Grid>
 
@@ -604,25 +571,12 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={config.tcp.desync.post_desync || false}
-                  onChange={(e) =>
-                    onChange("tcp.desync.post_desync", e.target.checked)
-                  }
-                  color="primary"
-                />
-              }
-              label={
-                <Box>
-                  <Typography variant="body1" fontWeight={500}>
-                    {t("sets.faking.desync.postDesync")}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {t("sets.faking.desync.postDesyncDesc")}
-                  </Typography>
-                </Box>
+            <B4Switch
+              label={t("sets.faking.desync.postDesync")}
+              description={t("sets.faking.desync.postDesyncDesc")}
+              checked={config.tcp.desync.post_desync || false}
+              onChange={(checked) =>
+                onChange("tcp.desync.post_desync", checked)
               }
             />
           </Grid>

@@ -10,6 +10,7 @@ import {
 import { ClearIcon } from "@b4.icons";
 import { B4Badge, B4TextField, B4Switch, B4TooltipButton } from "@b4.elements";
 import { ArrowDownIcon } from "@b4.icons";
+import { colors, fonts, glows } from "@design";
 import { useWebSocket } from "@context/B4WsProvider";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { useTranslation } from "react-i18next";
@@ -105,9 +106,7 @@ export function LogsPage() {
           flexDirection: "column",
           overflow: "hidden",
           border: "1px solid",
-          borderColor: pauseLogs
-            ? "rgba(245, 173, 24, 0.5)"
-            : "rgba(245, 173, 24, 0.24)",
+          borderColor: pauseLogs ? colors.border.strong : colors.border.default,
           transition: "border-color 0.3s",
         }}
       >
@@ -115,9 +114,8 @@ export function LogsPage() {
         <Box
           sx={{
             p: 2,
-            borderBottom: "1px solid",
-            borderColor: "rgba(245, 173, 24, 0.12)",
-            bgcolor: "rgba(31, 18, 24, 0.6)",
+            borderBottom: `1px solid ${colors.border.light}`,
+            bgcolor: colors.background.control,
           }}
         >
           <Stack direction="row" spacing={2} alignItems="center">
@@ -154,14 +152,13 @@ export function LogsPage() {
             overflowY: "auto",
             position: "relative",
             p: 2,
-            fontFamily:
-              'ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace',
-            fontSize: 13,
-            lineHeight: 1.6,
+            fontFamily: fonts.mono,
+            fontSize: 12.5,
+            lineHeight: 1.7,
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
-            backgroundColor: "#0f0a0e",
-            color: "text.primary",
+            backgroundColor: colors.background.dark,
+            color: colors.text.primary,
           }}
         >
           {(() => {
@@ -169,7 +166,7 @@ export function LogsPage() {
               return (
                 <Typography
                   sx={{
-                    color: "text.secondary",
+                    color: colors.text.secondary,
                     textAlign: "center",
                     mt: 4,
                     fontStyle: "italic",
@@ -182,7 +179,7 @@ export function LogsPage() {
               return (
                 <Typography
                   sx={{
-                    color: "text.secondary",
+                    color: colors.text.secondary,
                     textAlign: "center",
                     mt: 4,
                     fontStyle: "italic",
@@ -200,7 +197,7 @@ export function LogsPage() {
                     fontFamily: "inherit",
                     fontSize: "inherit",
                     "&:hover": {
-                      bgcolor: "rgba(158, 28, 96, 0.1)",
+                      bgcolor: colors.accent.primaryStrong,
                     },
                   }}
                 >
@@ -218,12 +215,10 @@ export function LogsPage() {
                 position: "absolute",
                 bottom: 16,
                 right: 16,
-                bgcolor: "#9E1C60",
-                color: "#fff",
-                boxShadow: "0 4px 12px rgba(158, 28, 96, 0.4)",
-                "&:hover": {
-                  bgcolor: "#811844",
-                },
+                bgcolor: colors.primary,
+                color: colors.text.primary,
+                boxShadow: glows.primary,
+                "&:hover": { bgcolor: colors.tertiary },
               }}
               size="small"
             >

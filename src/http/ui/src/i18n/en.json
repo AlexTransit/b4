@@ -459,6 +459,7 @@
   "dashboard": {
     "loading": "Loading dashboard...",
     "connectionRate": "Connection Rate",
+    "connectionRateLegend": "conn / s · last 60s",
     "metrics": {
       "connections": "Connections",
       "connPerSec": "conn/s",
@@ -466,7 +467,8 @@
       "ofTotal": "of total",
       "packets": "Packets",
       "pktPerSec": "pkt/s",
-      "rstDropped": "RST Dropped"
+      "rstDropped": "RST Dropped",
+      "idle": "idle"
     },
     "health": {
       "running": "Running",
