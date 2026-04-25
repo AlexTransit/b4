@@ -50,11 +50,21 @@ export const ActiveSets = ({ sets }: ActiveSetsProps) => {
             (set.targets.geoip_categories?.length || 0);
           const totalTargets = domainCount + ipCount;
 
+          const goToSet = () => {
+            navigate(`/sets/${set.id}`)?.catch(() => {});
+          };
           return (
             <Box
               key={set.id}
               role="button"
-              onClick={() => navigate(`/sets/${set.id}`)?.catch(() => {})}
+              tabIndex={0}
+              onClick={goToSet}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  goToSet();
+                }
+              }}
               sx={{
                 display: "inline-flex",
                 alignItems: "center",

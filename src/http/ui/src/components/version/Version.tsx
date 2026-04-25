@@ -4,11 +4,13 @@ import { colors, fonts, radiusPx } from "@design";
 import { GitHubIcon } from "@b4.icons";
 import { UpdateModal } from "./UpdateDialog";
 import { useGitHubRelease, dismissVersion } from "@hooks/useGitHubRelease";
+import { useTranslation } from "react-i18next";
 
 const REPO = "DanielLavrushin/b4";
 const REPO_URL = "https://github.com/daniellavrushin/b4";
 
 export default function Version() {
+  const { t } = useTranslation();
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const {
     releases,
@@ -95,8 +97,16 @@ export default function Version() {
         {isNewVersionAvailable && latestRelease ? (
           <Box
             role="button"
+            tabIndex={0}
+            aria-haspopup="dialog"
             onClick={() => setUpdateModalOpen(true)}
-            title="Click to view update"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setUpdateModalOpen(true);
+              }
+            }}
+            title={t("update.clickToView")}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -153,7 +163,7 @@ export default function Version() {
                   letterSpacing: "0.08em",
                 }}
               >
-                Update available
+                {t("update.available")}
               </Box>
               <Box
                 component="span"
@@ -185,7 +195,7 @@ export default function Version() {
                 flexShrink: 0,
               }}
             >
-              Install
+              {t("update.install")}
             </Box>
           </Box>
         ) : (
@@ -233,7 +243,7 @@ export default function Version() {
               component="span"
               sx={{ color: colors.text.secondary, opacity: 0.7 }}
             >
-              · up to date
+              · {t("update.upToDate")}
             </Box>
           </Box>
         )}
