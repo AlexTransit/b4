@@ -323,6 +323,7 @@ export const TrafficRouting = ({
                     onChange("routing.upstream.username", e.target.value)
                   }
                   helperText={t("sets.routing.upstreamAuthHelper")}
+                  autoComplete="new-password"
                 />
               </Grid>
               <Grid size={{ xs: 12, md: 6 }}>
@@ -334,6 +335,7 @@ export const TrafficRouting = ({
                     onChange("routing.upstream.password", e.target.value)
                   }
                   helperText={t("sets.routing.upstreamAuthHelper")}
+                  autoComplete="new-password"
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>

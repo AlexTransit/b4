@@ -183,11 +183,11 @@ func (c *Config) Validate() error {
 			if set.Routing.Upstream.Port < 1 || set.Routing.Upstream.Port > 65535 {
 				return fmt.Errorf("set %q: upstream proxy port must be 1-65535", set.Name)
 			}
-			if strings.TrimSpace(set.Routing.Upstream.Host) == "" {
-				return fmt.Errorf("set %q: upstream proxy host is required", set.Name)
+			h := strings.ToLower(strings.TrimSpace(set.Routing.Upstream.Host))
+			if h == "" {
+				h = "127.0.0.1"
 			}
 			if c.System.Socks5.Enabled && set.Routing.Upstream.Port == c.System.Socks5.Port {
-				h := strings.ToLower(strings.TrimSpace(set.Routing.Upstream.Host))
 				if h == "127.0.0.1" || h == "::1" || h == "localhost" || h == "0.0.0.0" {
 					return fmt.Errorf("set %q: upstream proxy points to b4's own SOCKS5 server (loop)", set.Name)
 				}

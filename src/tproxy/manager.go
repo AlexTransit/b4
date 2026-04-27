@@ -66,8 +66,12 @@ func (m *Manager) SyncConfig(cfg *config.Config) {
 		}
 		mark := effectiveMark(set)
 		port := PortFor(mark)
+		desiredHost := set.Routing.Upstream.Host
+		if desiredHost == "" {
+			desiredHost = "127.0.0.1"
+		}
 		if l.Port != port ||
-			l.Upstream.Host != set.Routing.Upstream.Host ||
+			l.Upstream.Host != desiredHost ||
 			l.Upstream.Port != set.Routing.Upstream.Port ||
 			l.Upstream.Username != set.Routing.Upstream.Username ||
 			l.Upstream.Password != set.Routing.Upstream.Password ||
@@ -85,12 +89,16 @@ func (m *Manager) SyncConfig(cfg *config.Config) {
 		}
 		mark := effectiveMark(set)
 		port := PortFor(mark)
+		host := set.Routing.Upstream.Host
+		if host == "" {
+			host = "127.0.0.1"
+		}
 		l := &Listener{
 			SetID:    set.Id,
 			SetName:  set.Name,
 			Port:     port,
 			Upstream: socks5.ClientConfig{
-				Host:     set.Routing.Upstream.Host,
+				Host:     host,
 				Port:     set.Routing.Upstream.Port,
 				Username: set.Routing.Upstream.Username,
 				Password: set.Routing.Upstream.Password,
