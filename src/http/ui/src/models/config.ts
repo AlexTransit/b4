@@ -337,9 +337,22 @@ export interface DNSConfig {
   fragment_query: boolean;
 }
 
+export type RoutingMode = "interface" | "proxy";
+
+export interface UpstreamProxyConfig {
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  fail_open: boolean;
+  use_domain: boolean;
+}
+
 export interface RoutingConfig {
   enabled: boolean;
+  mode: RoutingMode;
   egress_interface: string;
+  upstream: UpstreamProxyConfig;
   fwmark: number;
   table: number;
   source_interfaces: string[];

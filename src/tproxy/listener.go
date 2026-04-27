@@ -68,7 +68,7 @@ func (l *Listener) Start(parent context.Context) error {
 	}
 
 	l.ctx, l.cancel = context.WithCancel(parent)
-	ln, err := lc.Listen(l.ctx, "tcp", addr)
+	ln, err := lc.Listen(l.ctx, "tcp4", addr)
 	if err != nil {
 		l.cancel()
 		return fmt.Errorf("tproxy listen %s: %w", addr, err)

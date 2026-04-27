@@ -1,6 +1,6 @@
 import { Box, Grid, MenuItem, Typography } from "@mui/material";
 import { B4Alert, B4Badge, B4Switch, B4TextField } from "@b4.elements";
-import { B4SetConfig } from "@models/config";
+import { B4SetConfig, RoutingMode } from "@models/config";
 import { colors } from "@design";
 import { useTranslation } from "react-i18next";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
@@ -21,11 +21,14 @@ export const TrafficRouting = ({
 }: TrafficRoutingProps) => {
   const { t } = useTranslation();
   const routing = config.routing;
+  const mode: RoutingMode = routing.mode === "proxy" ? "proxy" : "interface";
+  const isProxy = mode === "proxy";
+
   const selectedIfaceAvailable = availableIfaces.includes(
     routing.egress_interface,
   );
   const shouldShowUnavailableSelected = Boolean(
-    routing.egress_interface && !selectedIfaceAvailable,
+    !isProxy && routing.egress_interface && !selectedIfaceAvailable,
   );
 
   const toggleSourceIface = (iface: string) => {
@@ -36,6 +39,26 @@ export const TrafficRouting = ({
     onChange("routing.source_interfaces", updated);
   };
 
+  const upstream = routing.upstream || {
+    host: "",
+    port: 0,
+    username: "",
+    password: "",
+    fail_open: false,
+    use_domain: true,
+  };
+
+  let flowDestination: string;
+  if (isProxy) {
+    flowDestination =
+      upstream.host && upstream.port
+        ? `${upstream.host}:${upstream.port}`
+        : t("sets.routing.flowNoUpstream");
+  } else {
+    flowDestination =
+      routing.egress_interface || t("sets.routing.flowNoOutput");
+  }
+
   return (
     <Grid container spacing={3}>
       <Grid size={{ lg: 12 }}>
@@ -44,13 +67,31 @@ export const TrafficRouting = ({
           checked={routing.enabled}
           onChange={(checked: boolean) => onChange("routing.enabled", checked)}
           description={t("sets.routing.enableDesc")}
-          disabled={availableIfaces.length === 0 && !routing.enabled}
+          disabled={
+            !isProxy && availableIfaces.length === 0 && !routing.enabled
+          }
         />
       </Grid>
 
       {routing.enabled && (
         <>
-          {/* Traffic flow diagram */}
+          <Grid size={{ xs: 12 }}>
+            <B4TextField
+              label={t("sets.routing.modeLabel")}
+              select
+              value={mode}
+              onChange={(e) => onChange("routing.mode", e.target.value)}
+              helperText={t("sets.routing.modeHelper")}
+            >
+              <MenuItem value="interface">
+                {t("sets.routing.modeInterface")}
+              </MenuItem>
+              <MenuItem value="proxy">
+                {t("sets.routing.modeProxy")}
+              </MenuItem>
+            </B4TextField>
+          </Grid>
+
           <Grid size={{ xs: 12 }}>
             <Box
               sx={{
@@ -122,7 +163,7 @@ export const TrafficRouting = ({
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {routing.egress_interface || t("sets.routing.flowNoOutput")}
+                  {flowDestination}
                 </Box>
                 <ArrowForwardIcon
                   sx={{ fontSize: 16, color: "text.secondary" }}
@@ -145,13 +186,19 @@ export const TrafficRouting = ({
                 color="text.secondary"
                 sx={{ mt: 1.5, display: "block", textAlign: "center" }}
               >
-                {t("sets.routing.flowCaption")}
+                {isProxy
+                  ? t("sets.routing.flowProxyCaption")
+                  : t("sets.routing.flowCaption")}
               </Typography>
             </Box>
           </Grid>
 
           <Grid size={{ xs: 12 }}>
-            <B4Alert severity="info">{t("sets.routing.howItWorks")}</B4Alert>
+            <B4Alert severity="info">
+              {isProxy
+                ? t("sets.routing.howItWorksProxy")
+                : t("sets.routing.howItWorks")}
+            </B4Alert>
           </Grid>
 
           <Grid size={{ xs: 12 }}>
@@ -190,7 +237,7 @@ export const TrafficRouting = ({
               })}
             </Box>
 
-            {availableIfaces.length === 0 && (
+            {availableIfaces.length === 0 && !isProxy && (
               <B4Alert severity="warning" sx={{ mt: 2 }}>
                 {t("sets.routing.noInterfaces")}
               </B4Alert>
@@ -205,38 +252,122 @@ export const TrafficRouting = ({
             )}
 
             <B4Alert severity="info" sx={{ mt: 2 }}>
-              {t("sets.routing.info")}
+              {isProxy ? t("sets.routing.infoProxy") : t("sets.routing.info")}
             </B4Alert>
           </Grid>
 
-          <Grid size={{ xs: 12, md: 6 }}>
-            <B4TextField
-              label={t("sets.routing.outputInterface")}
-              select
-              value={routing.egress_interface}
-              onChange={(e) =>
-                onChange("routing.egress_interface", e.target.value)
-              }
-              helperText={
-                shouldShowUnavailableSelected
-                  ? t("sets.routing.interfaceUnavailable")
-                  : t("sets.routing.outputInterfaceHelper")
-              }
-            >
-              {shouldShowUnavailableSelected && (
-                <MenuItem value={routing.egress_interface}>
-                  {t("sets.routing.interfaceUnavailableOption", {
-                    iface: routing.egress_interface,
-                  })}
-                </MenuItem>
-              )}
-              {availableIfaces.map((iface) => (
-                <MenuItem key={iface} value={iface}>
-                  {iface}
-                </MenuItem>
-              ))}
-            </B4TextField>
-          </Grid>
+          {!isProxy && (
+            <Grid size={{ xs: 12, md: 6 }}>
+              <B4TextField
+                label={t("sets.routing.outputInterface")}
+                select
+                value={routing.egress_interface}
+                onChange={(e) =>
+                  onChange("routing.egress_interface", e.target.value)
+                }
+                helperText={
+                  shouldShowUnavailableSelected
+                    ? t("sets.routing.interfaceUnavailable")
+                    : t("sets.routing.outputInterfaceHelper")
+                }
+              >
+                {shouldShowUnavailableSelected && (
+                  <MenuItem value={routing.egress_interface}>
+                    {t("sets.routing.interfaceUnavailableOption", {
+                      iface: routing.egress_interface,
+                    })}
+                  </MenuItem>
+                )}
+                {availableIfaces.map((iface) => (
+                  <MenuItem key={iface} value={iface}>
+                    {iface}
+                  </MenuItem>
+                ))}
+              </B4TextField>
+            </Grid>
+          )}
+
+          {isProxy && (
+            <>
+              <Grid size={{ xs: 12, md: 8 }}>
+                <B4TextField
+                  label={t("sets.routing.upstreamHost")}
+                  value={upstream.host}
+                  onChange={(e) =>
+                    onChange("routing.upstream.host", e.target.value)
+                  }
+                  helperText={t("sets.routing.upstreamHostHelper")}
+                  placeholder="127.0.0.1"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 4 }}>
+                <B4TextField
+                  label={t("sets.routing.upstreamPort")}
+                  type="number"
+                  value={upstream.port || ""}
+                  onChange={(e) =>
+                    onChange(
+                      "routing.upstream.port",
+                      Number(e.target.value) || 0,
+                    )
+                  }
+                  helperText={t("sets.routing.upstreamPortHelper")}
+                  placeholder="1080"
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <B4TextField
+                  label={t("sets.routing.upstreamUser")}
+                  value={upstream.username || ""}
+                  onChange={(e) =>
+                    onChange("routing.upstream.username", e.target.value)
+                  }
+                  helperText={t("sets.routing.upstreamAuthHelper")}
+                />
+              </Grid>
+              <Grid size={{ xs: 12, md: 6 }}>
+                <B4TextField
+                  label={t("sets.routing.upstreamPass")}
+                  type="password"
+                  value={upstream.password || ""}
+                  onChange={(e) =>
+                    onChange("routing.upstream.password", e.target.value)
+                  }
+                  helperText={t("sets.routing.upstreamAuthHelper")}
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <B4Switch
+                  label={t("sets.routing.useDomain")}
+                  checked={upstream.use_domain !== false}
+                  onChange={(checked: boolean) =>
+                    onChange("routing.upstream.use_domain", checked)
+                  }
+                  description={t("sets.routing.useDomainDesc")}
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <B4Switch
+                  label={t("sets.routing.failOpen")}
+                  checked={upstream.fail_open === true}
+                  onChange={(checked: boolean) =>
+                    onChange("routing.upstream.fail_open", checked)
+                  }
+                  description={t("sets.routing.failOpenDesc")}
+                />
+                {upstream.fail_open && (
+                  <B4Alert severity="warning" sx={{ mt: 1 }}>
+                    {t("sets.routing.failOpenWarning")}
+                  </B4Alert>
+                )}
+              </Grid>
+              <Grid size={{ xs: 12 }}>
+                <B4Alert severity="info">
+                  {t("sets.routing.proxyManipulationNote")}
+                </B4Alert>
+              </Grid>
+            </>
+          )}
 
           <Grid size={{ xs: 12, md: 6 }}>
             <B4TextField
