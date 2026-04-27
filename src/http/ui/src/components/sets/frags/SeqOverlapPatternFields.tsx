@@ -16,6 +16,11 @@ interface SeqOverlapPatternFieldsProps {
   onChange: (pattern: string[]) => void;
 }
 
+const normalizeByte = (b: string): string => {
+  const hex = b.trim().replace(/^0x/i, "").toUpperCase().padStart(2, "0");
+  return `0x${hex}`;
+};
+
 export const SeqOverlapPatternFields = ({
   pattern,
   onChange,
@@ -23,43 +28,44 @@ export const SeqOverlapPatternFields = ({
   const { t } = useTranslation();
   const [customMode, setCustomMode] = useState(false);
   const [newByte, setNewByte] = useState("");
+  const normalizedPattern = pattern.map(normalizeByte);
 
   const SEQ_OVERLAP_PRESETS = [
     { label: t("sets.tcp.splitting.disorder.presetNone"), value: "none", pattern: [] },
     {
       label: t("sets.tcp.splitting.disorder.presetTls12"),
       value: "tls12",
-      pattern: ["16", "03", "03", "00", "00"],
+      pattern: ["0x16", "0x03", "0x03", "0x00", "0x00"],
     },
     {
       label: t("sets.tcp.splitting.disorder.presetTls11"),
       value: "tls11",
-      pattern: ["16", "03", "02", "00", "00"],
+      pattern: ["0x16", "0x03", "0x02", "0x00", "0x00"],
     },
     {
       label: t("sets.tcp.splitting.disorder.presetTls10"),
       value: "tls10",
-      pattern: ["16", "03", "01", "00", "00"],
+      pattern: ["0x16", "0x03", "0x01", "0x00", "0x00"],
     },
     {
       label: t("sets.tcp.splitting.disorder.presetHttpGet"),
       value: "http_get",
-      pattern: ["47", "45", "54", "20", "2F"],
+      pattern: ["0x47", "0x45", "0x54", "0x20", "0x2F"],
     },
-    { label: t("sets.tcp.splitting.disorder.presetZeros"), value: "zeros", pattern: ["00"] },
+    { label: t("sets.tcp.splitting.disorder.presetZeros"), value: "zeros", pattern: ["0x00"] },
     { label: t("sets.tcp.splitting.disorder.presetCustom"), value: "custom", pattern: [] },
   ];
 
   const getCurrentPreset = () => {
     if (customMode) return "custom";
-    if (pattern.length === 0) return "none";
+    if (normalizedPattern.length === 0) return "none";
 
     const match = SEQ_OVERLAP_PRESETS.find(
       (p) =>
         p.value !== "none" &&
         p.value !== "custom" &&
-        p.pattern.length === pattern.length &&
-        p.pattern.every((b, i) => b === pattern[i]),
+        p.pattern.length === normalizedPattern.length &&
+        p.pattern.every((b, i) => b === normalizedPattern[i]),
     );
     return match?.value || "custom";
   };
@@ -87,17 +93,17 @@ export const SeqOverlapPatternFields = ({
   const handleAddByte = () => {
     const bytes: string[] = [];
     newByte.split(" ").forEach((b) => {
-      const byte = b.trim().replace(/^0x/i, "").toUpperCase();
-      if (/^[0-9A-F]{1,2}$/.test(byte)) {
-        bytes.push(byte.padStart(2, "0"));
+      const hex = b.trim().replace(/^0x/i, "").toUpperCase();
+      if (/^[0-9A-F]{1,2}$/.test(hex)) {
+        bytes.push(`0x${hex.padStart(2, "0")}`);
       }
     });
-    onChange([...pattern, ...bytes]);
+    onChange([...normalizedPattern, ...bytes]);
     setNewByte("");
   };
 
   const handleRemoveByte = (index: number) => {
-    onChange(pattern.filter((_, i) => i !== index));
+    onChange(normalizedPattern.filter((_, i) => i !== index));
   };
 
   return (
@@ -120,7 +126,7 @@ export const SeqOverlapPatternFields = ({
           helperText={t("sets.tcp.splitting.disorder.overlapPatternHelper")}
         />
       </Grid>
-      {pattern.length > 0 && (
+      {normalizedPattern.length > 0 && (
         <Grid size={{ xs: 6 }}>
           <Box
             sx={{
@@ -155,8 +161,8 @@ export const SeqOverlapPatternFields = ({
                   border: `2px dashed ${colors.secondary}`,
                 }}
               >
-                [{pattern.join(" ")}] (fake, seq-
-                {pattern.length})
+                [{normalizedPattern.join(" ")}] (fake, seq-
+                {normalizedPattern.length})
               </Box>
               <Typography sx={{ mx: 1 }}>+</Typography>
               <Box
@@ -200,9 +206,9 @@ export const SeqOverlapPatternFields = ({
           </Grid>
 
           <B4ChipList
-            items={pattern.map((b, i) => ({ byte: b, index: i }))}
+            items={normalizedPattern.map((b, i) => ({ byte: b, index: i }))}
             getKey={(item) => `${item.byte}-${item.index}`}
-            getLabel={(item) => `0x${item.byte}`}
+            getLabel={(item) => item.byte}
             onDelete={(item) => handleRemoveByte(item.index)}
             emptyMessage={t("sets.tcp.splitting.disorder.addByteEmpty")}
             gridSize={{ xs: 12, md: 6 }}
