@@ -8,7 +8,7 @@ import {
   B4ChipList,
 } from "@b4.elements";
 import { colors } from "@design";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface SeqOverlapPatternFieldsProps {
@@ -28,7 +28,9 @@ export const SeqOverlapPatternFields = ({
   const { t } = useTranslation();
   const [customMode, setCustomMode] = useState(false);
   const [newByte, setNewByte] = useState("");
+  const justActivatedCustom = useRef(false);
   const normalizedPattern = pattern.map(normalizeByte);
+  const patternKey = normalizedPattern.join(",");
 
   const SEQ_OVERLAP_PRESETS = [
     { label: t("sets.tcp.splitting.disorder.presetNone"), value: "none", pattern: [] },
@@ -70,6 +72,23 @@ export const SeqOverlapPatternFields = ({
     return match?.value || "custom";
   };
 
+  useEffect(() => {
+    if (justActivatedCustom.current) {
+      justActivatedCustom.current = false;
+      return;
+    }
+    const matchesKnownPreset = SEQ_OVERLAP_PRESETS.some(
+      (p) =>
+        p.value !== "custom" &&
+        p.pattern.length === normalizedPattern.length &&
+        p.pattern.every((b, i) => b === normalizedPattern[i]),
+    );
+    if (matchesKnownPreset) {
+      setCustomMode(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patternKey]);
+
   const handlePresetChange = (preset: string) => {
     if (preset === "none") {
       setCustomMode(false);
@@ -78,6 +97,7 @@ export const SeqOverlapPatternFields = ({
     }
 
     if (preset === "custom") {
+      justActivatedCustom.current = true;
       onChange([]);
       setCustomMode(true);
       return;
