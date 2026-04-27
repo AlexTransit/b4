@@ -93,7 +93,9 @@ var DefaultSetConfig = SetConfig{
 
 	Routing: RoutingConfig{
 		Enabled:          false,
+		Mode:             RoutingModeInterface,
 		EgressInterface:  "",
+		Upstream:         UpstreamProxyConfig{UseDomain: true},
 		FWMark:           0,
 		Table:            0,
 		SourceInterfaces: []string{},
