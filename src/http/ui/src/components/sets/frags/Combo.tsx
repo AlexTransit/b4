@@ -36,11 +36,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
     <>
       <B4FormHeader label={t("sets.tcp.splitting.combo.header")} />
 
-      <Grid size={{ xs: 12 }}>
-        <B4Alert severity="info">
-          {t("sets.tcp.splitting.combo.alert")}
-        </B4Alert>
-      </Grid>
+      <B4Alert>{t("sets.tcp.splitting.combo.alert")}</B4Alert>
 
       {/* Decoy Settings */}
       <B4FormHeader label={t("sets.tcp.splitting.combo.decoyHeader")} />
@@ -352,13 +348,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
 
       <B4FormHeader label={t("sets.tcp.splitting.combo.fakePerSegHeader")} />
 
-      <Grid size={{ xs: 12 }}>
-        <B4Alert severity="info">
-          {t("sets.tcp.splitting.combo.fakePerSegAlert")}
-        </B4Alert>
-      </Grid>
-
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <B4Switch
           label={t("sets.tcp.splitting.combo.fakePerSeg")}
           checked={combo.fake_per_segment}
@@ -367,6 +357,11 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           }
           description={t("sets.tcp.splitting.combo.fakePerSegDesc")}
         />
+      </Grid>
+      <Grid size={{ xs: 12, md: 8 }}>
+        <B4Alert severity="info">
+          {t("sets.tcp.splitting.combo.fakePerSegAlert")}
+        </B4Alert>
       </Grid>
 
       {combo.fake_per_segment && (
@@ -397,7 +392,9 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
 
       <SeqOverlapPatternFields
         pattern={seqPattern}
-        onChange={(value) => onChange("fragmentation.seq_overlap_pattern", value)}
+        onChange={(value) =>
+          onChange("fragmentation.seq_overlap_pattern", value)
+        }
       />
     </>
   );

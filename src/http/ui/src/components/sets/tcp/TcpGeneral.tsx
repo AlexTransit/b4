@@ -95,15 +95,17 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
 
       {/* Packet Duplication */}
       <B4FormHeader label={t("sets.tcp.general.packetDuplication")} />
-      <Grid container spacing={3}>
-        <B4Alert>{t("sets.tcp.general.dupAlert")}</B4Alert>
-        <Grid size={{ xs: 12, md: 6 }}>
+      <Grid container spacing={3} mb={3}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <B4Switch
             label={t("sets.tcp.general.dupEnable")}
             description={t("sets.tcp.general.dupEnableDesc")}
             checked={dup.enabled}
             onChange={(checked) => onChange("tcp.duplicate.enabled", checked)}
           />
+        </Grid>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <B4Alert sx={{ my: 1 }}>{t("sets.tcp.general.dupAlert")}</B4Alert>
         </Grid>
         {dup.enabled && (
           <Grid size={{ xs: 12, md: 6 }}>
@@ -124,9 +126,8 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
 
       {/* IP Block Detection */}
       <B4FormHeader label={t("sets.tcp.general.ipBlockDetect")} />
-      <Grid container spacing={3}>
-        <B4Alert>{t("sets.tcp.general.ibdAlert")}</B4Alert>
-        <Grid size={{ xs: 12, md: 6 }}>
+      <Grid container spacing={3} mb={3}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <B4Switch
             label={t("sets.tcp.general.ibdEnable")}
             description={t("sets.tcp.general.ibdEnableDesc")}
@@ -135,6 +136,9 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
               onChange("tcp.ip_block_detect.enabled", checked)
             }
           />
+        </Grid>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <B4Alert sx={{ my: 1 }}>{t("sets.tcp.general.ibdAlert")}</B4Alert>
         </Grid>
         {ibd.enabled && (
           <>
@@ -188,8 +192,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
       {/* RST Protection */}
       <B4FormHeader label={t("sets.tcp.general.rstProtection")} />
       <Grid container spacing={3}>
-        <B4Alert>{t("sets.tcp.general.rstAlert")}</B4Alert>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, md: 4 }}>
           <B4Switch
             label={t("sets.tcp.general.rstEnable")}
             description={t("sets.tcp.general.rstEnableDesc")}
@@ -199,6 +202,10 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             }
           />
         </Grid>
+        <Grid size={{ xs: 12, md: 8 }}>
+          <B4Alert sx={{ mt: 1 }}>{t("sets.tcp.general.rstAlert")}</B4Alert>
+        </Grid>
+
         {rstProt.enabled && (
           <Grid size={{ xs: 12, md: 6 }}>
             <B4Slider
