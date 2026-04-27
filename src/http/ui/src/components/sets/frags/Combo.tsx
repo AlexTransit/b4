@@ -4,6 +4,7 @@ import { B4SetConfig, ComboShuffleMode } from "@models/config";
 import { colors } from "@design";
 import { B4Alert, B4FormHeader } from "@b4.elements";
 import { useTranslation } from "react-i18next";
+import { SeqOverlapPatternFields } from "./SeqOverlapPatternFields";
 
 interface ComboSettingsProps {
   config: B4SetConfig;
@@ -17,6 +18,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
   const { t } = useTranslation();
   const combo = config.fragmentation.combo;
   const middleSni = config.fragmentation.middle_sni;
+  const seqPattern = config.fragmentation.seq_overlap_pattern || [];
 
   const shuffleModeOptions: { label: string; value: ComboShuffleMode }[] = [
     { label: t("sets.tcp.splitting.combo.shuffleMiddle"), value: "middle" },
@@ -392,6 +394,11 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           {t("sets.tcp.splitting.combo.noSplitPointsWarning")}
         </B4Alert>
       )}
+
+      <SeqOverlapPatternFields
+        pattern={seqPattern}
+        onChange={(value) => onChange("fragmentation.seq_overlap_pattern", value)}
+      />
     </>
   );
 };
