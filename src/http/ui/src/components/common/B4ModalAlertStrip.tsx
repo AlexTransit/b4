@@ -32,7 +32,7 @@ export const B4ModalAlertStrip = ({
       gap="12px"
       sx={{
         p: "12px 14px",
-        borderRadius: radiusPx.sm,
+        borderRadius: `${radiusPx.sm}px`,
         bgcolor: colors.background.paper,
         border: `1px solid ${colors.border.default}`,
         ...sx,

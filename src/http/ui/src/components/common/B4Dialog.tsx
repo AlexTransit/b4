@@ -58,7 +58,7 @@ export const B4Dialog = ({
             sx={{
               width: 38,
               height: 38,
-              borderRadius: radiusPx.sm,
+              borderRadius: `${radiusPx.sm}px`,
               bgcolor: colors.accent.secondary,
               color: colors.secondary,
               display: "flex",
