@@ -100,9 +100,7 @@ git clone https://github.com/daniellavrushin/b4.git
 cd b4
 
 # Build UI
-cd src/http/ui
-pnpm install && pnpm build
-cd ../../..
+make build-ui
 
 # Build binary
 make build
@@ -114,7 +112,7 @@ make build-all
 make linux-amd64
 make linux-arm64
 make linux-armv7
-````
+```
 
 ## Docker
 

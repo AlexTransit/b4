@@ -2,11 +2,9 @@ import { useState } from "react";
 import { useTranslation, Trans } from "react-i18next";
 import { Link as RouterLink } from "react-router";
 import {
-  Chip,
   IconButton,
   Link,
   Stack,
-  TextField,
   Table,
   TableBody,
   TableCell,
@@ -21,23 +19,30 @@ import {
   RefreshIcon,
   DeleteIcon,
   StartIcon,
-  AddIcon,
   SuccessIcon,
   WarningIcon,
   ErrorIcon,
   TimerIcon,
 } from "@b4.icons";
 import { colors } from "@design";
-import { B4Section, B4Alert } from "@b4.elements";
+import {
+  B4Section,
+  B4Alert,
+  B4Badge,
+  B4TextField,
+  B4PlusButton,
+} from "@b4.elements";
 import { useWatchdog } from "@hooks/useWatchdog";
 import { WatchdogDomainStatus } from "@models/watchdog";
 
-function statusColor(status: string): "success" | "warning" | "error" | "info" {
+function statusColor(
+  status: string,
+): "primary" | "secondary" | "error" | "info" {
   switch (status) {
     case "healthy":
-      return "success";
+      return "primary";
     case "degraded":
-      return "warning";
+      return "secondary";
     case "escalating":
       return "info";
     case "queued":
@@ -50,14 +55,14 @@ function statusColor(status: string): "success" | "warning" | "error" | "info" {
 function StatusIcon({ status }: Readonly<{ status: string }>) {
   switch (status) {
     case "healthy":
-      return <SuccessIcon sx={{ fontSize: 18, color: "#4caf50" }} />;
+      return <SuccessIcon sx={{ fontSize: 18, color: colors.primary }} />;
     case "degraded":
-      return <WarningIcon sx={{ fontSize: 18, color: "#ff9800" }} />;
+      return <WarningIcon sx={{ fontSize: 18, color: colors.secondary }} />;
     case "escalating":
     case "queued":
-      return <TimerIcon sx={{ fontSize: 18, color: "#2196f3" }} />;
+      return <TimerIcon sx={{ fontSize: 18, color: colors.state.info }} />;
     default:
-      return <ErrorIcon sx={{ fontSize: 18, color: "#f44336" }} />;
+      return <ErrorIcon sx={{ fontSize: 18, color: colors.state.error }} />;
   }
 }
 
@@ -104,16 +109,15 @@ function DomainRow({
       </TableCell>
       <TableCell>
         {domain.matched_set ? (
-          <Chip label={domain.matched_set} size="small" variant="outlined" />
+          <B4Badge label={domain.matched_set} variant="outlined" />
         ) : (
           <Typography variant="body2" color="text.secondary">-</Typography>
         )}
       </TableCell>
       <TableCell>
-        <Chip
+        <B4Badge
           label={t(`watchdog.status.${domain.status}`)}
           color={statusColor(domain.status)}
-          size="small"
           variant="outlined"
         />
       </TableCell>
@@ -124,10 +128,9 @@ function DomainRow({
       </TableCell>
       <TableCell>
         {domain.consecutive_failures > 0 ? (
-          <Chip
+          <B4Badge
             label={`${domain.consecutive_failures}`}
-            color="warning"
-            size="small"
+            color="secondary"
             variant="outlined"
           />
         ) : (
@@ -139,10 +142,9 @@ function DomainRow({
       <TableCell>
         {domain.last_error ? (
           <Tooltip title={domain.last_error}>
-            <Chip
+            <B4Badge
               label={domain.last_error}
               color="error"
-              size="small"
               variant="outlined"
               sx={{ maxWidth: 250 }}
             />
@@ -214,26 +216,25 @@ export function WatchdogMonitor() {
       <Stack spacing={2}>
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Stack direction="row" spacing={1} alignItems="center">
-            <Chip
+            <B4Badge
               label={state.enabled ? t("watchdog.enabled") : t("watchdog.disabled")}
-              color={state.enabled ? "success" : "default"}
-              size="small"
-              onClick={() => toggleEnabled(!state.enabled)}
+              color={state.enabled ? "primary" : "default"}
+              onClick={() => {
+                void toggleEnabled(!state.enabled);
+              }}
               sx={{ cursor: "pointer" }}
             />
             {state.enabled && domains.length > 0 && (
               <>
-                <Chip
+                <B4Badge
                   label={`${healthyCount} ${t("watchdog.status.healthy")}`}
-                  color="success"
-                  size="small"
+                  color="primary"
                   variant="outlined"
                 />
                 {degradedCount > 0 && (
-                  <Chip
+                  <B4Badge
                     label={`${degradedCount} ${t("watchdog.issues")}`}
-                    color="warning"
-                    size="small"
+                    color="secondary"
                     variant="outlined"
                   />
                 )}
@@ -256,7 +257,7 @@ export function WatchdogMonitor() {
 
         {state.enabled && (
           <Stack direction="row" spacing={1} alignItems="center">
-            <TextField
+            <B4TextField
               size="small"
               value={newDomain}
               onChange={(e) => setNewDomain(e.target.value)}
@@ -269,17 +270,10 @@ export function WatchdogMonitor() {
               placeholder={t("watchdog.addPlaceholder")}
               sx={{ flex: 1, maxWidth: 400 }}
             />
-            <IconButton
+            <B4PlusButton
               onClick={handleAddDomain}
               disabled={!newDomain.trim()}
-              sx={{
-                bgcolor: colors.accent.secondary,
-                color: colors.secondary,
-                "&:hover": { bgcolor: colors.accent.secondaryHover },
-              }}
-            >
-              <AddIcon />
-            </IconButton>
+            />
           </Stack>
         )}
 
@@ -311,8 +305,12 @@ export function WatchdogMonitor() {
                   <DomainRow
                     key={domain.domain}
                     domain={domain}
-                    onForceCheck={forceCheck}
-                    onRemove={removeDomain}
+                    onForceCheck={(d) => {
+                      void forceCheck(d);
+                    }}
+                    onRemove={(d) => {
+                      void removeDomain(d);
+                    }}
                   />
                 ))}
               </TableBody>

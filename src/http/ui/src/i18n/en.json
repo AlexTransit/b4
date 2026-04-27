@@ -459,6 +459,7 @@
   "dashboard": {
     "loading": "Loading dashboard...",
     "connectionRate": "Connection Rate",
+    "connectionRateLegend": "conn / s · last 60s",
     "metrics": {
       "connections": "Connections",
       "connPerSec": "conn/s",
@@ -466,7 +467,8 @@
       "ofTotal": "of total",
       "packets": "Packets",
       "pktPerSec": "pkt/s",
-      "rstDropped": "RST Dropped"
+      "rstDropped": "RST Dropped",
+      "idle": "idle"
     },
     "health": {
       "running": "Running",
@@ -1454,7 +1456,11 @@
     "inProgress": "Update in progress. Waiting for service to restart...",
     "completed": "Update completed successfully! Refreshing...",
     "manualCheck": "Update may have completed but service did not restart. Please check manually.",
-    "backupWarning": "Back up your configuration before updating. Use Settings → Backup to download a backup."
+    "backupWarning": "Back up your configuration before updating. Use Settings → Backup to download a backup.",
+    "clickToView": "Click to view update",
+    "available": "Update available",
+    "install": "Install",
+    "upToDate": "up to date"
   },
   "watchdog": {
     "title": "Watchdog Monitor",

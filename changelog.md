@@ -1,5 +1,10 @@
 # B4 - Bye Bye Big Bro
 
+## [1.50.0] - 2026-04-27
+
+- IMPROVED: **Refreshed UI** — the whole web UI has been redesigned: cleaner typography, tighter spacing, calmer colour palette, larger and easier-to-read numbers, and better keyboard accessibility throughout.
+- ADDED: **Sequence overlap pattern in Combo fragmentation** — the Combo fragmentation strategy can again be tuned from the UI: choose a preset (TLS handshake, HTTP GET, zeros) or build a custom byte pattern for the overlap step.
+
 ## [1.49.1] - 2026-04-20
 
 - FIXED: **Routing stopped working after restarting tun2socks / sing-box** - if the proxy's network interface was recreated, or wasn't ready yet when B4 started, traffic routing silently broke until B4 was restarted too. B4 now detects these changes automatically and restores routing within a second.

@@ -62,19 +62,6 @@ export const AggregatedControlBar = ({
           exclusive
           value={window}
           onChange={(_, v) => v !== null && onWindowChange(v as TimeWindow)}
-          sx={{
-            "& .MuiToggleButton-root": {
-              px: 1.2,
-              py: 0.2,
-              color: colors.text.secondary,
-              borderColor: colors.border.default,
-              fontSize: 12,
-            },
-            "& .Mui-selected": {
-              color: `${colors.secondary} !important`,
-              bgcolor: `${colors.accent.secondary} !important`,
-            },
-          }}
         >
           <ToggleButton value={30}>30s</ToggleButton>
           <ToggleButton value={60}>1m</ToggleButton>

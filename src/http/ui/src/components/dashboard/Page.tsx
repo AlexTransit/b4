@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import {
   Box,
   Container,
+  Grid,
   Typography,
   LinearProgress,
   Paper,
@@ -12,7 +13,7 @@ import { ActiveSets } from "./ActiveSets";
 import { DeviceActivity } from "./DeviceActivity";
 import { UnmatchedDomains } from "./UnmatchedDomains";
 import { SimpleLineChart } from "./SimpleLineChart";
-import { colors } from "@design";
+import { colors, fonts } from "@design";
 import { useTranslation } from "react-i18next";
 import { useDashboardSets } from "@hooks/useDashboardSets";
 import { wsUrl } from "@utils";
@@ -258,18 +259,8 @@ export function DashboardPage() {
   const { t } = useTranslation();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [connected, setConnected] = useState(false);
-  const [version, setVersion] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const { sets, targetedDomains, refresh: refreshSets } = useDashboardSets();
-
-  useEffect(() => {
-    fetch("/api/version")
-      .then((r) => r.json())
-      .then((data: { version?: string }) => {
-        if (data?.version) setVersion(data.version);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     const connectWebSocket = () => {
@@ -325,7 +316,7 @@ export function DashboardPage() {
 
   return (
     <Container maxWidth={false} sx={{ p: 2 }}>
-      <HealthBanner metrics={metrics} connected={connected} version={version} />
+      <HealthBanner metrics={metrics} connected={connected} />
 
       <Box sx={{ mb: 1.5 }}>
         <MetricsCards metrics={metrics} />
@@ -333,47 +324,81 @@ export function DashboardPage() {
 
       <ActiveSets sets={sets} />
 
-      <DeviceActivity
-        deviceDomains={metrics.device_domains}
-        domainTLS={metrics.domain_tls}
-        sets={sets}
-        targetedDomains={targetedDomains}
-        onRefreshSets={refreshSets}
-      />
-
-      <UnmatchedDomains
-        topDomains={metrics.top_domains}
-        domainTLS={metrics.domain_tls}
-        sets={sets}
-        targetedDomains={targetedDomains}
-        onRefreshSets={refreshSets}
-      />
+      <Grid container spacing={1.5} sx={{ mb: 1.5 }} alignItems="stretch">
+        <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
+          <Box sx={{ width: "100%" }}>
+            <DeviceActivity
+              deviceDomains={metrics.device_domains}
+              domainTLS={metrics.domain_tls}
+              sets={sets}
+              targetedDomains={targetedDomains}
+              onRefreshSets={refreshSets}
+            />
+          </Box>
+        </Grid>
+        <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
+          <Box sx={{ width: "100%" }}>
+            <UnmatchedDomains
+              topDomains={metrics.top_domains}
+              domainTLS={metrics.domain_tls}
+              sets={sets}
+              targetedDomains={targetedDomains}
+              onRefreshSets={refreshSets}
+            />
+          </Box>
+        </Grid>
+      </Grid>
 
       {metrics.connection_rate.length > 0 && (
         <Paper
           sx={{
-            p: 2,
+            p: "14px",
             mt: 1.5,
             bgcolor: colors.background.paper,
             borderColor: colors.border.default,
           }}
           variant="outlined"
         >
-          <Typography
-            variant="caption"
+          <Box
             sx={{
-              color: colors.text.secondary,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               mb: 1,
-              display: "block",
             }}
           >
-            {t("dashboard.connectionRate")}
-          </Typography>
+            <Typography
+              variant="metricLabel"
+              sx={{
+                display: "block",
+                color: colors.text.secondary,
+                opacity: 0.8,
+              }}
+            >
+              {t("dashboard.connectionRate")}
+            </Typography>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontFamily: fonts.mono,
+                fontSize: 11,
+                color: colors.text.secondary,
+              }}
+            >
+              <Box
+                component="span"
+                sx={{ width: 8, height: 2, bgcolor: colors.secondary }}
+              />
+              <Box component="span">
+                {t("dashboard.connectionRateLegend")}
+              </Box>
+            </Box>
+          </Box>
           <SimpleLineChart
             data={metrics.connection_rate}
-            color={colors.primary}
+            color={colors.secondary}
             height={120}
           />
         </Paper>

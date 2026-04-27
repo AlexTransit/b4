@@ -37,6 +37,7 @@ import {
   B4Section,
   B4Dialog,
   B4Alert,
+  B4ModalAlertStrip,
   B4Tabs,
   B4Tab,
   B4ChipList,
@@ -1011,31 +1012,46 @@ export const TargetSettings = ({
           </Button>
         }
       >
-        {previewDialog.loading ? (
-          <Box sx={{ p: 2 }}>
-            <Skeleton variant="text" />
-            <Skeleton variant="text" />
-            <Skeleton variant="text" />
-          </Box>
-        ) : previewDialog.data ? (
-          <>
-            <B4Alert severity="info" sx={{ mb: 2 }}>
-              {t("sets.targets.previewTotal", { count: previewDialog.data.total_domains })}
-              {previewDialog.data.total_domains >
-                previewDialog.data.preview_count &&
-                ` (${t("sets.targets.previewShowing", { count: previewDialog.data.preview_count })})`}
+        {(() => {
+          if (previewDialog.loading) {
+            return (
+              <Box sx={{ p: 2 }}>
+                <Skeleton variant="text" />
+                <Skeleton variant="text" />
+                <Skeleton variant="text" />
+              </Box>
+            );
+          }
+          if (previewDialog.data) {
+            const { total_domains, preview_count, preview } = previewDialog.data;
+            const showingMore = total_domains > preview_count;
+            return (
+              <>
+                <B4ModalAlertStrip
+                  tone="primary"
+                  icon={<InfoIcon />}
+                  sx={{ mb: 2 }}
+                >
+                  {t("sets.targets.previewTotal", { count: total_domains })}
+                  {showingMore &&
+                    ` (${t("sets.targets.previewShowing", { count: preview_count })})`}
+                </B4ModalAlertStrip>
+                <List dense sx={{ maxHeight: 600, overflow: "auto" }}>
+                  {preview.map((domain) => (
+                    <ListItem key={domain}>
+                      <ListItemText primary={domain} />
+                    </ListItem>
+                  ))}
+                </List>
+              </>
+            );
+          }
+          return (
+            <B4Alert severity="error">
+              {t("sets.targets.previewFailed")}
             </B4Alert>
-            <List dense sx={{ maxHeight: 600, overflow: "auto" }}>
-              {previewDialog.data.preview.map((domain) => (
-                <ListItem key={domain}>
-                  <ListItemText primary={domain} />
-                </ListItem>
-              ))}
-            </List>
-          </>
-        ) : (
-          <B4Alert severity="error">{t("sets.targets.previewFailed")}</B4Alert>
-        )}
+          );
+        })()}
       </B4Dialog>
     </>
   );

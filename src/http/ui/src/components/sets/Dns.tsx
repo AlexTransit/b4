@@ -63,9 +63,7 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
       icon={<DnsIcon />}
     >
       <Grid container spacing={3}>
-        <B4Alert severity="info" sx={{ m: 0 }}>
-          {t("sets.dns.alert")}
-        </B4Alert>
+        <B4Alert>{t("sets.dns.alert")}</B4Alert>
 
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Switch
@@ -267,7 +265,9 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                     label={t("sets.dns.vizApp")}
                     sx={{ bgcolor: colors.accent.primary }}
                   />
-                  <Typography variant="caption">{t("sets.dns.vizQueryFor")}</Typography>
+                  <Typography variant="caption">
+                    {t("sets.dns.vizQueryFor")}
+                  </Typography>
                   <B4Badge
                     label="instagram.com"
                     size="small"
@@ -295,7 +295,9 @@ export function DnsSettings({ config, onChange, ipv6 }: DnsSettingsProps) {
                         : colors.accent.primary,
                     }}
                   />
-                  <Typography variant="caption">{t("sets.dns.vizRealIp")}</Typography>
+                  <Typography variant="caption">
+                    {t("sets.dns.vizRealIp")}
+                  </Typography>
                 </Stack>
               </Box>
             </Grid>

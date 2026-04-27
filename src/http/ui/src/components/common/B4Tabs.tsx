@@ -7,16 +7,23 @@ export const B4Tabs = ({ sx, ...props }: TabsProps) => (
     scrollButtons="auto"
     sx={{
       borderBottom: `1px solid ${colors.border.light}`,
+      minHeight: 38,
+      "& .MuiTabs-flexContainer": {
+        gap: "4px",
+      },
       "& .MuiTab-root": {
         color: colors.text.secondary,
         textTransform: "none",
-        minHeight: 48,
+        fontSize: 13,
+        minHeight: 38,
+        padding: "10px 12px",
         "&.Mui-selected": {
           color: colors.secondary,
         },
       },
       "& .MuiTabs-indicator": {
         bgcolor: colors.secondary,
+        height: 2,
       },
       ...sx,
     }}

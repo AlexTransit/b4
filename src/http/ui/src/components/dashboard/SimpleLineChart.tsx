@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { Box, Typography } from "@mui/material";
-import { colors } from "@design";
+import { colors, fonts } from "@design";
 import { useTranslation } from "react-i18next";
+
+const Y_GUTTER_PX = 28;
 
 interface SimpleChartProps {
   data: { timestamp: number; value: number }[];
@@ -88,7 +90,7 @@ export const SimpleLineChart = ({
         position: "relative",
         width: "100%",
         height,
-        pl: 1,
+        pl: `${Y_GUTTER_PX}px`,
         overflow: "hidden",
       }}
     >
@@ -105,7 +107,7 @@ export const SimpleLineChart = ({
       >
         <defs>
           <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity="0.1" />
+            <stop offset="0%" stopColor={color} stopOpacity="0.2" />
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -136,7 +138,7 @@ export const SimpleLineChart = ({
           d={smoothPath}
           fill="none"
           stroke={color}
-          strokeWidth=".2"
+          strokeWidth=".25"
           strokeLinecap="round"
           strokeLinejoin="round"
           style={{
@@ -151,40 +153,23 @@ export const SimpleLineChart = ({
           top: 0,
           left: 0,
           height: "100%",
+          width: `${Y_GUTTER_PX}px`,
           display: "flex",
           flexDirection: "column",
           justifyContent: "space-between",
-          pr: 1,
+          alignItems: "flex-end",
+          pr: "6px",
+          fontFamily: fonts.mono,
+          color: colors.text.secondary,
         }}
       >
-        <Typography
-          variant="caption"
-          sx={{
-            color: colors.text.secondary,
-            fontSize: "0.7rem",
-            lineHeight: 1,
-          }}
-        >
+        <Typography component="span" sx={{ fontSize: 10, lineHeight: 1 }}>
           {maxValue.toFixed(1)}
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            color: colors.text.secondary,
-            fontSize: "0.7rem",
-            lineHeight: 1,
-          }}
-        >
+        <Typography component="span" sx={{ fontSize: 10, lineHeight: 1 }}>
           {(minValue + range / 2).toFixed(1)}
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{
-            color: colors.text.secondary,
-            fontSize: "0.7rem",
-            lineHeight: 1,
-          }}
-        >
+        <Typography component="span" sx={{ fontSize: 10, lineHeight: 1 }}>
           {minValue.toFixed(1)}
         </Typography>
       </Box>

@@ -1,6 +1,5 @@
 import {
   AppBar,
-  Badge,
   Box,
   CssBaseline,
   Divider,
@@ -133,16 +132,18 @@ export default function App() {
               },
             }}
           >
-            <Toolbar>
+            <Box sx={{ p: "12px 16px" }}>
               <Logo />
-            </Toolbar>
+            </Box>
             <Divider sx={{ borderColor: colors.border.default }} />
-            <List>
+            <List sx={{ py: 1 }}>
               {navItems.map((item) => {
                 let targetCount = 0;
                 if (item.path === "/connections" && unseenDomainsCount > 0) {
                   targetCount = unseenDomainsCount;
                 }
+                const badgeLabel =
+                  targetCount > 999 ? "999+" : String(targetCount);
 
                 return (
                   <ListItem key={item.path} disablePadding>
@@ -155,6 +156,12 @@ export default function App() {
                         navigate(item.path)?.catch(() => {});
                       }}
                       sx={{
+                        gap: "14px",
+                        py: "8px",
+                        px: "16px",
+                        "&:hover": {
+                          backgroundColor: "rgba(255, 255, 255, 0.04)",
+                        },
                         "&.Mui-selected": {
                           backgroundColor: colors.accent.primary,
                           "&:hover": {
@@ -163,26 +170,38 @@ export default function App() {
                         },
                       }}
                     >
-                      <ListItemIcon sx={{ color: "inherit" }}>
-                        {targetCount > 0 ? (
-                          <Badge
-                            badgeContent={targetCount}
-                            color="secondary"
-                            max={999}
-                          >
-                            {item.icon}
-                          </Badge>
-                        ) : (
-                          item.icon
-                        )}
+                      <ListItemIcon
+                        sx={{ color: "inherit", minWidth: 0, fontSize: 22 }}
+                      >
+                        {item.icon}
                       </ListItemIcon>
                       <ListItemText primary={t(item.labelKey)} />
+                      {targetCount > 0 && (
+                        <Box
+                          component="span"
+                          sx={{
+                            ml: "auto",
+                            backgroundColor: colors.secondary,
+                            color: colors.text.tertiary,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            px: "6px",
+                            height: 18,
+                            minWidth: 18,
+                            borderRadius: "9px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {badgeLabel}
+                        </Box>
+                      )}
                     </ListItemButton>
                   </ListItem>
                 );
               })}
             </List>
-            <Box sx={{ flexGrow: 1 }} />
             <Version />
           </Drawer>
 
@@ -200,17 +219,29 @@ export default function App() {
               }),
             }}
           >
-            <AppBar position="static" elevation={0}>
-              <Toolbar>
+            <AppBar
+              position="static"
+              elevation={0}
+              sx={{ boxShadow: "0 2px 0 rgba(0, 0, 0, 0.2)" }}
+            >
+              <Toolbar sx={{ minHeight: { xs: 64 }, px: "16px" }}>
                 <IconButton
                   color="inherit"
                   onClick={() => setDrawerOpen(!drawerOpen)}
                   edge="start"
-                  sx={{ mr: 2 }}
                 >
                   <MenuIcon />
                 </IconButton>
-                <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
+                <Typography
+                  sx={{
+                    flexGrow: 1,
+                    fontSize: 18,
+                    fontWeight: 600,
+                    letterSpacing: "0.01em",
+                    ml: "12px",
+                    color: "#fff",
+                  }}
+                >
                   {getPageTitle()}
                 </Typography>
                 {authRequired && (
