@@ -4,6 +4,7 @@
 
 - IMPROVED: **Refreshed UI** — the whole web UI has been redesigned: cleaner typography, tighter spacing, calmer colour palette, larger and easier-to-read numbers, and better keyboard accessibility throughout.
 - ADDED: **Sequence overlap pattern in Combo fragmentation** — the Combo fragmentation strategy can again be tuned from the UI: choose a preset (TLS handshake, HTTP GET, zeros) or build a custom byte pattern for the overlap step.
+- ADDED: **Upstream SOCKS5 routing** - per-set routing can now forward matched traffic to a SOCKS5 proxy (local or remote) instead of out a network interface. Use this to chain b4 with Xray, sing-box, or any SOCKS5-speaking proxy. Pick "Upstream SOCKS5 proxy" mode in the routing tab and set the host and port.
 
 ## [1.49.1] - 2026-04-20
 

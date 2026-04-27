@@ -54,6 +54,18 @@ var migrationRegistry = map[int]MigrationFunc{
 	31: migrateV31to32, // Add watchdog config
 	32: migrateV32to33, // Add TCP RST protection config
 	33: migrateV33to34, // Add manual devices to device config
+	34: migrateV34to35, // Add routing mode and upstream proxy config
+}
+
+func migrateV34to35(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v34->v35: Adding routing mode and upstream proxy config")
+	for _, set := range c.Sets {
+		if set.Routing.Mode == "" {
+			set.Routing.Mode = RoutingModeInterface
+		}
+		set.Routing.Upstream.UseDomain = true
+	}
+	return nil
 }
 
 func migrateV33to34(c *Config, raw map[string]interface{}) error {

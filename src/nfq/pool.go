@@ -187,6 +187,13 @@ func (p *Pool) GetIPBlockCache() IPBlockCache {
 	return p.state.ipBlocker
 }
 
+func (p *Pool) GetMatcher() *sni.SuffixSet {
+	if len(p.Workers) == 0 {
+		return nil
+	}
+	return p.Workers[0].getMatcher()
+}
+
 func (p *Pool) GetFirstWorkerConfig() *config.Config {
 	if len(p.Workers) == 0 {
 		return nil

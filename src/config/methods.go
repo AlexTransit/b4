@@ -171,9 +171,31 @@ func (c *Config) Validate() error {
 		if set.Routing.IPTTLSeconds <= 0 {
 			set.Routing.IPTTLSeconds = DefaultSetConfig.Routing.IPTTLSeconds
 		}
+		switch set.Routing.Mode {
+		case "":
+			set.Routing.Mode = RoutingModeInterface
+		case RoutingModeProxy, RoutingModeInterface:
+		default:
+			return fmt.Errorf("set %q: unknown routing mode %q", set.Name, set.Routing.Mode)
+		}
 		set.Routing.EgressInterface = sanitizeIfaceName(set.Routing.EgressInterface)
 		for i, src := range set.Routing.SourceInterfaces {
 			set.Routing.SourceInterfaces[i] = sanitizeIfaceName(src)
+		}
+
+		if set.Routing.Enabled && set.Routing.Mode == RoutingModeProxy {
+			if set.Routing.Upstream.Port < 1 || set.Routing.Upstream.Port > 65535 {
+				return fmt.Errorf("set %q: upstream proxy port must be 1-65535", set.Name)
+			}
+			h := strings.ToLower(strings.TrimSpace(set.Routing.Upstream.Host))
+			if h == "" {
+				h = "127.0.0.1"
+			}
+			if c.System.Socks5.Enabled && set.Routing.Upstream.Port == c.System.Socks5.Port {
+				if h == "127.0.0.1" || h == "::1" || h == "localhost" || h == "0.0.0.0" {
+					return fmt.Errorf("set %q: upstream proxy points to b4's own SOCKS5 server (loop)", set.Name)
+				}
+			}
 		}
 
 		if len(set.Fragmentation.SeqOverlapPattern) > 0 {

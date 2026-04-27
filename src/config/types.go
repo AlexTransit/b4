@@ -12,6 +12,11 @@ const (
 )
 
 const (
+	RoutingModeInterface = "interface"
+	RoutingModeProxy     = "proxy"
+)
+
+const (
 	FakePayloadRandom = iota
 	FakePayloadCustom
 	FakePayloadDefault1
@@ -344,10 +349,21 @@ type MSSClampConfig struct {
 
 
 type RoutingConfig struct {
-	Enabled          bool     `json:"enabled"`
-	EgressInterface  string   `json:"egress_interface"`
-	FWMark           uint32   `json:"fwmark"`
-	Table            int      `json:"table"`
-	SourceInterfaces []string `json:"source_interfaces"`
-	IPTTLSeconds     int      `json:"ip_ttl_seconds"`
+	Enabled          bool                `json:"enabled"`
+	Mode             string              `json:"mode"`
+	EgressInterface  string              `json:"egress_interface"`
+	Upstream         UpstreamProxyConfig `json:"upstream"`
+	FWMark           uint32              `json:"fwmark"`
+	Table            int                 `json:"table"`
+	SourceInterfaces []string            `json:"source_interfaces"`
+	IPTTLSeconds     int                 `json:"ip_ttl_seconds"`
+}
+
+type UpstreamProxyConfig struct {
+	Host      string `json:"host"`
+	Port      int    `json:"port"`
+	Username  string `json:"username,omitempty"`
+	Password  string `json:"password,omitempty"`
+	FailOpen  bool   `json:"fail_open"`
+	UseDomain bool   `json:"use_domain"`
 }
