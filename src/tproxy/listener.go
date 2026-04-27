@@ -51,14 +51,19 @@ func (l *Listener) Start(parent context.Context) error {
 		Control: func(network, address string, c syscall.RawConn) error {
 			var ctlErr error
 			err := c.Control(func(fd uintptr) {
-				if e := unix.SetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT, 1); e != nil {
-					ctlErr = fmt.Errorf("set IP_TRANSPARENT: %w", e)
-					return
-				}
 				if e := unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_REUSEADDR, 1); e != nil {
 					ctlErr = fmt.Errorf("set SO_REUSEADDR: %w", e)
 					return
 				}
+				ipErr := unix.SetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT, 1)
+				ip6Err := unix.SetsockoptInt(int(fd), unix.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
+				if ipErr != nil && ip6Err != nil {
+					ctlErr = fmt.Errorf("set IP_TRANSPARENT failed: v4=%v v6=%v", ipErr, ip6Err)
+					return
+				}
+				v4val, _ := unix.GetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT)
+				v6val, _ := unix.GetsockoptInt(int(fd), unix.SOL_IPV6, unix.IPV6_TRANSPARENT)
+				log.Infof("tproxy: socket fd=%d IP_TRANSPARENT=%d IPV6_TRANSPARENT=%d (set v4err=%v v6err=%v)", fd, v4val, v6val, ipErr, ip6Err)
 			})
 			if err != nil {
 				return err

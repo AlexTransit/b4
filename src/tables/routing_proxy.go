@@ -2,10 +2,15 @@ package tables
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/tproxy"
 )
+
+const proxyRulePriority = 5
 
 func proxyMarkAndPort(set *config.SetConfig) (uint32, int) {
 	mark := tproxy.MarkForSet(set.Id, set.Routing.FWMark)
@@ -38,25 +43,31 @@ func routeEnsureProxyRule(be routeBackend, cfg *config.Config, set *config.SetCo
 	be.addBypassRule(st.chainPre, st.mark)
 
 	port, _ := portFromState(st)
+	legacy := isLegacyIptBackend(be)
 
 	switch be.name() {
 	case backendNFTables:
 		if cfg.Queue.IPv4Enabled {
+			addProxyDivertRuleNft(st.chainPre, false, st.setV4, st.mark)
 			addProxyTProxyRuleNft(st.chainPre, false, st.setV4, st.mark, port, sources)
 		}
 		if cfg.Queue.IPv6Enabled {
+			addProxyDivertRuleNft(st.chainPre, true, st.setV6, st.mark)
 			addProxyTProxyRuleNft(st.chainPre, true, st.setV6, st.mark, port, sources)
 		}
 	default:
 		if cfg.Queue.IPv4Enabled {
-			addProxyTProxyRuleIpt(false, st.chainPre, st.setV4, st.mark, port, sources, isLegacyIptBackend(be))
+			addProxyDivertRuleIpt(false, st.chainPre, st.setV4, st.mark, legacy)
+			addProxyTProxyRuleIpt(false, st.chainPre, st.setV4, st.mark, port, sources, legacy)
 		}
 		if cfg.Queue.IPv6Enabled {
-			addProxyTProxyRuleIpt(true, st.chainPre, st.setV6, st.mark, port, sources, isLegacyIptBackend(be))
+			addProxyDivertRuleIpt(true, st.chainPre, st.setV6, st.mark, legacy)
+			addProxyTProxyRuleIpt(true, st.chainPre, st.setV6, st.mark, port, sources, legacy)
 		}
 	}
 
-	be.ensureJumpRule("PREROUTING", st.chainPre, true)
+	insertProxyJumpAtTop(be, st.chainPre)
+	addProxyInputAccept(be, st.mark)
 
 	routeEnsureLocalDelivery(st.mark, st.table, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
 	return nil
@@ -76,6 +87,7 @@ func routeCleanupProxyRule(be routeBackend, st routeState) {
 		runLogged("routing: flush proxy table v6", "ip", "-6", "route", "flush", "table", tableStr)
 	}
 
+	removeProxyInputAccept(be, st.mark)
 	be.deleteJumpRules("PREROUTING", st.chainPre, true)
 	be.flushChain(st.chainPre, true)
 	be.deleteChain(st.chainPre, true)
@@ -86,10 +98,12 @@ func routeCleanupProxyRule(be routeBackend, st routeState) {
 }
 
 func routeEnsureLocalDelivery(mark uint32, table int, ipv4, ipv6 bool) {
-	prio := 9000 + table
 	markStrMask := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	tableStr := fmt.Sprintf("%d", table)
-	prioStr := fmt.Sprintf("%d", prio)
+	prioStr := fmt.Sprintf("%d", proxyRulePriority)
+
+	writeSysctl("/proc/sys/net/ipv4/conf/lo/rp_filter", "0")
+	writeSysctl("/proc/sys/net/ipv4/conf/all/rp_filter", "2")
 
 	if ipv4 {
 		routeDelRuleLoop(false, fmt.Sprintf("0x%x", mark), tableStr)
@@ -102,6 +116,115 @@ func routeEnsureLocalDelivery(mark uint32, table int, ipv4, ipv6 bool) {
 		routeDelRuleLoop(true, markStrMask, tableStr)
 		runLogged("routing: add ip rule v6 (proxy)", "ip", "-6", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
 		runLogged("routing: add local route v6 (proxy)", "ip", "-6", "route", "replace", "local", "::/0", "dev", "lo", "table", tableStr)
+	}
+}
+
+func writeSysctl(path, value string) {
+	cur, err := os.ReadFile(path)
+	if err == nil && strings.TrimSpace(string(cur)) == value {
+		return
+	}
+	if err := os.WriteFile(path, []byte(value), 0644); err != nil {
+		log.Tracef("routing: sysctl %s=%s failed: %v", path, value, err)
+	}
+}
+
+func insertProxyJumpAtTop(be routeBackend, chain string) {
+	if be.name() == backendNFTables {
+		runLogged("routing: delete leftover prerouting jump", "nft", "flush", "chain", "inet", routeNftTable, routeNftPrerouting)
+		runLogged("routing: insert prerouting jump (proxy)", "nft", "insert", "rule", "inet", routeNftTable, routeNftPrerouting, "jump", chain)
+		return
+	}
+	for _, fam := range []string{backendIPTables, backendIP6Tables, backendIPTablesLegacy, backendIP6TablesLegacy} {
+		if !hasBinary(fam) {
+			continue
+		}
+		for i := 0; i < 100; i++ {
+			if _, err := run(fam, "-w", "-t", "mangle", "-D", "PREROUTING", "-j", chain); err != nil {
+				break
+			}
+		}
+		runLogged("routing: insert prerouting jump (proxy) "+fam,
+			fam, "-w", "-t", "mangle", "-I", "PREROUTING", "1", "-j", chain)
+	}
+}
+
+func addProxyDivertRuleIpt(v6 bool, chain, setName string, mark uint32, legacy bool) {
+	cmd := backendIPTables
+	if v6 {
+		cmd = backendIP6Tables
+	}
+	if legacy {
+		if v6 {
+			cmd = backendIP6TablesLegacy
+		} else {
+			cmd = backendIPTablesLegacy
+		}
+	}
+	if !hasBinary(cmd) {
+		return
+	}
+	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
+	runLogged("routing: add divert mark "+chain,
+		cmd, "-w", "-t", "mangle", "-A", chain, "-p", "tcp",
+		"-m", "socket", "--transparent",
+		"-m", "set", "--match-set", setName, "dst",
+		"-j", "MARK", "--set-mark", markHex)
+	runLogged("routing: add divert accept "+chain,
+		cmd, "-w", "-t", "mangle", "-A", chain, "-p", "tcp",
+		"-m", "socket", "--transparent",
+		"-m", "set", "--match-set", setName, "dst",
+		"-j", "ACCEPT")
+}
+
+func addProxyDivertRuleNft(chain string, v6 bool, setName string, mark uint32) {
+	markHex := fmt.Sprintf("0x%x", mark)
+	args := []string{"add", "rule", "inet", routeNftTable, chain}
+	if v6 {
+		args = append(args, "ip6", "daddr", "@"+setName)
+	} else {
+		args = append(args, "ip", "daddr", "@"+setName)
+	}
+	args = append(args, "socket", "transparent", "1", "meta", "mark", "set", markHex, "accept")
+	runLogged("routing: add divert "+chain, append([]string{"nft"}, args...)...)
+}
+
+func addProxyInputAccept(be routeBackend, mark uint32) {
+	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
+	if be.name() == backendNFTables {
+		runLogged("routing: add input accept (proxy)",
+			"nft", "insert", "rule", "inet", "filter", "input",
+			"meta", "mark", "&", fmt.Sprintf("0x%x", mark), "==", fmt.Sprintf("0x%x", mark), "accept")
+		return
+	}
+	for _, fam := range []string{backendIPTables, backendIP6Tables, backendIPTablesLegacy, backendIP6TablesLegacy} {
+		if !hasBinary(fam) {
+			continue
+		}
+		for i := 0; i < 100; i++ {
+			if _, err := run(fam, "-w", "-D", "INPUT", "-m", "mark", "--mark", markHex, "-j", "ACCEPT"); err != nil {
+				break
+			}
+		}
+		runLogged("routing: add input accept (proxy) "+fam,
+			fam, "-w", "-I", "INPUT", "1", "-m", "mark", "--mark", markHex, "-j", "ACCEPT")
+	}
+}
+
+func removeProxyInputAccept(be routeBackend, mark uint32) {
+	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
+	if be.name() == backendNFTables {
+		return
+	}
+	for _, fam := range []string{backendIPTables, backendIP6Tables, backendIPTablesLegacy, backendIP6TablesLegacy} {
+		if !hasBinary(fam) {
+			continue
+		}
+		for i := 0; i < 100; i++ {
+			if _, err := run(fam, "-w", "-D", "INPUT", "-m", "mark", "--mark", markHex, "-j", "ACCEPT"); err != nil {
+				break
+			}
+		}
 	}
 }
 
