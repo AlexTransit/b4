@@ -19,7 +19,7 @@ func proxyMarkAndPort(set *config.SetConfig) (uint32, int) {
 }
 
 func proxyTable(mark uint32) int {
-	return 200 + int(mark%50)
+	return 1000 + int(mark)
 }
 
 func routeEnsureProxyRule(be routeBackend, cfg *config.Config, set *config.SetConfig, st routeState, sources []string) error {
@@ -83,8 +83,8 @@ func routeCleanupProxyRule(be routeBackend, st routeState) {
 		routeDelRuleLoop(false, markStrMask, tableStr)
 		routeDelRuleLoop(true, markStr, tableStr)
 		routeDelRuleLoop(true, markStrMask, tableStr)
-		runLogged("routing: flush proxy table v4", "ip", "route", "flush", "table", tableStr)
-		runLogged("routing: flush proxy table v6", "ip", "-6", "route", "flush", "table", tableStr)
+		runLogged("routing: delete proxy local route v4", "ip", "route", "del", "local", "0.0.0.0/0", "dev", "lo", "table", tableStr)
+		runLogged("routing: delete proxy local route v6", "ip", "-6", "route", "del", "local", "::/0", "dev", "lo", "table", tableStr)
 	}
 
 	removeProxyInputAccept(be, st.mark)
@@ -129,9 +129,33 @@ func writeSysctl(path, value string) {
 	}
 }
 
+func deleteNftJumpRules(table, parentChain, targetChain string) {
+	out, err := run("nft", "-a", "list", "chain", "inet", table, parentChain)
+	if err != nil {
+		log.Tracef("routing: list nft chain inet %s %s failed: %v", table, parentChain, err)
+		return
+	}
+	for _, line := range strings.Split(out, "\n") {
+		handleIdx := strings.LastIndex(line, "# handle ")
+		if handleIdx == -1 {
+			continue
+		}
+		rule := strings.TrimSpace(line[:handleIdx])
+		if !strings.Contains(rule, "jump "+targetChain) {
+			continue
+		}
+		handle := strings.TrimSpace(line[handleIdx+len("# handle "):])
+		if handle == "" {
+			continue
+		}
+		runLogged("routing: delete leftover prerouting jump (proxy)",
+			"nft", "delete", "rule", "inet", table, parentChain, "handle", handle)
+	}
+}
+
 func insertProxyJumpAtTop(be routeBackend, chain string) {
 	if be.name() == backendNFTables {
-		runLogged("routing: delete leftover prerouting jump", "nft", "flush", "chain", "inet", routeNftTable, routeNftPrerouting)
+		deleteNftJumpRules(routeNftTable, routeNftPrerouting, chain)
 		runLogged("routing: insert prerouting jump (proxy)", "nft", "insert", "rule", "inet", routeNftTable, routeNftPrerouting, "jump", chain)
 		return
 	}
@@ -214,6 +238,28 @@ func addProxyInputAccept(be routeBackend, mark uint32) {
 func removeProxyInputAccept(be routeBackend, mark uint32) {
 	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	if be.name() == backendNFTables {
+		markStr := fmt.Sprintf("0x%x", mark)
+		out, err := run("nft", "-a", "list", "chain", "inet", "filter", "input")
+		if err != nil {
+			log.Tracef("routing: list nft inet filter input failed: %v", err)
+			return
+		}
+		for _, line := range strings.Split(out, "\n") {
+			handleIdx := strings.LastIndex(line, "# handle ")
+			if handleIdx == -1 {
+				continue
+			}
+			rule := strings.TrimSpace(line[:handleIdx])
+			if !strings.Contains(rule, markStr) || !strings.Contains(rule, "accept") {
+				continue
+			}
+			handle := strings.TrimSpace(line[handleIdx+len("# handle "):])
+			if handle == "" {
+				continue
+			}
+			runLogged("routing: delete input accept (proxy)",
+				"nft", "delete", "rule", "inet", "filter", "input", "handle", handle)
+		}
 		return
 	}
 	for _, fam := range []string{backendIPTables, backendIP6Tables, backendIPTablesLegacy, backendIP6TablesLegacy} {

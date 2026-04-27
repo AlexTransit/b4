@@ -355,7 +355,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 		if mode == config.RoutingModeInterface && set.Routing.EgressInterface == "" {
 			continue
 		}
-		if mode == config.RoutingModeProxy && (set.Routing.Upstream.Host == "" || set.Routing.Upstream.Port < 1) {
+		if mode == config.RoutingModeProxy && set.Routing.Upstream.Port < 1 {
 			continue
 		}
 		desired[set.Id] = set

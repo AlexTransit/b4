@@ -21,18 +21,20 @@ type DomainResolver interface {
 }
 
 type Listener struct {
-	SetID    string
-	SetName  string
-	BindAddr string
-	Port     int
-	Upstream socks5.ClientConfig
+	SetID     string
+	SetName   string
+	BindAddr  string
+	BindAddr6 string
+	Port      int
+	Upstream  socks5.ClientConfig
 	UseDomain bool
-	FailOpen bool
-	Resolver DomainResolver
+	FailOpen  bool
+	Resolver  DomainResolver
 
 	ctx    context.Context
 	cancel context.CancelFunc
-	ln     net.Listener
+	lnV4   net.Listener
+	lnV6   net.Listener
 
 	activeConns atomic.Int64
 }
@@ -41,12 +43,41 @@ func (l *Listener) Start(parent context.Context) error {
 	if l.Port < 1 || l.Port > 65535 {
 		return fmt.Errorf("invalid tproxy port: %d", l.Port)
 	}
-	bind := l.BindAddr
-	if bind == "" {
-		bind = "0.0.0.0"
+	bind4 := l.BindAddr
+	if bind4 == "" {
+		bind4 = "0.0.0.0"
 	}
-	addr := net.JoinHostPort(bind, fmt.Sprintf("%d", l.Port))
+	bind6 := l.BindAddr6
+	if bind6 == "" {
+		bind6 = "::"
+	}
+	addr4 := net.JoinHostPort(bind4, fmt.Sprintf("%d", l.Port))
+	addr6 := net.JoinHostPort(bind6, fmt.Sprintf("%d", l.Port))
 
+	l.ctx, l.cancel = context.WithCancel(parent)
+
+	lnV4, err := listenTransparent(l.ctx, "tcp4", addr4, false)
+	if err != nil {
+		l.cancel()
+		return fmt.Errorf("tproxy v4 listen %s: %w", addr4, err)
+	}
+	l.lnV4 = lnV4
+	go l.acceptLoop(lnV4, "v4")
+	log.Infof("tproxy: listening on %s (v4) for set %q -> %s:%d", addr4, l.SetName, l.Upstream.Host, l.Upstream.Port)
+
+	lnV6, err := listenTransparent(l.ctx, "tcp6", addr6, true)
+	if err != nil {
+		log.Tracef("tproxy: v6 listener disabled for set %q: %v", l.SetName, err)
+		return nil
+	}
+	l.lnV6 = lnV6
+	go l.acceptLoop(lnV6, "v6")
+	log.Infof("tproxy: listening on %s (v6) for set %q -> %s:%d", addr6, l.SetName, l.Upstream.Host, l.Upstream.Port)
+
+	return nil
+}
+
+func listenTransparent(ctx context.Context, network, addr string, v6 bool) (net.Listener, error) {
 	lc := net.ListenConfig{
 		Control: func(network, address string, c syscall.RawConn) error {
 			var ctlErr error
@@ -55,15 +86,21 @@ func (l *Listener) Start(parent context.Context) error {
 					ctlErr = fmt.Errorf("set SO_REUSEADDR: %w", e)
 					return
 				}
-				ipErr := unix.SetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT, 1)
-				ip6Err := unix.SetsockoptInt(int(fd), unix.SOL_IPV6, unix.IPV6_TRANSPARENT, 1)
-				if ipErr != nil && ip6Err != nil {
-					ctlErr = fmt.Errorf("set IP_TRANSPARENT failed: v4=%v v6=%v", ipErr, ip6Err)
-					return
+				if v6 {
+					if e := unix.SetsockoptInt(int(fd), unix.IPPROTO_IPV6, unix.IPV6_V6ONLY, 1); e != nil {
+						ctlErr = fmt.Errorf("set IPV6_V6ONLY: %w", e)
+						return
+					}
+					if e := unix.SetsockoptInt(int(fd), unix.SOL_IPV6, unix.IPV6_TRANSPARENT, 1); e != nil {
+						ctlErr = fmt.Errorf("set IPV6_TRANSPARENT: %w", e)
+						return
+					}
+				} else {
+					if e := unix.SetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT, 1); e != nil {
+						ctlErr = fmt.Errorf("set IP_TRANSPARENT: %w", e)
+						return
+					}
 				}
-				v4val, _ := unix.GetsockoptInt(int(fd), unix.SOL_IP, unix.IP_TRANSPARENT)
-				v6val, _ := unix.GetsockoptInt(int(fd), unix.SOL_IPV6, unix.IPV6_TRANSPARENT)
-				log.Infof("tproxy: socket fd=%d IP_TRANSPARENT=%d IPV6_TRANSPARENT=%d (set v4err=%v v6err=%v)", fd, v4val, v6val, ipErr, ip6Err)
 			})
 			if err != nil {
 				return err
@@ -71,37 +108,34 @@ func (l *Listener) Start(parent context.Context) error {
 			return ctlErr
 		},
 	}
-
-	l.ctx, l.cancel = context.WithCancel(parent)
-	ln, err := lc.Listen(l.ctx, "tcp4", addr)
-	if err != nil {
-		l.cancel()
-		return fmt.Errorf("tproxy listen %s: %w", addr, err)
-	}
-	l.ln = ln
-
-	go l.acceptLoop()
-	log.Infof("tproxy: listening on %s for set %q -> %s:%d", addr, l.SetName, l.Upstream.Host, l.Upstream.Port)
-	return nil
+	return lc.Listen(ctx, network, addr)
 }
 
 func (l *Listener) Stop() error {
 	if l.cancel != nil {
 		l.cancel()
 	}
-	if l.ln != nil {
-		return l.ln.Close()
+	var firstErr error
+	if l.lnV4 != nil {
+		if err := l.lnV4.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	return nil
+	if l.lnV6 != nil {
+		if err := l.lnV6.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 func (l *Listener) Active() int64 {
 	return l.activeConns.Load()
 }
 
-func (l *Listener) acceptLoop() {
+func (l *Listener) acceptLoop(ln net.Listener, family string) {
 	for {
-		conn, err := l.ln.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
 			if l.ctx.Err() != nil {
 				return
@@ -109,7 +143,7 @@ func (l *Listener) acceptLoop() {
 			if errors.Is(err, net.ErrClosed) {
 				return
 			}
-			log.Tracef("tproxy: accept error on set %q: %v", l.SetName, err)
+			log.Tracef("tproxy: accept error on set %q (%s): %v", l.SetName, family, err)
 			time.Sleep(50 * time.Millisecond)
 			continue
 		}

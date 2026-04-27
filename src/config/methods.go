@@ -171,8 +171,12 @@ func (c *Config) Validate() error {
 		if set.Routing.IPTTLSeconds <= 0 {
 			set.Routing.IPTTLSeconds = DefaultSetConfig.Routing.IPTTLSeconds
 		}
-		if set.Routing.Mode != RoutingModeProxy {
+		switch set.Routing.Mode {
+		case "":
 			set.Routing.Mode = RoutingModeInterface
+		case RoutingModeProxy, RoutingModeInterface:
+		default:
+			return fmt.Errorf("set %q: unknown routing mode %q", set.Name, set.Routing.Mode)
 		}
 		set.Routing.EgressInterface = sanitizeIfaceName(set.Routing.EgressInterface)
 		for i, src := range set.Routing.SourceInterfaces {
