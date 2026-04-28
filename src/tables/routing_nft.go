@@ -116,9 +116,10 @@ func (b *routeNftBackend) deleteChain(chain string, _ bool) {
 }
 
 func (b *routeNftBackend) addBypassRule(chain string, mark uint32) {
+	markHex := fmt.Sprintf("0x%x", mark)
 	runLogged("routing: add bypass rule "+chain,
 		"nft", "add", "rule", "inet", routeNftTable, chain,
-		"meta", "mark", fmt.Sprintf("0x%x", mark), "return")
+		"meta", "mark", "&", markHex, "==", markHex, "return")
 }
 
 func (b *routeNftBackend) addMarkRule(chain string, v6 bool, setName string, mark uint32, sourceIface string, tagHostConntrack bool) {
@@ -186,7 +187,7 @@ func (b *routeNftBackend) addMasqueradeRule(chain string, mark uint32, iface str
 	hostCTMask := fmt.Sprintf("0x%x", hostRouteCTMark)
 	runLogged("routing: add masquerade rule",
 		"nft", "add", "rule", "inet", routeNftTable, chain,
-		"meta", "mark", markHex,
+		"meta", "mark", "&", markHex, "==", markHex,
 		"ct", "mark", "&", hostCTMask, "==", hostCTMask,
 		"oifname", iface,
 		"masquerade",

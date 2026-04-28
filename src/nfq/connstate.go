@@ -10,14 +10,15 @@ import (
 )
 
 type connInfo struct {
-	bytesIn      uint64
-	threshold    uint64
-	set          *config.SetConfig
-	lastSeen     time.Time
-	serverTTL    uint8
-	ttlRecorded  bool
-	responseSeen bool
-	rstCount     int
+	bytesIn       uint64
+	threshold     uint64
+	set           *config.SetConfig
+	lastSeen      time.Time
+	serverTTL     uint8
+	ttlRecorded   bool
+	responseSeen  bool
+	rstCount      int
+	serverHasOpts bool
 }
 
 type tlsInfo struct {
@@ -250,7 +251,7 @@ func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfi
 	}
 }
 
-func (t *connStateTracker) RecordServerTTL(clientIP string, clientPort uint16, serverIP string, serverPort uint16, ttl uint8) {
+func (t *connStateTracker) RecordServerResponse(clientIP string, clientPort uint16, serverIP string, serverPort uint16, ttl uint8, hasOpts bool) {
 	outKey := fmt.Sprintf("%s:%d->%s:%d", clientIP, clientPort, serverIP, serverPort)
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -263,9 +264,12 @@ func (t *connStateTracker) RecordServerTTL(clientIP string, clientPort uint16, s
 		info.serverTTL = ttl
 		info.ttlRecorded = true
 	}
+	if hasOpts {
+		info.serverHasOpts = true
+	}
 }
 
-func (t *connStateTracker) CheckRST(clientIP string, clientPort uint16, serverIP string, serverPort uint16, rstTTL uint8, tolerance int) (drop bool, reason string) {
+func (t *connStateTracker) CheckRST(clientIP string, clientPort uint16, serverIP string, serverPort uint16, rstTTL uint8, rstHasOpts bool, rstHasACK bool, tolerance int) (drop bool, reason string) {
 	outKey := fmt.Sprintf("%s:%d->%s:%d", clientIP, clientPort, serverIP, serverPort)
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -282,6 +286,14 @@ func (t *connStateTracker) CheckRST(clientIP string, clientPort uint16, serverIP
 
 	if !info.responseSeen {
 		return true, "RST before any server response"
+	}
+
+	if info.serverHasOpts && !rstHasOpts {
+		return true, "TCP options stripped (server uses options, RST does not)"
+	}
+
+	if info.serverHasOpts && !rstHasACK {
+		return true, "bare RST on established connection"
 	}
 
 	if info.ttlRecorded {

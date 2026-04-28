@@ -1,83 +1,81 @@
 ---
 sidebar_position: 2
-title: Геоданные
+title: Geo data
 ---
 
-# Геоданные
+## What GeoSite and GeoIP are
 
-## Что такое GeoSite и GeoIP
+**GeoSite** and **GeoIP** are [V2Ray](https://github.com/v2fly/v2ray-core) format databases that let you work with whole categories of sites and IP addresses instead of adding them one by one.
 
-**GeoSite** и **GeoIP** — это базы данных в формате [V2Ray](https://github.com/v2fly/v2ray-core), которые позволяют работать с целыми категориями сайтов и IP-адресов вместо того, чтобы добавлять их по одному.
+- **GeoSite** (`sitedat.dat`) - file with domains grouped into categories. For example, the `youtube` category contains every domain related to YouTube (youtube.com, googlevideo.com, ytimg.com, etc.)
+- **GeoIP** (`ipdat.dat`) - file with IP ranges grouped by country and ASN
 
-- **GeoSite** (`sitedat.dat`) — файл с доменами, сгруппированными по категориям. Например, категория `youtube` содержит все домены, связанные с YouTube (youtube.com, googlevideo.com, ytimg.com и т.д.)
-- **GeoIP** (`ipdat.dat`) — файл с IP-диапазонами, сгруппированными по странам и ASN
-
-:::info Зачем это нужно
-Вместо того, чтобы вручную добавлять десятки доменов YouTube или Discord, достаточно выбрать нужную категорию в настройках сета. При обновлении базы новые домены подхватываются автоматически.
+:::info Why it matters
+Instead of manually adding dozens of YouTube or Discord domains, you pick the category in the set settings. When the database is updated, new domains are picked up automatically.
 :::
 
-## Источники
+## Sources
 
-b4 поддерживает несколько предустановленных источников, а также позволяет указать свой URL.
+b4 supports several preset sources and lets you specify a custom URL.
 
-| Источник | Что содержит | Ссылка |
+![20260418230425](../../static/img/geodata/20260418230425.png)
+
+| Source | Contents | Link |
 | --- | --- | --- |
-| **Loyalsoldier** | Глобальная база доменов и IP (Китай + мир) | [GitHub](https://github.com/Loyalsoldier/v2ray-rules-dat) |
-| **RUNET Freedom** | База, оптимизированная для российских блокировок | [GitHub](https://github.com/runetfreedom/russia-v2ray-rules-dat) |
-| **b4geoip** | Официальная GeoIP база b4 — IP-диапазоны по ASN (только GeoIP) | [GitHub](https://github.com/DanielLavrushin/b4geoip) |
+| **Loyalsoldier** | Global database of domains and IPs (China + worldwide) | [GitHub](https://github.com/Loyalsoldier/v2ray-rules-dat) |
+| **RUNET Freedom** | Database tuned for Russian blocking | [GitHub](https://github.com/runetfreedom/russia-v2ray-rules-dat) |
+| **b4geoip** | Official b4 GeoIP database - IP ranges by ASN (GeoIP only) | [GitHub](https://github.com/DanielLavrushin/b4geoip) |
 
-:::tip Для российских пользователей
-Рекомендуется **RUNET Freedom** для GeoSite (домены) и **b4geoip** для GeoIP (IP-диапазоны).
+:::tip For users in Russia
+Try **RUNET Freedom** for GeoSite (domains) and **b4geoip** for GeoIP (IP ranges).
 :::
 
 ### b4geoip
 
-Официальная GeoIP база проекта b4. Собирается автоматически из данных [RIPE NCC](https://stat.ripe.net/) — реальные анонсированные IP-префиксы по ASN. Содержит категории для:
+The official GeoIP database of the b4 project. It is built automatically from [RIPE NCC](https://stat.ripe.net/) data - actual announced IP prefixes by ASN. It contains categories for:
 
-- **Облачные провайдеры** — AWS, Google Cloud, Azure, DigitalOcean, Hetzner, OVH, Scaleway, Oracle Cloud, Contabo, AEZA
-- **CDN** — Cloudflare, Akamai, Fastly, CDN77
-- **Игровые компании** — Roblox, Valve/Steam, Sony/PlayStation, Nintendo, EA, Riot Games, Ubisoft, Epic Games, Wargaming, Bungie, Take-Two, CCP
-- **Платформы** — Telegram, GitHub, Apple, Adobe, Amazon, Blizzard
+- **Cloud providers** - AWS, Google Cloud, Azure, DigitalOcean, Hetzner, OVH, Scaleway, Oracle Cloud, Contabo, AEZA
+- **CDN** - Cloudflare, Akamai, Fastly, CDN77
+- **Gaming companies** - Roblox, Valve/Steam, Sony/PlayStation, Nintendo, EA, Riot Games, Ubisoft, Epic Games, Wargaming, Bungie, Take-Two, CCP
+- **Platforms** - Telegram, GitHub, Apple, Adobe, Amazon, Blizzard
 
-В отличие от баз по странам, b4geoip группирует IP именно по сервисам — это позволяет точно маршрутизировать трафик конкретных платформ.
+Unlike country-based databases, b4geoip groups IPs by service, which allows precise routing of traffic for specific platforms.
 
-## Настройка
+## Configuration
 
-<!-- screenshot: секция геоданных с выбором источника и статусом -->
+1. Go to **Settings -> Geodat settings**
+2. Enter the **Destination directory** - where to save the files (default `/etc/b4`)
+3. Pick a **Source** from the dropdown or enter a URL manually
+4. Click **Download**
 
-1. Перейдите в **Настройки → Geodat настройки**
-2. Укажите **Директорию назначения** — куда сохранять файлы (по умолчанию `/etc/b4`)
-3. Выберите **Источник** из выпадающего списка или укажите URL вручную
-4. Нажмите **Скачать**
+The file status is shown next to the name:
 
-Статус файла отображается рядом с названием:
+- **Active** - the file is found, size and date are shown
+- **Not Found** - the file is missing, it has to be downloaded
 
-- **Active** — файл найден, показывается размер и дата
-- **Not Found** — файл отсутствует, нужно скачать
+Files can also be added manually through the **Upload** button (upload a `.dat` file).
 
-Файлы можно также загрузить вручную через кнопку **Загрузить** (upload `.dat` файла).
-
-:::warning Размер файлов
-Файлы GeoSite и GeoIP могут занимать 5–15 МБ каждый. На роутерах с ограниченной памятью убедитесь, что места достаточно.
+:::warning File size
+GeoSite and GeoIP files can take up 5-15 MB each. On routers with limited storage, make sure there is enough space.
 :::
 
-## Использование в сетах
+## Using in sets
 
-После загрузки баз категории становятся доступны в настройках сетов (вкладка **Цели**):
+After the databases are loaded, the categories become available in set settings (the **Targets** tab):
 
-- **Категории GeoSite** — выбрать категории доменов для обхода
-- **Категории GeoIP** — выбрать категории IP для обхода
+- **GeoSite categories** - pick domain categories for bypass
+- **GeoIP categories** - pick IP categories for bypass
 
-При выборе категории рядом отображается количество доменов/IP в ней. Можно нажать на категорию, чтобы просмотреть содержимое.
+The number of domains/IPs in each category is shown next to it. Click a category to view its contents.
 
-## Обновление
+## Updating
 
-Базы обновляются вручную — зайдите в настройки и нажмите **Скачать** повторно. Перезапуск b4 после обновления не требуется — новые данные подхватываются автоматически.
+Databases are updated manually - go to settings and click **Download** again. No b4 restart is required - new data is picked up automatically.
 
-## Инструменты
+## Tools
 
-| Проект | Описание |
+| Project | Description |
 | --- | --- |
-| [GeodatExplorer](https://github.com/DanielLavrushin/GeodatExplorer) | Веб-приложение для просмотра содержимого `.dat` файлов — категории, домены, IP-диапазоны. Помогает понять, что именно входит в базу, перед тем как использовать категорию в сете |
-| [v2dat](https://github.com/DanielLavrushin/v2dat) | CLI-утилита для распаковки `.dat` файлов V2Ray в текстовые списки. Полезно для скриптов и автоматизации |
-| [b4geoip](https://github.com/DanielLavrushin/b4geoip) | Официальная GeoIP база b4 (описана [выше](#b4geoip)) |
+| [GeodatExplorer](https://github.com/DanielLavrushin/GeodatExplorer) | Web application for viewing the contents of `.dat` files - categories, domains, IP ranges. Helps you understand what a category contains before using it in a set |
+| [v2dat](https://github.com/DanielLavrushin/v2dat) | CLI utility for extracting V2Ray `.dat` files into text lists. Useful for scripts and automation |
+| [b4geoip](https://github.com/DanielLavrushin/b4geoip) | Official b4 GeoIP database (described [above](#b4geoip)) |

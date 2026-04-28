@@ -3,208 +3,204 @@ sidebar_position: 3
 title: Faking
 ---
 
-# Faking
+The Faking tab holds methods for sending fake packets and modifying real ones to deceive the DPI. Each section is a separate accordion in the interface.
 
-Вкладка Faking содержит методы отправки ложных пакетов и модификации реальных пакетов для обмана DPI. Каждая секция — отдельный аккордеон в интерфейсе.
+See the [Payloads](../../settings/payloads) section for payload types and generation.
 
-Подробнее о типах пэйлоадов и их генерации — в разделе [Пэйлоады](../../settings/payloads).
+## Fake SNI packets
 
-<!-- screenshot: подвкладка faking с раскрытыми секциями -->
+Sends packets with fake contents **before** the real ClientHello. The DPI analyzes the fake packet while the real data passes unnoticed. The fake packet does not reach the server thanks to the chosen strategy.
 
-## Фейковые SNI-пакеты
+### Fake strategy
 
-Отправляет пакеты с поддельным содержимым **до** настоящего ClientHello. DPI анализирует фейковый пакет, а настоящие данные проходят незамеченными. Фейковый пакет не доходит до сервера благодаря выбранной стратегии.
+Picks **how** the fake packet becomes unprocessable to the server:
 
-### Стратегия фейка
-
-Определяет, **как** фейковый пакет станет необрабатываемым для сервера:
-
-| Стратегия | Механизм |
+| Strategy | Mechanism |
 | --- | --- |
-| **TTL** | Заниженный TTL — пакет истекает на промежуточном узле и не доходит до сервера |
-| **Random Sequence** | Случайный TCP sequence number — сервер отбрасывает пакет с неожиданным seq |
-| **Past Sequence** | Прошедший sequence number — сервер уже обработал этот seq, повторный игнорирует |
-| **TCP Check** | Неверная контрольная сумма TCP — ядро сервера отбрасывает пакет до обработки |
-| **MD5 Sum** | TCP MD5-опция — сервер без настроенного MD5 отбрасывает пакет |
-| **TCP Timestamp** | Устаревший TCP timestamp — сервер отбрасывает пакет с timestamp в далёком прошлом |
+| **TTL** | Reduced TTL - the packet expires on an intermediate hop and never reaches the server |
+| **Random Sequence** | Random TCP sequence number - the server drops packets with an unexpected seq |
+| **Past Sequence** | Past sequence number - the server has already processed that seq and ignores the repeat |
+| **TCP Check** | Invalid TCP checksum - the server kernel drops the packet before processing |
+| **MD5 Sum** | TCP MD5 option - a server without configured MD5 drops the packet |
+| **TCP Timestamp** | Stale TCP timestamp - the server drops the packet because its timestamp is too far in the past |
 
-### Тип пэйлоада
+### Payload type
 
-Содержимое фейкового пакета. Подробное описание всех типов — в разделе [Пэйлоады](../../settings/payloads#типы-пэйлоадов).
+The content of the fake packet. Full description of every type is in [Payloads](../../settings/payloads#payload-types).
 
-| Тип | Содержимое |
+| Type | Contents |
 | --- | --- |
-| Случайное | 1200 случайных байтов |
-| Пресет: Google | TLS ClientHello от имени Google |
-| Пресет: DuckDuckGo | TLS ClientHello от имени DuckDuckGo |
-| Сгенерированный payload | Оптимизированный ClientHello из раздела [Настройки → Пэйлоады](../../settings/payloads) |
-| Все нули | 1200 нулевых байтов |
-| Инвертированный оригинал | Побитовая инверсия реального TLS-пакета |
+| Random | 1200 random bytes |
+| Preset: Google | TLS ClientHello pretending to be Google |
+| Preset: DuckDuckGo | TLS ClientHello pretending to be DuckDuckGo |
+| Generated payload | Optimized ClientHello from [Settings -> Payloads](../../settings/payloads) |
+| All zeros | 1200 zero bytes |
+| Inverted original | Bitwise inversion of the real TLS packet |
 
-:::tip Сгенерированные пэйлоады
-Если в списке нет доступных пэйлоадов — сначала сгенерируйте их в [Настройки → Пэйлоады](../../settings/payloads).
+:::tip Generated payloads
+If no payload is available in the list, generate them first in [Settings -> Payloads](../../settings/payloads).
 :::
 
-### Параметры
+### Parameters
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| TTL фейка | TTL для фейковых пакетов. Должен быть достаточным, чтобы пакет дошёл до DPI, но истёк до сервера | 1–64 |
-| Смещение Sequence | Сдвиг TCP sequence number (для стратегий pastseq/randseq) | — |
-| Уменьшение Timestamp | Величина уменьшения TCP timestamp (для стратегии timestamp, по умолчанию 600000) | — |
-| Количество фейковых пакетов | Сколько фейковых пакетов отправить перед реальными данными | 1–20 |
+| Fake TTL | TTL for fake packets. Must be enough to reach the DPI but expire before the server | 1-64 |
+| Sequence offset | TCP sequence number shift (for pastseq/randseq strategies) | - |
+| Timestamp decrement | Amount to subtract from the TCP timestamp (for the timestamp strategy, default 600000) | - |
+| Fake packet count | How many fake packets to send before the real data | 1-20 |
 
-:::tip Подбор TTL
-Правильный TTL зависит от количества сетевых узлов между вами и провайдерским DPI. Дискавери подбирает TTL автоматически. При ручной настройке начните с `3` и корректируйте.
+:::tip Picking TTL
+The right TTL depends on the number of network hops between you and the provider's DPI. Discovery picks TTL automatically. When tuning manually, start at `3` and adjust.
 :::
 
-### TLS-модификации фейковых пакетов
+### TLS modifications for fake packets
 
-Если тип пэйлоада содержит TLS-структуру (не случайное и не нули), доступны дополнительные модификации фейкового ClientHello:
+If the payload type contains a TLS structure (not Random and not all zeros), extra modifications for the fake ClientHello are available:
 
-| Параметр | Описание |
+| Parameter | Description |
 | --- | --- |
-| Рандомизация TLS Random | Заменяет 32-байтовое поле Random в фейковом ClientHello случайными байтами. Без этого DPI может заметить, что поле Random одинаковое в фейке и реальном пакете |
-| Дублировать Session ID | Копирует Session ID из реального ClientHello в фейковый. DPI может отслеживать Session ID для связки пакетов |
+| Randomize TLS Random | Replaces the 32-byte Random field in the fake ClientHello with random bytes. Without it, the DPI may notice the Random field is identical in the fake and the real packet |
+| Duplicate Session ID | Copies the Session ID from the real ClientHello into the fake one. The DPI may use Session ID to tie packets together |
 
 ---
 
-## Фейковые SYN-пакеты
+## Fake SYN packets
 
-Отправляет фейковые SYN-пакеты во время TCP-рукопожатия — **до** начала реального соединения. Запутывает DPI ещё до того, как соединение установлено.
+Sends fake SYN packets during the TCP handshake - **before** the real connection begins. Confuses the DPI even before the connection is established.
 
 :::warning
-Это агрессивная техника — фейковые SYN могут влиять на работу некоторых сетевых устройств.
+This is an aggressive technique - fake SYNs may affect some network equipment.
 :::
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| SYN MD5 Signature | Отправить фейковый SYN с опцией TCP MD5 перед реальным рукопожатием | — |
-| Длина payload | Размер данных в фейковом SYN. `0` = только заголовок, `>0` = добавить фейковый TLS payload | 0–1200 |
-| TTL | TTL для фейковых SYN-пакетов | 1–100 |
+| SYN MD5 Signature | Send a fake SYN with a TCP MD5 option before the real handshake | - |
+| Payload length | Size of data in the fake SYN. `0` = header only, `>0` = attach a fake TLS payload | 0-1200 |
+| TTL | TTL for fake SYN packets | 1-100 |
 
 ---
 
 ## TCP Desync
 
-Десинхронизация внедряет фейковые TCP управляющие пакеты (RST/FIN/ACK) с повреждёнными контрольными суммами и низким TTL. Эти пакеты путают DPI с отслеживанием состояния, но отбрасываются реальным сервером.
+Desync injects fake TCP control packets (RST/FIN/ACK) with corrupted checksums and low TTL. These packets confuse stateful DPI but are dropped by the real server.
 
-### Режим Desync
+### Desync mode
 
-| Режим | Что отправляет |
+| Mode | What it sends |
 | --- | --- |
-| **RST** | Фейковые RST-пакеты с неверными контрольными суммами — DPI считает соединение разорванным |
-| **FIN** | Фейковые FIN-пакеты с прошлыми sequence numbers — DPI считает соединение завершённым |
-| **ACK** | Фейковые ACK-пакеты со случайными будущими sequence/ack numbers — DPI теряет состояние |
-| **Combo** | Последовательность RST + FIN + ACK |
-| **Full** | Полная атака: фейковый SYN, перекрывающиеся RST, PSH и URG пакеты |
+| **RST** | Fake RST packets with bad checksums - the DPI considers the connection torn down |
+| **FIN** | Fake FIN packets with stale sequence numbers - the DPI considers the connection finished |
+| **ACK** | Fake ACK packets with random future sequence/ack numbers - the DPI loses state |
+| **Combo** | Sequence of RST + FIN + ACK |
+| **Full** | Full attack: fake SYN, overlapping RST, PSH, and URG packets |
 
-### Параметры Desync
+### Desync parameters
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| TTL Desync | Низкий TTL гарантирует истечение фейковых пакетов до сервера | 1–50 |
-| Количество пакетов | Количество фейковых пакетов на одну атаку десинхронизации | 1–20 |
-| Post-ClientHello RST | Отправить фейковый RST **после** ClientHello для удаления соединения из таблицы отслеживания DPI | — |
+| Desync TTL | Low TTL ensures fake packets expire before the server | 1-50 |
+| Packet count | Number of fake packets per desync attack | 1-20 |
+| Post-ClientHello RST | Send a fake RST **after** the ClientHello to remove the connection from the DPI tracking table | - |
 
 ---
 
-## Манипуляция окном
+## Window manipulation
 
-Отправляет фейковые ACK-пакеты с изменёнными размерами TCP-окна **перед** реальным пакетом. Фейки используют низкий TTL — они истекают до сервера, но путают DPI на промежуточных узлах.
+Sends fake ACK packets with altered TCP window sizes **before** the real packet. Fakes use low TTL - they expire before the server but confuse the DPI on intermediate hops.
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| **Нулевое окно** | Фейковые пакеты: сначала window=0, затем window=65535 |
-| **Случайное** | 3–5 фейковых пакетов со случайными размерами окна из заданного списка |
-| **Осцилляция** | Циклический перебор пользовательских значений окна |
-| **Эскалация** | Постепенное увеличение: 0 → 100 → 500 → 1460 → 8192 → 32768 → 65535 |
+| **Zero window** | Fake packets: first window=0, then window=65535 |
+| **Random** | 3-5 fake packets with random window sizes from the configured list |
+| **Oscillation** | Cycles through custom window values |
+| **Escalation** | Gradual increase: 0 -> 100 -> 500 -> 1460 -> 8192 -> 32768 -> 65535 |
 
-При режимах **Случайное** и **Осцилляция** можно задать свой список значений окна (0–65535). Если список пуст — используются значения по умолчанию.
+In **Random** and **Oscillation** modes a custom list of window values (0-65535) can be specified. When the list is empty, defaults are used.
 
 ---
 
-## Обход входящих ответов (Incoming)
+## Incoming response bypass
 
-Манипулирует **входящими ответами** сервера. Используется для обхода DPI, который дросселирует (замедляет) соединения после получения определённого объёма данных (~15–20 КБ). b4 вбрасывает фейковые пакеты к серверу, которые DPI видит, но они не доходят до назначения.
+Manipulates the server's **incoming responses**. Used against DPI that throttles connections after a certain amount of data has been transferred (~15-20 KB). b4 injects fake packets toward the server that the DPI sees but that never reach the destination.
 
-### Режим
+### Mode
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| **Фейковые пакеты** | Внедрение повреждённых ACK-пакетов к серверу с низким TTL на каждый входящий пакет данных |
-| **Внедрение Reset** | Внедрение фейковых RST-пакетов при достижении порога входящих байтов |
-| **Внедрение FIN** | Внедрение фейковых FIN-пакетов при достижении порога |
-| **Desync Combo** | Внедрение RST+FIN+ACK combo при достижении порога |
+| **Fake packets** | Injects broken ACK packets toward the server with low TTL on every incoming data packet |
+| **Reset injection** | Injects fake RST packets once the incoming byte threshold is reached |
+| **FIN injection** | Injects fake FIN packets once the threshold is reached |
+| **Desync Combo** | Injects an RST+FIN+ACK combo once the threshold is reached |
 
-### Стратегия повреждения
+### Corruption strategy
 
-Определяет, как фейковый пакет станет необрабатываемым:
+How the fake packet becomes unprocessable:
 
-| Стратегия | Описание |
+| Strategy | Description |
 | --- | --- |
-| **Bad Checksum** | Повреждение контрольной суммы TCP — пакеты отбрасываются ядром |
-| **Bad Sequence** | Повреждение sequence number — пакеты игнорируются TCP-стеком |
-| **Bad ACK** | Повреждение ACK number — пакеты игнорируются TCP-стеком |
-| **Random** | Случайный выбор метода для каждого пакета |
-| **All** | Все повреждения одновременно: bad seq + bad ack + bad checksum |
+| **Bad Checksum** | Corrupt the TCP checksum - packets get dropped by the kernel |
+| **Bad Sequence** | Corrupt the sequence number - packets get ignored by the TCP stack |
+| **Bad ACK** | Corrupt the ACK number - packets get ignored by the TCP stack |
+| **Random** | Random method pick per packet |
+| **All** | All corruptions at once: bad seq + bad ack + bad checksum |
 
-### Параметры Incoming
+### Incoming parameters
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| TTL фейка | Низкий TTL гарантирует истечение фейков до сервера | 1–20 |
-| Количество фейков | Количество фейковых пакетов на одну инжекцию | 1–10 |
-| Порог мин. | Минимальный объём входящих данных для срабатывания (КБ) | 5–50 |
-| Порог макс. | Максимальный порог — рандомизируется между мин. и макс. для каждого соединения | 5–50 |
+| Fake TTL | Low TTL ensures fakes expire before the server | 1-20 |
+| Fake count | Number of fake packets per injection | 1-10 |
+| Min threshold | Minimum amount of incoming data before triggering (KB) | 5-50 |
+| Max threshold | Maximum threshold - randomized between min and max per connection | 5-50 |
 
-:::info Пороги и режим Fake
-В режиме **Фейковые пакеты** пороги не используются — фейки отправляются на каждый входящий пакет. Пороги работают только в режимах Reset, FIN и Desync Combo.
+:::info Thresholds and Fake mode
+In **Fake packets** mode, thresholds are unused - fakes are sent on every incoming packet. Thresholds only apply to Reset, FIN, and Desync Combo modes.
 :::
 
 ---
 
-## Мутация ClientHello
+## ClientHello mutation
 
-Изменение структуры TLS ClientHello **настоящего** пакета (не фейкового). Рандомизирует порядок расширений и добавляет шум — чтобы ClientHello не совпадал с известными DPI сигнатурами.
+Modifies the structure of the **real** TLS ClientHello (not a fake). Randomizes the extension order and adds noise so the ClientHello does not match known DPI signatures.
 
-:::warning Мутация изменяет настоящий пакет
-В отличие от остальных секций на этой вкладке, мутация модифицирует **реальный** ClientHello, который дойдёт до сервера. Если сайт перестал работать после включения мутации — отключите её.
+:::warning Mutation changes the real packet
+Unlike other sections on this tab, mutation modifies the **real** ClientHello that reaches the server. If a site stops working after mutation is turned on, disable it.
 :::
 
-### Режим мутации
+### Mutation mode
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| **GREASE Extensions** | Вставить GREASE-расширения для обмана DPI |
-| **Padding** | Добавить расширение padding до целевого размера |
-| **Fake Extensions** | Вставить фейковые/неизвестные TLS-расширения |
-| **Fake SNIs** | Добавить дополнительные фейковые записи SNI |
-| **Random** | Рандомизировать порядок расширений и добавить шум |
-| **Advanced** | Комбинация нескольких техник мутации с ручной настройкой |
+| **GREASE Extensions** | Insert GREASE extensions to deceive the DPI |
+| **Padding** | Add a padding extension up to a target size |
+| **Fake Extensions** | Insert fake/unknown TLS extensions |
+| **Fake SNIs** | Add extra fake SNI entries |
+| **Random** | Randomize extension order and add noise |
+| **Advanced** | Combine several mutation techniques with manual tuning |
 
-### Параметры по режимам
+### Parameters by mode
 
 **GREASE:**
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Количество GREASE | Сколько GREASE-расширений вставить | 1–10 |
+| GREASE count | How many GREASE extensions to insert | 1-10 |
 
 **Padding:**
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Размер Padding | Целевой размер ClientHello с padding | 256–16384 байт |
+| Padding size | Target ClientHello size with padding | 256-16384 bytes |
 
 **Fake Extensions:**
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Количество Fake Extensions | Сколько фейковых TLS-расширений вставить | 1–15 |
+| Fake Extensions count | How many fake TLS extensions to insert | 1-15 |
 
 **Fake SNIs:**
 
-Добавляет дополнительные значения SNI в ClientHello. Введите домены (например, `ya.ru`, `vk.com`) — они будут внедрены в расширение SNI наряду с реальным доменом.
+Adds extra SNI values to the ClientHello. Enter domains (for example, `ya.ru`, `vk.com`) - they are injected into the SNI extension alongside the real domain.
 
-**Advanced** включает все параметры выше для ручной комбинации.
+**Advanced** exposes every parameter above for manual combination.

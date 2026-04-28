@@ -3,34 +3,32 @@ sidebar_position: 3
 title: ASUS Merlin
 ---
 
-# ASUS Merlin
+## Requirements
 
-## Требования
+- ASUS router running Asuswrt-Merlin firmware
+- Entware installed (required)
+- USB drive (for Entware and b4)
 
-- Роутер ASUS с прошивкой Asuswrt-Merlin
-- Установленный Entware (обязательно)
-- USB-накопитель (для Entware и b4)
+## Install Entware
 
-## Установка Entware
+Entware is required. If it is not installed yet:
 
-Entware — обязательное условие. Если он ещё не установлен:
+1. Plug a USB drive into the router
+2. Connect over SSH: `ssh admin@192.168.1.1`
+3. Run `amtm`
+4. Choose `ep` to install Entware
 
-1. Вставьте USB-накопитель в роутер
-2. Подключитесь по SSH: `ssh admin@192.168.1.1`
-3. Запустите `amtm`
-4. Выберите пункт `ep` для установки Entware
+More details: https://diversion.ch/amtm.html
 
-Подробнее: https://diversion.ch/amtm.html
+## Install b4
 
-## Установка b4
-
-После установки Entware:
+After Entware is installed:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
 ```
 
-## Управление сервисом
+## Service control
 
 ```bash
 /opt/etc/init.d/S99b4 start
@@ -38,18 +36,18 @@ curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh 
 /opt/etc/init.d/S99b4 restart
 ```
 
-Сервис запускается автоматически при загрузке роутера через Entware.
+The service starts automatically on router boot through Entware.
 
-## Пути
+## Paths
 
-| Что | Где |
+| What | Where |
 | --- | --- |
-| Бинарник | `/opt/sbin/b4` |
-| Конфигурация | `/opt/etc/b4/b4.json` |
-| Сервис | `/opt/etc/init.d/S99b4` |
+| Binary | `/opt/sbin/b4` |
+| Configuration | `/opt/etc/b4/b4.json` |
+| Service | `/opt/etc/init.d/S99b4` |
 
-## Без Entware
+## Without Entware
 
-Если Entware не установлен, b4 устанавливается в `/jffs/b4`. В этом случае автозапуск при загрузке не настраивается — бинарник нужно запускать вручную.
+If Entware is not installed, b4 is placed in `/jffs/b4`. In that case autostart on boot is not configured - the binary has to be started manually.
 
-Размер `/jffs` обычно ограничен ~60 МБ, поэтому рекомендуется использовать USB-накопитель с Entware.
+The size of `/jffs` is usually limited to about 60 MB, so a USB drive with Entware is recommended.

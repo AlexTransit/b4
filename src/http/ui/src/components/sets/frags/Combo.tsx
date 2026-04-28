@@ -4,6 +4,7 @@ import { B4SetConfig, ComboShuffleMode } from "@models/config";
 import { colors } from "@design";
 import { B4Alert, B4FormHeader } from "@b4.elements";
 import { useTranslation } from "react-i18next";
+import { SeqOverlapPatternFields } from "./SeqOverlapPatternFields";
 
 interface ComboSettingsProps {
   config: B4SetConfig;
@@ -17,6 +18,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
   const { t } = useTranslation();
   const combo = config.fragmentation.combo;
   const middleSni = config.fragmentation.middle_sni;
+  const seqPattern = config.fragmentation.seq_overlap_pattern || [];
 
   const shuffleModeOptions: { label: string; value: ComboShuffleMode }[] = [
     { label: t("sets.tcp.splitting.combo.shuffleMiddle"), value: "middle" },
@@ -34,11 +36,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
     <>
       <B4FormHeader label={t("sets.tcp.splitting.combo.header")} />
 
-      <Grid size={{ xs: 12 }}>
-        <B4Alert severity="info">
-          {t("sets.tcp.splitting.combo.alert")}
-        </B4Alert>
-      </Grid>
+      <B4Alert>{t("sets.tcp.splitting.combo.alert")}</B4Alert>
 
       {/* Decoy Settings */}
       <B4FormHeader label={t("sets.tcp.splitting.combo.decoyHeader")} />
@@ -350,13 +348,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
 
       <B4FormHeader label={t("sets.tcp.splitting.combo.fakePerSegHeader")} />
 
-      <Grid size={{ xs: 12 }}>
-        <B4Alert severity="info">
-          {t("sets.tcp.splitting.combo.fakePerSegAlert")}
-        </B4Alert>
-      </Grid>
-
-      <Grid size={{ xs: 12, md: 6 }}>
+      <Grid size={{ xs: 12, md: 4 }}>
         <B4Switch
           label={t("sets.tcp.splitting.combo.fakePerSeg")}
           checked={combo.fake_per_segment}
@@ -365,6 +357,11 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           }
           description={t("sets.tcp.splitting.combo.fakePerSegDesc")}
         />
+      </Grid>
+      <Grid size={{ xs: 12, md: 8 }}>
+        <B4Alert severity="info">
+          {t("sets.tcp.splitting.combo.fakePerSegAlert")}
+        </B4Alert>
       </Grid>
 
       {combo.fake_per_segment && (
@@ -392,6 +389,13 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           {t("sets.tcp.splitting.combo.noSplitPointsWarning")}
         </B4Alert>
       )}
+
+      <SeqOverlapPatternFields
+        pattern={seqPattern}
+        onChange={(value) =>
+          onChange("fragmentation.seq_overlap_pattern", value)
+        }
+      />
     </>
   );
 };

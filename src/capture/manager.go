@@ -12,6 +12,7 @@ import (
 
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/tlsgen"
 )
 
 const payloadFilenameFmt = "%s_%s.bin"
@@ -294,7 +295,7 @@ func (m *Manager) GenerateCapture(domain, protocol string) error {
 		return fmt.Errorf("generation only supported for TLS (use 'probe' for QUIC)")
 	}
 
-	payload, err := GenerateTLSClientHello(domain)
+	payload, err := tlsgen.GenerateTLSClientHello(domain)
 	if err != nil {
 		return fmt.Errorf("failed to generate payload: %v", err)
 	}

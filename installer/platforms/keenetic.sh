@@ -30,7 +30,7 @@ platform_keenetic_match() {
     # Keenetic with Entware but no entware_release file
     # /opt writable + read-only /etc + no /jffs (not Merlin) + no openwrt_release
     if [ -d "/opt/sbin" ] && [ -w "/opt/sbin" ] && [ ! -w "/etc" ] &&
-       [ ! -d "/jffs" ] && [ ! -f /etc/openwrt_release ]; then
+        [ ! -d "/jffs" ] && [ ! -f /etc/openwrt_release ]; then
         # Check if it looks like NDMS (has /tmp/ndm or similar)
         [ -d /tmp/ndm ] && return 0
     fi
@@ -104,6 +104,14 @@ _keenetic_load_kmods() {
         log_warn "No netfilter queue module available — b4 may not work"
         log_info "Check that your Keenetic firmware supports Netfilter Queue"
         log_info "You may need to enable 'Kernel modules for Netfilter' in the package manager"
+    fi
+
+    if ! _kmod_available "xt_connbytes" && ! _nft_functional; then
+        log_warn "xt_connbytes kernel module not available — b4 will fail to start on iptables"
+        log_info "Enable it via router web UI: System settings > Component options"
+        log_info "  look for 'Netfilter kernel modules' / 'xtables-addons' / 'Connection tracking extensions'"
+        log_info "Or try (Entware, kernel must match):"
+        log_info "  opkg update && opkg install kmod-ipt-conntrack-extra"
     fi
 }
 

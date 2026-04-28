@@ -1,67 +1,66 @@
 ---
 sidebar_position: 4
-title: Дашборд
+title: Dashboard
 ---
 
-# Дашборд
+The main page that opens by default. It shows the current state of b4, metrics, and device activity on the network.
 
-Главная страница, которая открывается по умолчанию. Показывает текущее состояние b4, метрики и активность устройств в сети.
+## System status
 
-## Состояние системы
+The banner at the top of the page shows:
 
-Баннер в верхней части страницы отображает:
+- **Status** - Running / Unstable / Critical
+- **NFQueue** - state of the netfilter queue
+- **Firewall** - state of iptables/nftables rules
+- **Workers** - how many worker threads are active (for example, "3/4 active")
+- **Uptime** - time since the last start
+- **Version** - current b4 version
 
-- **Статус** — Работает / Нестабильно / Критично
-- **NFQueue** — состояние очереди netfilter
-- **Фаервол** — состояние правил iptables/nftables
-- **Воркеры** — сколько рабочих потоков активно (например, «3/4 активно»)
-- **Аптайм** — время работы с последнего запуска
-- **Версия** — текущая версия b4
+The same banner has a **Reset statistics** button to zero all counters.
 
-Здесь же есть кнопка **Сброс статистики** для обнуления всех счётчиков.
+![20260418222956](../static/img/dashboard/20260418222956.png)
 
-![dashbanner](../static/img/dashboard/20260323205258.png)
+## Metrics
 
-## Метрики
+Three cards with the main indicators:
 
-Три карточки с основными показателями:
-
-| Метрика | Что показывает |
+| Metric | Shows |
 | --- | --- |
-| **Соединения** | Общее количество соединений и текущая скорость (соед/с) |
-| **Обход DPI** | Количество соединений, обработанных сетами, и процент от общего |
-| **Пакеты** | Количество обработанных пакетов и текущая скорость (пак/с) |
+| **Connections** | Total number of connections and current rate (conn/s) |
+| **DPI bypass** | Number of connections handled by sets, and the share of the total |
+| **Packets** | Number of processed packets and current rate (pkt/s) |
 
-Ниже отображается график **Скорость соединений** — линейный график в реальном времени.
+Below is a **Connection rate** chart - a real-time line chart.
 
-![metrics](../static/img/dashboard/20260323205426.png)
+![20260418223026](../static/img/dashboard/20260418223026.png)
 
-## Активные сеты
+## Active sets
 
-Список включённых сетов с количеством целей (доменов + IP). Клик по сету переходит к его редактированию.
-![activesets](../static/img/dashboard/20260323205519.png)
+A list of enabled sets with the number of targets (domains + IPs). Clicking a set opens it for editing.
 
-## Активность устройств
+![20260418223052](../static/img/dashboard/20260418223052.png)
 
-Показывает, какие устройства в сети к каким доменам обращаются:
+## Device activity
 
-- **Заголовок устройства** — имя (или MAC/vendor), IP, количество доменов и соединений
-- **Раскрываемый список доменов** — для каждого домена показано количество соединений
+Shows which devices on the network access which domains:
 
-Если домен ещё не добавлен ни в один сет, рядом с ним отображается кнопка «+» для быстрого добавления.
+- **Device header** - name (or MAC/vendor), IP, number of domains and connections
+- **Expandable domain list** - each domain shows its number of connections
 
-:::info Метки TLS
-Рядом с доменами могут отображаться метки **1.2** или **1.3** — это версия протокола TLS, которую использует соединение. Такие же метки встречаются в разделах Соединения и Дискавери. Версия TLS важна, потому что провайдеры могут блокировать TLS 1.2 и TLS 1.3 разными методами — для них могут потребоваться разные стратегии обхода.
+If a domain is not yet in any set, a "+" button appears next to it for quick addition.
+
+:::info TLS labels
+Domains may be tagged with **1.2** or **1.3** - the TLS protocol version used by the connection. The same labels appear in the Connections and Discovery sections. The TLS version matters because providers may block TLS 1.2 and TLS 1.3 with different methods - each may require a different bypass strategy.
 :::
 
-![devices](../static/img/dashboard/20260323205600.png)
+![20260418223112](../static/img/dashboard/20260418223112.png)
 
-## Мониторинг доменов
+## Domain watchdog
 
-Если включён [мониторинг доменов](./watchdog), на дашборде отображается панель мониторинга. Она показывает статус каждого отслеживаемого домена, время последней проверки и количество ошибок. Здесь же можно добавить новый домен или запустить принудительную проверку.
+If [domain watchdog](./watchdog) is enabled, a watchdog panel appears on the dashboard. It shows the status of each monitored domain, the time of the last check, and the error count. From here you can also add a new domain or trigger a forced check.
 
-## Домены не в сетах
+## Domains not in sets
 
-Топ-15 доменов, которые обрабатываются b4, но не включены ни в один сет. Отсортированы по количеству соединений. Каждый домен можно добавить в сет через кнопку «+».
+Top 15 domains handled by b4 that are not yet included in any set. Sorted by number of connections. Each domain can be added to a set through the "+" button.
 
-![nodevices](../static/img/dashboard/20260323205631.png)
+![20260418223133](../static/img/dashboard/20260418223133.png)

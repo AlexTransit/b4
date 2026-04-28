@@ -326,7 +326,15 @@ action_sysinfo() {
             sha256sum) printf "    ${YELLOW}missing${NC} %s ${DIM}(checksum verify skipped)${NC}\n" "$tool" >&2 ;;
             nohup)     printf "    ${YELLOW}missing${NC} %s ${DIM}(service may stop on session close)${NC}\n" "$tool" >&2 ;;
             modprobe)  printf "    ${YELLOW}missing${NC} %s ${DIM}(kernel modules loaded via insmod)${NC}\n" "$tool" >&2 ;;
-            ipset)     printf "    ${YELLOW}missing${NC} %s ${DIM}(needed for routing on iptables systems)${NC}\n" "$tool" >&2 ;;
+            ipset)
+                if _nft_functional; then
+                    printf "    ${YELLOW}missing${NC} %s ${DIM}(needed for routing on iptables systems)${NC}\n" "$tool" >&2
+                elif command_exists iptables || command_exists iptables-legacy; then
+                    printf "    ${RED}missing${NC} %s ${DIM}(required — iptables backend in use, install ipset)${NC}\n" "$tool" >&2
+                else
+                    printf "    ${YELLOW}missing${NC} %s ${DIM}(no firewall backend detected — backend availability unclear)${NC}\n" "$tool" >&2
+                fi
+                ;;
             *) ;;
             esac
         fi

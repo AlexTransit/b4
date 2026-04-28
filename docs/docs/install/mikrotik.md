@@ -3,67 +3,65 @@ sidebar_position: 5
 title: MikroTik
 ---
 
-# MikroTik (RouterOS 7.x)
+On MikroTik RouterOS 7.x, b4 runs as a container.
 
-b4 запускается как контейнер на MikroTik RouterOS 7.x.
+## Requirements
 
-## Требования
-
-- RouterOS версии 7.21.1 и выше
-- Архитектура ARM64 или AMD64
-- Подключённый внешний накопитель (Flash/SSD/HDD), отформатированный в Ext4
+- RouterOS version 7.21.1 or newer
+- ARM64 or AMD64 architecture
+- External storage attached (Flash/SSD/HDD), formatted as Ext4
 
 :::warning
-Контейнеры на MikroTik требуют внешний накопитель — внутренней памяти роутера недостаточно.
+Containers on MikroTik require external storage - the router's internal memory is not enough.
 :::
 
-## Параметры примера
+## Example parameters
 
-В руководстве используются следующие значения. Замените на свои:
+The guide uses the following values. Replace with your own:
 
-| Параметр | Значение |
+| Parameter | Value |
 | --- | --- |
-| Сеть моста | 192.168.210.0/24 |
-| Шлюз моста | 192.168.210.1 |
-| Имя моста | bridge-docker |
-| IP контейнера | 192.168.210.10 |
-| Имя интерфейса | B4 |
-| Сеть LAN | 192.168.100.0/24 |
-| DNS-сервер | 192.168.100.1 |
-| Таблица маршрутизации | to_b4 |
-| Диск | /usb1 |
-| Список клиентов | b4users |
+| Bridge network | 192.168.210.0/24 |
+| Bridge gateway | 192.168.210.1 |
+| Bridge name | bridge-docker |
+| Container IP | 192.168.210.10 |
+| Interface name | B4 |
+| LAN network | 192.168.100.0/24 |
+| DNS server | 192.168.100.1 |
+| Routing table | to_b4 |
+| Disk | /usb1 |
+| Client list | b4users |
 
-## Шаг 1: Мост
+## Step 1: Bridge
 
-Создайте мост для Docker-сети:
+Create a bridge for the Docker network:
 
 ```routeros
 /interface/bridge add name=bridge-docker port-cost-mode=short
 /ip/address add address=192.168.210.1/24 interface=bridge-docker network=192.168.210.0
 ```
 
-## Шаг 2: Интерфейс
+## Step 2: Interface
 
-Создайте виртуальный Ethernet-интерфейс и подключите к мосту:
+Create a virtual Ethernet interface and attach it to the bridge:
 
 ```routeros
 /interface/veth add address=192.168.210.10/24 gateway=192.168.210.1 name=B4
 /interface/bridge/port add bridge=bridge-docker interface=B4
 ```
 
-## Шаг 3: Маршрутизация
+## Step 3: Routing
 
-Создайте таблицу маршрутизации и маршрут через контейнер:
+Create a routing table and a route through the container:
 
 ```routeros
 /routing table add disabled=no fib name=to_b4
 /ip route add check-gateway=ping gateway=192.168.210.10 routing-table=to_b4
 ```
 
-## Шаг 4: Маркировка трафика
+## Step 4: Traffic marking
 
-Перенаправьте трафик клиентов из списка `b4users` через контейнер:
+Redirect traffic from clients in the `b4users` list through the container:
 
 ```routeros
 /ip firewall mangle add chain=prerouting action=mark-connection \
@@ -77,30 +75,31 @@ b4 запускается как контейнер на MikroTik RouterOS 7.x.
 ```
 
 :::caution FastTrack
-FastTrack обходит правила mangle. Ограничьте его немаркированными соединениями:
+FastTrack bypasses mangle rules. Restrict it to unmarked connections:
 
 ```routeros
 /ip firewall filter set [find action=fasttrack-connection] connection-mark=no-mark
 ```
+
 :::
 
-## Шаг 5: Точки монтирования
+## Step 5: Mount points
 
 ```routeros
 /container/mounts add name=b4_etc src=/usb1/docker/b4-mounts/etc dst=/opt/etc/b4
 ```
 
-Убедитесь, что директория `/usb1/docker/b4-mounts/etc` существует на диске.
+Make sure the `/usb1/docker/b4-mounts/etc` directory exists on the disk.
 
-## Шаг 6: Запуск контейнера
+## Step 6: Run the container
 
-Настройте реестр:
+Configure the registry:
 
 ```routeros
 /container/config set registry-url=https://registry-1.docker.io tmpdir=/usb1/docker/pull
 ```
 
-Создайте и запустите контейнер:
+Create and start the container:
 
 ```routeros
 /container add remote-image=lavrushin/b4:latest interface=B4 \
@@ -109,26 +108,26 @@ FastTrack обходит правила mangle. Ограничьте его не
     logging=yes dns=192.168.100.1
 ```
 
-После загрузки образа:
+After the image has been pulled:
 
 ```routeros
 /container start [find tag~"b4"]
 ```
 
-## Шаг 7: Добавление клиентов
+## Step 7: Add clients
 
-Добавьте устройства в адресный список `b4users`:
+Add devices to the `b4users` address list:
 
 ```routeros
 /ip firewall address-list add list=b4users address=192.168.100.50
 /ip firewall address-list add list=b4users address=192.168.100.51
 ```
 
-## Веб-интерфейс
+## Web interface
 
-После запуска контейнера: `http://192.168.210.10:7000`
+After the container starts: `http://192.168.210.10:7000`
 
-## Обновление
+## Update
 
 ```routeros
 /container stop [find tag~"b4"]
@@ -139,20 +138,23 @@ FastTrack обходит правила mangle. Ограничьте его не
     logging=yes dns=192.168.100.1
 ```
 
-Конфигурация хранится на точке монтирования и сохраняется при пересоздании контейнера.
+The configuration is stored on the mount point and is preserved when the container is recreated.
 
-## Решение проблем
+## Troubleshooting
 
-**Контейнер не запускается:**
-1. Проверьте статус: `/container print`
-2. Смотрите логи: `/log print where topics~"container"`
-3. Убедитесь, что диск отформатирован в Ext4
+**Container will not start:**
 
-**Нет доступа к веб-интерфейсу:**
-1. Проверьте, что контейнер запущен: `/container print`
-2. Проверьте связность: `/ping 192.168.210.10`
+1. Check status: `/container print`
+2. See logs: `/log print where topics~"container"`
+3. Make sure the disk is formatted as Ext4
 
-**Трафик не перенаправляется:**
-1. Проверьте список: `/ip firewall address-list print where list=b4users`
-2. Проверьте mangle: `/ip firewall mangle print`
-3. Проверьте маршрут: `/ip route print where routing-table=to_b4`
+**No access to the web interface:**
+
+1. Check that the container is running: `/container print`
+2. Check connectivity: `/ping 192.168.210.10`
+
+**Traffic is not redirected:**
+
+1. Check the list: `/ip firewall address-list print where list=b4users`
+2. Check mangle: `/ip firewall mangle print`
+3. Check the route: `/ip route print where routing-table=to_b4`

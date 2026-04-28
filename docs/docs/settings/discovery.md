@@ -1,51 +1,49 @@
 ---
 sidebar_position: 6
-title: Дискавери
+title: Discovery
 ---
 
-# Настройки дискавери
+Parameters that affect the automatic configuration search and the DPI detector. Configured in **Settings -> Discovery**.
 
-Параметры, влияющие на работу автоматического поиска конфигурации и детектора DPI. Настраиваются в **Настройки → Дискавери**.
+![20260418233744](../../static/img/discovery/20260418233744.png)
 
-![discovery](../../static/img/discovery/20260323220046.png)
+## Parameters
 
-## Параметры
-
-| Параметр | Описание | Диапазон | По умолчанию |
+| Parameter | Description | Range | Default |
 | --- | --- | --- | --- |
-| Таймаут поиска | Максимальное время ожидания ответа при проверке каждой стратегии | 3–30 сек | `5` сек |
-| Задержка распространения | Время ожидания после применения конфигурации перед тестированием. Нужно, чтобы правила успели активироваться | 500–5000 мс | `1500` мс |
-| Попыток валидации | Сколько раз стратегия должна сработать подряд, чтобы считаться рабочей. Больше = надёжнее, но дольше | 1–5 | `1` |
-| Эталонный домен | Домен, который заведомо доступен — используется как контрольный при проверке | — | `yandex.ru` |
+| Search timeout | Maximum time to wait for a response when testing each strategy | 3-30 sec | `5` sec |
+| Propagation delay | Time to wait after applying a configuration before testing. Needed so the rules have time to take effect | 500-5000 ms | `1500` ms |
+| Validation attempts | How many times a strategy must succeed in a row to be considered working. Higher = more reliable, but slower | 1-5 | `1` |
+| Reference domain | A domain known to be reachable - used as the control during checks | - | `yandex.ru` |
 
-## DNS-серверы
+## DNS servers
 
-Список DNS-серверов, используемых при проверке DNS-блокировки. Дискавери сравнивает ответы от этих серверов с ответами провайдерского DNS, чтобы определить подмену.
+List of DNS servers used when checking for DNS-based blocking. Discovery compares responses from these servers with the provider's DNS to detect tampering.
 
-По умолчанию:
+Defaults:
 
-| Сервер | Провайдер |
+| Server | Provider |
 | --- | --- |
 | `9.9.9.9` | Quad9 |
 | `1.1.1.1` | Cloudflare |
 | `8.8.8.8` | Google |
-| `9.9.1.1` | Quad9 (резерв) |
-| `8.8.4.4` | Google (резерв) |
+| `9.9.1.1` | Quad9 (backup) |
+| `8.8.4.4` | Google (backup) |
 
-Серверы можно добавлять и удалять через интерфейс.
+Servers can be added and removed through the interface.
 
-:::tip Когда менять DNS-серверы
-Если провайдер блокирует обращения к публичным DNS (например, перехватывает трафик на порт 53), дискавери может давать ложные результаты по DNS. В таком случае добавьте DNS-серверы, доступные в вашей сети, или используйте опцию **Пропустить поиск DNS** при запуске дискавери.
+:::tip When to change DNS servers
+If the provider blocks queries to public DNS (for example, intercepts port 53 traffic), discovery may return false DNS results. In that case add DNS servers reachable in your network, or enable the **Skip DNS search** option when starting discovery.
 :::
 
-:::info Эталонный домен
-Эталонный домен должен быть **незаблокированным** в вашей сети. Он используется для двух целей:
+:::info Reference domain
+The reference domain must be **unblocked** in your network. It is used for two things:
 
-- Проверка базовой связности — если он недоступен, результаты дискавери будут некорректными
-- Измерение базовой скорости — скорость загрузки эталонного домена используется как точка отсчёта для сравнения стратегий между собой
+- Basic connectivity check - if it is unreachable, discovery results will be incorrect
+- Baseline speed measurement - the reference domain's download speed is used as the reference point for comparing strategies against each other
 
 :::
 
-:::warning Скорость в результатах дискавери
-Скорость, которую показывает дискавери (например, «40 КБ/с»), — это **не реальная скорость** вашего соединения. При тестировании загружается очень маленький объём данных, недостаточный для точного измерения. Эти цифры нужны только для **сравнения стратегий между собой** — какая быстрее, какая медленнее. Не ориентируйтесь на абсолютные значения.
+:::warning Speed in discovery results
+The speed shown in discovery (for example, "40 KB/s") is **not the real speed** of your connection. The test downloads a very small amount of data, not enough for a precise measurement. These numbers are only useful for **comparing strategies against each other** - which is faster, which is slower. Do not treat the absolute values as meaningful.
 :::

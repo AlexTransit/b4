@@ -1,51 +1,50 @@
 ---
 sidebar_position: 2
-title: Установка
+title: Installation
 ---
 
-# Установка
+b4 installs on Linux devices: servers, computers, and routers. Pick the method that matches your system:
 
-b4 устанавливается на Linux-устройства: серверы, компьютеры и роутеры. Выберите подходящий способ:
+- [Linux](./linux) - universal installation on any Linux distribution
+- [OpenWRT](./openwrt) - routers running OpenWRT firmware
+- [ASUS Merlin](./merlin) - ASUS routers running Merlin firmware
+- [Keenetic](./keenetic) - Keenetic routers
+- [MikroTik](./mikrotik) - RouterOS 7.x via containers
+- [Docker](./docker) - run inside a Docker container
 
-- [Linux](./linux) — универсальная установка на любой Linux-дистрибутив
-- [OpenWRT](./openwrt) — роутеры с прошивкой OpenWRT
-- [ASUS Merlin](./merlin) — роутеры ASUS с прошивкой Merlin
-- [Keenetic](./keenetic) — роутеры Keenetic
-- [MikroTik](./mikrotik) — RouterOS 7.x через контейнеры
-- [Docker](./docker) — запуск в Docker-контейнере
+After installation, b4 is available through the web interface in the browser (default port `7000`).
 
-После установки b4 доступен через веб-интерфейс в браузере (по умолчанию порт `7000`).
+## Update and remove {#update-remove}
 
-## Обновление и удаление {#update-remove}
-
-### Обновление
+### Update
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --update
 ```
 
-Или обновление до конкретной версии:
+Or update to a specific version:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- v1.46.5
 ```
 
-При обновлении текущий бинарник сохраняется как резервная копия, сервис останавливается, заменяется на новую версию и запускается снова. Конфигурация не затрагивается.
+During an update, the current binary is saved as a backup, the service is stopped, replaced with the new version, and started again. The configuration is not touched.
 
-### Удаление
+### Remove
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --remove
 ```
 
-При удалении:
-1. Сервис останавливается и убирается из автозапуска
-2. Бинарник удаляется
-3. Конфигурация — по выбору (установщик спросит, удалять ли `/etc/b4` или `/opt/etc/b4`)
+On removal:
 
-### Диагностика
+1. The service is stopped and removed from autostart
+2. The binary is deleted
+3. The configuration is kept or removed based on your choice (the installer asks whether to delete `/etc/b4` or `/opt/etc/b4`)
 
-Для вывода информации о системе, установленной версии и состоянии модулей ядра:
+### Diagnostics
+
+To print system information, the installed version, and the state of kernel modules:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh -s -- --sysinfo

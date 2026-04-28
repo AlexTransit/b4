@@ -213,14 +213,6 @@ export const SetCard = ({
                 onToggleEnabled(e.target.checked);
               }}
               onClick={(e) => e.stopPropagation()}
-              sx={{
-                "& .MuiSwitch-switchBase.Mui-checked": {
-                  color: colors.secondary,
-                },
-                "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": {
-                  backgroundColor: colors.secondary,
-                },
-              }}
             />
           </Tooltip>
 

@@ -12,6 +12,11 @@ const (
 )
 
 const (
+	RoutingModeInterface = "interface"
+	RoutingModeProxy     = "proxy"
+)
+
+const (
 	FakePayloadRandom = iota
 	FakePayloadCustom
 	FakePayloadDefault1
@@ -19,6 +24,7 @@ const (
 	FakePayloadCapture
 	FakePayloadZero     // All-zero payload (0x00000000)
 	FakePayloadInverted // Bitwise-inverted original TLS payload
+	FakePayloadDomain
 )
 
 type ApiConfig struct {
@@ -40,11 +46,19 @@ type QueueConfig struct {
 }
 
 type DevicesConfig struct {
-	Enabled      bool             `json:"enabled"`
-	VendorLookup bool             `json:"vendor_lookup"`
-	WhiteIsBlack bool             `json:"wisb"`
-	Mac          []string         `json:"mac"`
-	MSSClamps    []DeviceMSSClamp `json:"mss_clamps"`
+	Enabled      bool     `json:"enabled"`
+	VendorLookup bool     `json:"vendor_lookup"`
+	WhiteIsBlack bool     `json:"wisb"`
+	Devices      []Device `json:"devices"`
+}
+
+type Device struct {
+	MAC      string `json:"mac"`
+	IP       string `json:"ip,omitempty"`
+	Name     string `json:"name,omitempty"`
+	MSSClamp int    `json:"mss_clamp,omitempty"`
+	Selected bool   `json:"selected"`
+	IsManual bool   `json:"is_manual,omitempty"`
 }
 
 type TCPConfig struct {
@@ -143,6 +157,7 @@ type FakingConfig struct {
 	SNIType           int      `json:"sni_type"`
 	CustomPayload     string   `json:"custom_payload"`
 	PayloadFile       string   `json:"payload_file"`
+	PayloadDomain     string   `json:"payload_domain"`
 	PayloadData       []byte   `json:"-"`
 	TLSMod            []string `json:"tls_mod"`            // e.g. ["rnd", "dupsid"]
 	TimestampDecrease uint32   `json:"timestamp_decrease"` // Amount to decrease TCP timestamp option
@@ -332,16 +347,23 @@ type MSSClampConfig struct {
 	Size    int  `json:"size"` // MSS value in bytes (e.g., 88)
 }
 
-type DeviceMSSClamp struct {
-	Mac  string `json:"mac"`
-	Size int    `json:"size"`
-}
 
 type RoutingConfig struct {
-	Enabled          bool     `json:"enabled"`
-	EgressInterface  string   `json:"egress_interface"`
-	FWMark           uint32   `json:"fwmark"`
-	Table            int      `json:"table"`
-	SourceInterfaces []string `json:"source_interfaces"`
-	IPTTLSeconds     int      `json:"ip_ttl_seconds"`
+	Enabled          bool                `json:"enabled"`
+	Mode             string              `json:"mode"`
+	EgressInterface  string              `json:"egress_interface"`
+	Upstream         UpstreamProxyConfig `json:"upstream"`
+	FWMark           uint32              `json:"fwmark"`
+	Table            int                 `json:"table"`
+	SourceInterfaces []string            `json:"source_interfaces"`
+	IPTTLSeconds     int                 `json:"ip_ttl_seconds"`
+}
+
+type UpstreamProxyConfig struct {
+	Host      string `json:"host"`
+	Port      int    `json:"port"`
+	Username  string `json:"username,omitempty"`
+	Password  string `json:"password,omitempty"`
+	FailOpen  bool   `json:"fail_open"`
+	UseDomain bool   `json:"use_domain"`
 }

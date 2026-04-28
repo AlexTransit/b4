@@ -41,6 +41,7 @@
     "addToSet": "Add to set",
     "tlsVersion": "TLS Version",
     "noData": "No data",
+    "add": "Add",
     "clearAll": "Clear All",
     "unknown": "Unknown",
     "targetSet": "Target Set",
@@ -62,6 +63,7 @@
     "addHostname": "Add Hostname",
     "timeAgo": {
       "justNow": "just now",
+      "nowShort": "now",
       "minutesAgo": "{{count}}m ago",
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago",
@@ -79,7 +81,8 @@
       "noDevices": "No devices found",
       "macAddress": "MAC Address",
       "deviceName": "Name",
-      "ip": "IP"
+      "ip": "IP",
+      "manual": "manual"
     }
   },
   "settings": {
@@ -101,7 +104,11 @@
       "title": "Core Controls",
       "description": "Control core service and config operations",
       "restartService": "Restart B4 System Service",
-      "systemInfo": "System Info"
+      "systemInfo": "System Info",
+      "resetConfig": "Reset Config to Defaults",
+      "resetConfirm": "This will reset configuration to defaults. Your sets, web server settings, and geo file paths are preserved. Everything else (queue, logging, discovery, API tokens, devices, interfaces, timezone, SOCKS5, MTProto, MSS clamping) will be wiped.",
+      "resetSuccess": "Configuration reset to defaults",
+      "resetError": "Failed to reset configuration"
     },
     "Queue": {
       "title": "Queue & Packet Processing",
@@ -225,6 +232,10 @@
       "secret": "Secret",
       "secretHelp": "Paste this into Telegram MTProto proxy settings",
       "generateSecret": "Generate Secret",
+      "refreshDCs": "Refresh Telegram DC list",
+      "refreshingDCs": "Fetching…",
+      "refreshDCsOk": "Loaded {{count}} DC entries from Telegram.",
+      "refreshDCsErr": "Refresh failed: {{error}}",
       "restartNote": "Restart B4 after changing MTProto settings for changes to take effect."
     },
     "MSSClamping": {
@@ -252,7 +263,12 @@
       "arpUnavailable": "ARP table not available. Device discovery unavailable.",
       "mss": "MSS",
       "editName": "Edit name",
-      "resetToVendor": "Reset to vendor name"
+      "resetToVendor": "Reset to vendor name",
+      "manualDevices": "Manual Devices",
+      "manualDevicesDesc": "Add IP addresses of devices behind another router that are not visible in the ARP table. These devices will appear in device lists and can be used for per-device filtering.",
+      "manualIp": "IP Address",
+      "manualName": "Name",
+      "manualNamePlaceholder": "Device name (optional)"
     },
     "RestartDialog": {
       "title": "Restart B4 Service",
@@ -443,13 +459,16 @@
   "dashboard": {
     "loading": "Loading dashboard...",
     "connectionRate": "Connection Rate",
+    "connectionRateLegend": "conn / s · last 60s",
     "metrics": {
       "connections": "Connections",
       "connPerSec": "conn/s",
       "bypassed": "Bypassed",
       "ofTotal": "of total",
       "packets": "Packets",
-      "pktPerSec": "pkt/s"
+      "pktPerSec": "pkt/s",
+      "rstDropped": "RST Dropped",
+      "idle": "idle"
     },
     "health": {
       "running": "Running",
@@ -792,6 +811,9 @@
         "payloadFile": "My own Payload File",
         "payloadZeros": "All Zeros",
         "payloadInverted": "Inverted Original",
+        "payloadDomainOption": "Generated from Domain",
+        "payloadDomainLabel": "Domain",
+        "payloadDomainHelper": "TLS ClientHello will be generated with this domain as SNI",
         "customPayload": "Custom Payload (Hex)",
         "customPayloadHelper": "Hex-encoded payload for fake packets (use Capture feature to get real payloads)",
         "generatedPayload": "Generated Payload",
@@ -1017,11 +1039,31 @@
       "trafficRouting": "Traffic Routing",
       "rule": "Rule",
       "enable": "Enable Routing",
-      "enableDesc": "Resolve matched domains and route destination IPs via selected output interface",
+      "enableDesc": "Resolve matched domains and route destination IPs via selected output interface or upstream proxy",
+      "modeLabel": "Routing mode",
+      "modeHelper": "Send matched traffic out a network interface, or hand it off to an upstream SOCKS5 proxy (e.g. local Xray/sing-box)",
+      "modeInterface": "Network interface",
+      "modeProxy": "Upstream SOCKS5 proxy",
       "outputInterface": "Output Interface",
       "outputInterfaceHelper": "Select egress interface for this set",
       "interfaceUnavailable": "Selected interface is currently unavailable",
       "interfaceUnavailableOption": "{{iface}} (unavailable)",
+      "upstreamHost": "Upstream SOCKS5 host",
+      "upstreamHostHelper": "Hostname or IP of the SOCKS5 proxy. Use 127.0.0.1 if Xray/sing-box runs on the same router.",
+      "upstreamPort": "Upstream SOCKS5 port",
+      "upstreamPortHelper": "Port of the SOCKS5 proxy (commonly 1080)",
+      "upstreamUser": "Username (optional)",
+      "upstreamPass": "Password (optional)",
+      "upstreamAuthHelper": "Leave empty if the upstream proxy does not require authentication",
+      "useDomain": "Send domain name to upstream",
+      "useDomainDesc": "When B4 already knows the domain for the destination IP (from prior DNS), pass the domain to the upstream so it can resolve and pick a geo-correct IP. Recommended.",
+      "failOpen": "Fall back to direct on upstream failure",
+      "failOpenDesc": "If the upstream proxy is unreachable, open a plain direct connection to the original destination instead of failing.",
+      "failOpenWarning": "Fail-open exposes the destination to your ISP if the upstream goes down. Disable for whitelist-mode regions where direct connections do not work and you want failures to be visible.",
+      "proxyManipulationNote": "In proxy mode, packet manipulation (faking, fragmentation, desync) is disabled for matched traffic. The upstream proxy handles obfuscation.",
+      "flowNoUpstream": "upstream not configured",
+      "flowProxyCaption": "Matched traffic is handed off to the upstream SOCKS5 proxy. The proxy is responsible for reaching the destination.",
+      "howItWorksProxy": "When a device on your network visits a matched domain, B4 intercepts the connection and forwards it through the upstream SOCKS5 proxy you configure. Use this to chain B4 into Xray/sing-box running locally on the router or on another host. Useful in regions with whitelist-based blocking where direct connections to non-whitelisted IPs are dropped.",
       "ipTtl": "Resolved IP TTL (seconds)",
       "ipTtlHelper": "How long resolved A/AAAA addresses stay in routing set",
       "sourceInterfaces": "Source Interfaces",
@@ -1030,12 +1072,13 @@
       "staleIface": "unavailable",
       "unavailableWarning": "Output interface \"{{iface}}\" is down or missing. Routing for this set will not work until it is available again or you select another interface.",
       "info": "Routing uses DNS answers for this set domains. Route marks and table IDs are assigned automatically per output interface.",
+      "infoProxy": "Routing uses DNS answers for this set domains. Matched traffic is hijacked from the source interfaces above and forwarded to the upstream proxy.",
       "flowDiagramLabel": "Traffic flow for matched domains",
       "flowAnyDevice": "Any device",
       "flowInternet": "Internet",
       "flowNoOutput": "not selected",
       "flowCaption": "DNS queries for this set's domains are intercepted. Resolved IPs are routed through the selected output interface.",
-      "howItWorks": "When a device on your network visits a matched domain, B4 intercepts the DNS response, learns the destination IP, and adds a routing rule so that traffic to that IP goes through the output interface you choose — for example, a VPN or a different WAN link.",
+      "howItWorks": "When a device on your network visits a matched domain, B4 intercepts the DNS response, learns the destination IP, and adds a routing rule so that traffic to that IP goes through the output interface you choose - for example, a VPN or a different WAN link.",
       "sourceInterfacesDesc": "Choose which network interfaces B4 should watch for traffic. For example, select your LAN or Wi-Fi bridge to only route traffic from devices on that network. Leave empty to route traffic from all interfaces.",
       "ipTtlDesc": "After B4 learns an IP address from a DNS response, it keeps the routing rule for this many seconds. If the domain's IP changes (e.g. CDN rotation), the old rule expires and B4 picks up the new IP on the next DNS query."
     },
@@ -1319,6 +1362,32 @@
       "enrichNoAsn": "No ASN found for this IP",
       "asnDeleted": "AS{{asn}} removed"
     },
+    "aggregated": {
+      "tabAggregated": "Aggregated",
+      "tabRaw": "Raw feed",
+      "devices": "Devices",
+      "allDevices": "All devices",
+      "unknownDevice": "Unknown",
+      "groupsCount": "{{count}} groups",
+      "packetsCount": "{{count}} packets",
+      "unmatchedCount": "{{count}} unmatched",
+      "unmatched": "unmatched",
+      "unmatchedOnly": "Unmatched only",
+      "windowAll": "All",
+      "activity": "Activity",
+      "packets": "Packets",
+      "seen": "Seen",
+      "noDomain": "(no domain)",
+      "detail": "Detail",
+      "destinations": "Destinations",
+      "duration": "Duration",
+      "source": "Source",
+      "addDomain": "Add domain to set",
+      "addIp": "Add IP to set",
+      "addDomainToSet": "Add domain to a set",
+      "showDevices": "Show devices",
+      "hideDevices": "Hide devices"
+    },
     "addDomain": {
       "title": "Add Domain to Manual List",
       "addDomain": "Add Domain",
@@ -1408,7 +1477,11 @@
     "inProgress": "Update in progress. Waiting for service to restart...",
     "completed": "Update completed successfully! Refreshing...",
     "manualCheck": "Update may have completed but service did not restart. Please check manually.",
-    "backupWarning": "Back up your configuration before updating. Use Settings → Backup to download a backup."
+    "backupWarning": "Back up your configuration before updating. Use Settings → Backup to download a backup.",
+    "clickToView": "Click to view update",
+    "available": "Update available",
+    "install": "Install",
+    "upToDate": "up to date"
   },
   "watchdog": {
     "title": "Watchdog Monitor",

@@ -1,239 +1,237 @@
 ---
 sidebar_position: 1
-title: Основные
+title: Core
 ---
 
-# Основные настройки
+All changes on this tab require a service restart (except the interface language).
 
-Все изменения на этой вкладке требуют перезапуска сервиса (кроме языка интерфейса).
+## Controls
 
-## Управление
+Buttons at the top of the settings:
 
-Кнопки в верхней части настроек:
+- **Restart service** - restart b4 (expected downtime: 5-10 seconds)
 
-- **Перезапустить сервис** — перезапуск b4 (ожидаемое время простоя: 5–10 секунд)
-
-:::warning Сброс конфигурации
-При сбросе конфигурации сохраняются: домены, категории GeoSite/GeoIP и настройки тестирования. Всё остальное (сеть, обход DPI, протоколы, логирование) сбрасывается.
+:::warning Reset configuration
+When the configuration is reset, these are preserved: domains, GeoSite/GeoIP categories, and test settings. Everything else (network, DPI bypass, protocols, logging) is reset to defaults.
 :::
 
-![restart](../../static/img/core/20260323213113.png)
+![20260418225826](../../static/img/core/20260418225826.png)
 
-## Очередь и обработка пакетов
+## Queue and packet processing
 
-Настройки ядра обработки пакетов через netfilter.
+Settings for the packet processing core over netfilter.
 
-![nfque](../../static/img/core/20260323213159.png)
+![20260418225903](../../static/img/core/20260418225903.png)
 
-| Параметр | Описание | Диапазон | По умолчанию |
+| Parameter | Description | Range | Default |
 | --- | --- | --- | --- |
-| Начальный номер очереди | Номер NFQUEUE. Изменяйте, если другие программы используют те же номера | 0–65535 | `537` |
-| Метка пакета | Метка netfilter для правил iptables/nftables. b4 использует её для маркировки обработанных пакетов | — | `32768` |
-| Рабочие потоки | Количество параллельных воркеров. Больше потоков = выше пропускная способность на многоядерных системах | 1–16 | `4` |
-| Лимит TCP пакетов соединения | Сколько TCP-пакетов на соединение анализировать. Сеты не могут превышать это значение | 1–100 | `19` |
-| Лимит UDP пакетов соединения | Сколько UDP-пакетов на соединение анализировать. Сеты не могут превышать это значение | 1–30 | `8` |
+| Starting queue number | NFQUEUE number. Change if other programs use the same numbers | 0-65535 | `537` |
+| Packet mark | netfilter mark for iptables/nftables rules. b4 uses it to mark processed packets | - | `32768` |
+| Worker threads | Number of parallel workers. More threads = higher throughput on multi-core systems | 1-16 | `4` |
+| TCP per-connection packet limit | How many TCP packets per connection to analyze. Sets cannot exceed this value | 1-100 | `19` |
+| UDP per-connection packet limit | How many UDP packets per connection to analyze. Sets cannot exceed this value | 1-30 | `8` |
 
-:::tip Лимиты пакетов
-Эти лимиты — глобальный потолок. В каждом сете можно установить свой лимит, но он не может быть выше глобального. Увеличение значения даёт b4 больше времени на анализ, но повышает нагрузку.
+:::tip Packet limits
+These limits are a global ceiling. Each set can define its own limit, but not above the global one. A higher value gives b4 more time to analyze but increases load.
 :::
 
-## Функции
+## Features
 
-### Протоколы
+### Protocols
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Поддержка IPv4 | Обработка IPv4-трафика | Вкл |
-| Поддержка IPv6 | Обработка IPv6-трафика | Выкл |
+| IPv4 support | Process IPv4 traffic | On |
+| IPv6 support | Process IPv6 traffic | Off |
 
-### Фаервол
+### Firewall
 
-![firewall](../../static/img/core/20260323213229.png)
+![20260418230000](../../static/img/core/20260418230000.png)
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Пропустить настройку IPTables/NFTables | b4 не будет создавать правила firewall. Используйте, если настраиваете правила вручную | Выкл |
-| Интервал мониторинга фаервола | Как часто проверять и восстанавливать правила (сек). Если правила удаляются внешними программами, b4 восстановит их | `10` |
-| Движок фаервола | Какой backend использовать для правил | Автоопределение |
-| NAT Masquerade | Включить NAT-маскарад. Нужен для контейнеров и шлюзов, где b4 перенаправляет трафик | Выкл |
-| Интерфейс Masquerade | На каком интерфейсе применять маскарад. Появляется при включении NAT Masquerade | Все |
+| Skip IPTables/NFTables setup | b4 will not create firewall rules. Use this if you manage rules manually | Off |
+| Firewall monitor interval | How often to check and restore rules (seconds). If external programs delete rules, b4 will restore them | `10` |
+| Firewall engine | Which backend to use for rules | Auto-detect |
+| NAT Masquerade | Enable NAT masquerading. Needed for containers and gateways where b4 forwards traffic | Off |
+| Masquerade interface | Interface to apply masquerading on. Appears when NAT Masquerade is enabled | All |
 
-:::warning Интервал мониторинга
-Значение 0 полностью отключает мониторинг правил. Если внешняя программа или скрипт удалит правила b4 — они не будут восстановлены.
+:::warning Monitor interval
+Setting this to 0 turns off rule monitoring completely. If an external program or script removes b4's rules, they will not be restored.
 :::
 
-Движок фаервола — выбор из:
+Firewall engine options:
 
-| Значение | Описание |
+| Value | Description |
 | --- | --- |
-| Автоопределение | b4 сам определит доступный backend (рекомендуется) |
-| nftables | Использовать nftables |
-| iptables | Использовать iptables |
-| iptables-legacy | Использовать iptables-legacy (для старых систем) |
+| Auto-detect | b4 picks the available backend (recommended) |
+| nftables | Use nftables |
+| iptables | Use iptables |
+| iptables-legacy | Use iptables-legacy (for older systems) |
 
-### Сетевые интерфейсы
+### Network interfaces
 
-Выбор интерфейсов для мониторинга. Интерфейсы отображаются как кликабельные метки — нажмите, чтобы включить/выключить.
+Pick interfaces to monitor. Interfaces are shown as clickable tags - click to enable/disable.
 
 :::info
-Если не выбран ни один интерфейс — b4 слушает все доступные.
+If no interface is selected, b4 listens on every available one.
 :::
 
-## Настройки логирования
+## Logging
 
-![logs](../../static/img/core/20260323213335.png)
+![20260418230040](../../static/img/core/20260418230040.png)
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Уровень логирования | Детализация логов | INFO |
-| Путь к файлу ошибок | Записывать ошибки в файл | `/var/log/b4/errors.log` |
-| Часовой пояс | Часовой пояс для временных меток | Системный (авто) |
-| Мгновенный сброс | Сбрасывать буфер после каждой записи. Может влиять на производительность | Вкл |
-| Syslog | Дублировать логи в системный syslog | Выкл |
+| Log level | Log verbosity | INFO |
+| Error file path | File to write errors to | `/var/log/b4/errors.log` |
+| Timezone | Timezone for timestamps | System (auto) |
+| Immediate flush | Flush the buffer after every write. May affect performance | On |
+| Syslog | Also send logs to the system syslog | Off |
 
-Уровни логирования:
+Log levels:
 
-| Уровень | Что отображается |
+| Level | What is shown |
 | --- | --- |
-| Ошибка | Только ошибки |
-| Инфо | Ошибки + основные события |
-| Трассировка | Инфо + детали обработки пакетов |
-| Отладка | Всё, включая отладочную информацию |
+| Error | Only errors |
+| Info | Errors + main events |
+| Trace | Info + packet processing details |
+| Debug | Everything, including debug info |
 
-:::warning Уровень Ошибка
-При уровне **Ошибка** разделы **Логи** и **Соединения** в веб-интерфейсе не будут показывать данные — они получают информацию из потока логов, который при этом уровне практически пуст.
+:::warning Error level
+At the **Error** level, the **Logs** and **Connections** sections in the web interface will not show data - they read from the log stream, which is almost empty at this level.
 :::
 
-:::info Файл ошибок
-b4 не ведёт постоянный лог-файл — всё выводится в stdout/stderr (и перехватывается веб-интерфейсом через WebSocket). В файл `errors.log` записываются только критические ошибки и аварийные завершения.
+:::info Error file
+b4 does not keep a persistent log file - everything goes to stdout/stderr (and is captured by the web interface through a WebSocket). Only critical errors and crashes are written to `errors.log`.
 :::
 
 :::tip
-Для диагностики проблем используйте **Трассировка** или **Отладка**. Для обычной работы достаточно **Инфо**.
+For diagnosing issues use **Trace** or **Debug**. For normal operation **Info** is enough.
 :::
 
-## Веб-сервер
+## Web server
 
-Настройки веб-интерфейса b4.
+Settings for the b4 web interface.
 
-![webserver](../../static/img/core/20260323213523.png)
+![20260418230100](../../static/img/core/20260418230100.png)
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Адрес привязки | IP для прослушивания. `0.0.0.0` = все интерфейсы, `127.0.0.1` = только localhost, `::` = все IPv6 | `0.0.0.0` |
-| Порт | Порт веб-интерфейса | `7000` |
-| TLS Сертификат | Путь к файлу сертификата `.crt` или `.pem` (пусто = HTTP) | — |
-| TLS Ключ | Путь к файлу ключа `.key` или `.pem` (пусто = HTTP) | — |
-| Язык | Язык интерфейса: English / Русский | English |
+| Bind address | IP to listen on. `0.0.0.0` = all interfaces, `127.0.0.1` = localhost only, `::` = all IPv6 | `0.0.0.0` |
+| Port | Web interface port | `7000` |
+| TLS Certificate | Path to a `.crt` or `.pem` certificate file (empty = HTTP) | - |
+| TLS Key | Path to a `.key` or `.pem` key file (empty = HTTP) | - |
+| Language | Interface language: English / Русский | English |
 
-### Авторизация
+### Authentication
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Имя пользователя | Логин для входа в веб-интерфейс | — |
-| Пароль | Пароль для входа | — |
+| Username | Login for the web interface | - |
+| Password | Password | - |
 
-:::warning Частичная авторизация
-Авторизация работает только когда заполнены **оба** поля. Если указано только имя пользователя или только пароль — авторизация не включится.
+:::warning Partial authentication
+Authentication only applies when **both** fields are filled. If only the username or only the password is set, authentication stays off.
 :::
 
-:::warning HTTP + авторизация
-Если авторизация включена, но TLS не настроен — логин и пароль передаются по незашифрованному HTTP. Настройте TLS-сертификаты для безопасной передачи. Подробнее — в разделе [Безопасность](./security).
+:::warning HTTP + authentication
+If authentication is enabled but TLS is not configured, the username and password travel over unencrypted HTTP. Configure TLS certificates for secure transport. See the [Security](./security) section.
 :::
 
-## SOCKS5 Прокси
+## SOCKS5 proxy
 
-Встроенный SOCKS5-прокси. Приложения могут направлять через него трафик — он будет обработан b4 с применением настроенных сетов.
+A built-in SOCKS5 proxy. Applications can route traffic through it - it is processed by b4 with the configured sets applied.
 
-![sock5](../../static/img/core/20260323213642.png)
+![20260418230122](../../static/img/core/20260418230122.png)
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Включить | Запустить SOCKS5-сервер | Выкл |
-| Адрес привязки | IP для прослушивания. `0.0.0.0` = все, `127.0.0.1` = только localhost | `0.0.0.0` |
-| Порт | Порт прокси | `1080` |
-| Имя пользователя | Логин для SOCKS5-авторизации (пусто = без авторизации) | — |
-| Пароль | Пароль для SOCKS5-авторизации (пусто = без авторизации) | — |
+| Enable | Start the SOCKS5 server | Off |
+| Bind address | IP to listen on. `0.0.0.0` = all, `127.0.0.1` = localhost only | `0.0.0.0` |
+| Port | Proxy port | `1080` |
+| Username | Login for SOCKS5 authentication (empty = no authentication) | - |
+| Password | Password for SOCKS5 authentication (empty = no authentication) | - |
 
-Все поля кроме «Включить» становятся доступны только после включения прокси.
+Every field except "Enable" becomes available only after the proxy is enabled.
 
 :::info
-Изменения настроек SOCKS5 требуют перезапуска сервиса.
+Changes to SOCKS5 settings require a service restart.
 :::
 
-## MTProto Прокси
+## MTProto proxy
 
-Встроенный Telegram MTProto-прокси с fake-TLS обфускацией. Трафик Telegram оборачивается в TLS-соединение, маскируясь под обычный HTTPS-трафик. Подробное руководство по настройке — в разделе [MTProto Прокси](../mtproto).
+A built-in Telegram MTProto proxy with fake-TLS obfuscation. Telegram traffic is wrapped in a TLS connection, masquerading as regular HTTPS. Detailed setup in the [MTProto Proxy](../mtproto) section.
 
-![mtproto](../../static/img/core/20260323213811.png)
+![20260418230138](../../static/img/core/20260418230138.png)
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Включить | Запустить MTProto-сервер | Выкл |
-| Адрес привязки | IP для прослушивания | `0.0.0.0` |
-| Порт | Порт прокси | `3128` |
-| Домен для Fake SNI | Домен, который будет виден в TLS-рукопожатии. DPI увидит этот домен вместо Telegram | `storage.googleapis.com` |
-| DC Relay | Адрес внешнего relay-сервера (host:port) для доступа к Telegram DC, если они заблокированы по IP | — |
-| Secret | Секрет для подключения клиента Telegram. Вставьте его в настройках прокси в Telegram | — |
+| Enable | Start the MTProto server | Off |
+| Bind address | IP to listen on | `0.0.0.0` |
+| Port | Proxy port | `3128` |
+| Fake SNI domain | The domain visible in the TLS handshake. The DPI sees this domain instead of Telegram | `storage.googleapis.com` |
+| DC Relay | External relay address (host:port) for reaching Telegram DCs when they are IP-blocked | - |
+| Secret | Secret for the Telegram client to connect. Paste it into the Telegram proxy settings | - |
 
-Кнопка **Сгенерировать Secret** создаёт секрет на основе текущего домена Fake SNI.
+The **Generate Secret** button creates a secret based on the current Fake SNI domain.
 
 :::info DC Relay
-DC Relay нужен, когда b4 установлен на роутере внутри страны с блокировкой, а IP-адреса серверов Telegram заблокированы. В этом случае нужен VPS за пределами блокировки, который будет relay-сервером.
+DC Relay is needed when b4 is installed on a router inside a country with blocking, and Telegram server IPs are blocked. A VPS outside the blocking area is used as the relay.
 :::
 
 :::info
-Изменения настроек MTProto требуют перезапуска сервиса.
+Changes to MTProto settings require a service restart.
 :::
 
-## Глобальный MSS Clamping
+## Global MSS Clamping
 
-Ограничение TCP Maximum Segment Size на SYN/SYN-ACK пакетах для трафика на порт 443. Уменьшает размер сегментов, что приводит к естественной фрагментации — DPI не может собрать фрагментированный ClientHello.
+Limits TCP Maximum Segment Size on SYN/SYN-ACK packets for port 443 traffic. A smaller MSS leads to natural fragmentation - the DPI cannot reassemble a fragmented ClientHello.
 
-![mss](../../static/img/core/20260323213923.png)
+![20260418230236](../../static/img/core/20260418230236.png)
 
-| Параметр | Описание | Диапазон | По умолчанию |
+| Parameter | Description | Range | Default |
 | --- | --- | --- | --- |
-| Включить | Активировать глобальный MSS Clamping | — | Выкл |
-| Размер MSS | Размер MSS в байтах. Меньше значение = больше фрагментация | 10–1460 | `88` |
+| Enable | Turn on global MSS Clamping | - | Off |
+| MSS size | MSS size in bytes. Lower = more fragmentation | 10-1460 | `88` |
 
-:::info Глобальный vs индивидуальный MSS
-Глобальный MSS Clamping применяется ко **всему** трафику на порт 443. Если нужно ограничить MSS только для конкретных устройств (например, телевизор с YouTube) — настройте MSS в столбце **MSS** в [таблице устройств](#фильтрация-устройств) ниже. Индивидуальный MSS работает независимо от глобального.
+:::info Global vs per-device MSS
+Global MSS Clamping applies to **all** port 443 traffic. To limit MSS only for specific devices (for example, a TV running YouTube), configure MSS in the **MSS** column of the [device table](#device-filtering) below. Per-device MSS works independently of the global setting.
 :::
 
-## Фильтрация устройств
+## Device filtering
 
-Ограничение работы b4 трафиком от конкретных устройств в сети (по MAC-адресу). Полезно, если обход нужен не для всех устройств.
+Limits b4 to traffic from specific devices on the network (by MAC address). Useful when bypass is not needed for every device.
 
-![devices](../../static/img/core/20260323214332.png)
+![20260418230312](../../static/img/core/20260418230312.png)
 
-| Параметр | Описание | По умолчанию |
+| Parameter | Description | Default |
 | --- | --- | --- |
-| Включить | Активировать фильтрацию по устройствам | Выкл |
-| Определение производителя | Скачать базу vendor для определения производителя по MAC (~6 МБ) | Выкл |
-| Инвертировать выбор | Переключение между белым и чёрным списком | Выкл |
+| Enable | Turn on device filtering | Off |
+| Vendor detection | Download the vendor database to identify manufacturer by MAC (~6 MB) | Off |
+| Invert selection | Toggle between allow list and deny list | Off |
 
-:::info Режимы фильтрации
+:::info Filter modes
 
-- **Белый список** (по умолчанию) — обход DPI работает **только** для выбранных устройств
-- **Чёрный список** (инвертировать выбор) — выбранные устройства **исключаются** из обхода DPI
+- **Allow list** (default) - DPI bypass works **only** for the selected devices
+- **Deny list** (invert selection) - selected devices are **excluded** from DPI bypass
 
 :::
 
-### Таблица устройств
+### Device table
 
-При включении фильтрации появляется таблица обнаруженных устройств:
+When filtering is enabled, a table of discovered devices appears:
 
-| Столбец | Описание |
+| Column | Description |
 | --- | --- |
-| Выбор | Чекбокс для включения/исключения устройства |
-| MAC | MAC-адрес |
-| IP | Текущий IP-адрес |
-| Имя | Псевдоним устройства (можно задать через иконку редактирования) или vendor |
-| MSS | Индивидуальный MSS Clamping для этого устройства (10–1460, пусто = выключен) |
+| Select | Checkbox to include/exclude the device |
+| MAC | MAC address |
+| IP | Current IP address |
+| Name | Device alias (editable through the edit icon) or vendor |
+| MSS | Per-device MSS Clamping (10-1460, empty = off) |
 
-Кнопка **Обновить** перезагружает список устройств из ARP-таблицы.
+The **Refresh** button reloads the device list from the ARP table.
 
-:::tip Индивидуальный MSS
-MSS Clamping можно настроить для каждого устройства отдельно — например, уменьшить MSS только для телевизора с YouTube, не затрагивая остальные устройства.
+:::tip Per-device MSS
+MSS Clamping can be set per device - for example, lowering the MSS only for a TV running YouTube without affecting other devices.
 :::

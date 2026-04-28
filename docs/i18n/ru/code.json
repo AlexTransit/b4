@@ -1,0 +1,62 @@
+{
+  "home.title": {
+    "message": "Документация",
+    "description": "Page title for the homepage"
+  },
+  "home.meta.description": {
+    "message": "b4 - обход блокировок для Linux",
+    "description": "Meta description for the homepage"
+  },
+  "home.subtitle": {
+    "message": "Обход блокировок на уровне сетевых пакетов для Linux и роутеров",
+    "description": "Homepage hero subtitle"
+  },
+  "home.description": {
+    "message": "Веб-интерфейс, автоматический подбор конфигурации, поддержка роутеров и серверов",
+    "description": "Homepage hero description"
+  },
+  "home.cta.start": {
+    "message": "Начать",
+    "description": "Homepage CTA button to docs"
+  },
+  "home.cta.github": {
+    "message": "GitHub",
+    "description": "Homepage CTA button to GitHub"
+  },
+  "home.section.heading": {
+    "message": "Документация",
+    "description": "Homepage section heading for doc cards"
+  },
+  "home.section.intro.title": {
+    "message": "Введение",
+    "description": "Doc card title: intro"
+  },
+  "home.section.intro.desc": {
+    "message": "Что такое b4, как работает обход блокировок и что нужно для старта.",
+    "description": "Doc card description: intro"
+  },
+  "home.section.install.title": {
+    "message": "Установка",
+    "description": "Doc card title: install"
+  },
+  "home.section.install.desc": {
+    "message": "Установка на Linux, OpenWRT, ASUS Merlin, Keenetic, MikroTik и Docker.",
+    "description": "Doc card description: install"
+  },
+  "home.section.quickstart.title": {
+    "message": "Быстрый старт",
+    "description": "Doc card title: quickstart"
+  },
+  "home.section.quickstart.desc": {
+    "message": "От первого запуска до работающего обхода за 5 минут через веб-интерфейс.",
+    "description": "Doc card description: quickstart"
+  },
+  "home.section.sets.title": {
+    "message": "Сеты",
+    "description": "Doc card title: sets"
+  },
+  "home.section.sets.desc": {
+    "message": "Наборы настроек обхода: цели, TCP/UDP стратегии, маршрутизация.",
+    "description": "Doc card description: sets"
+  }
+}

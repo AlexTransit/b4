@@ -3,40 +3,38 @@ sidebar_position: 5
 title: RST Protection
 ---
 
-# Защита от RST-инъекций
+Some DPI systems break connections by sending forged TCP RST packets pretending to be the server. The browser treats them as real and closes the connection.
 
-Некоторые DPI-системы обрывают соединения, отправляя поддельные TCP RST-пакеты от имени сервера. Браузер принимает такой пакет за настоящий и закрывает соединение.
+This feature inspects incoming RST packets and drops the ones that look like injections.
 
-Эта функция анализирует входящие RST-пакеты и отбрасывает те, которые выглядят как инъекции.
+## How it works
 
-## Как работает
+b4 applies three independent checks to every RST packet:
 
-b4 применяет три независимых проверки к каждому RST-пакету:
-
-| Проверка | Что отбрасывает |
-|---|---|
-| **RST до ответа сервера** | RST пришёл раньше, чем любой реальный ответ от сервера — характерный признак инъекции |
-| **Повторный RST** | Второй и последующие RST на одном соединении — легитимное соединение крайне редко отправляет больше одного |
-| **Несовпадение TTL** | TTL в RST-пакете значительно отличается от TTL первого реального ответа сервера — пакет пришёл с другого узла сети |
+| Check | What it drops |
+| --- | --- |
+| **RST before server reply** | The RST arrived before any real reply from the server - a strong sign of an injection |
+| **Repeated RST** | The second or later RST on the same connection - a legitimate connection very rarely sends more than one |
+| **TTL mismatch** | The TTL of the RST packet differs significantly from the TTL of the first real server reply - the packet came from a different network hop |
 
 :::info
-Каждая проверка работает независимо. Пакет отбрасывается, если сработала **хотя бы одна** из них.
+Each check runs independently. A packet is dropped when **any one** of them triggers.
 :::
 
-## Настройки
+## Settings
 
-### Включить RST Protection
+### Enable RST Protection
 
-Переключатель активирует защиту для этого сета.
+Turns protection on for this set.
 
 ### TTL Tolerance
 
-Допустимая разница в TTL между RST-пакетом и реальным ответом сервера. Диапазон: 1–20, по умолчанию **3**.
+Allowed TTL difference between the RST packet and the real server reply. Range: 1-20, default **3**.
 
 :::tip
-Значение 3 подходит для большинства сетей. Увеличьте, если b4 ложно отбрасывает легитимные RST (видно в логах).
+A value of 3 fits most networks. Raise it if b4 falsely drops legitimate RST packets (visible in the logs).
 :::
 
-## Логирование
+## Logging
 
-Каждый отброшенный RST отображается в [логах](../../logs) с указанием причины: несовпадение TTL, RST до ответа сервера или повторный RST.
+Every dropped RST is shown in the [logs](../../logs) with the trigger reason: TTL mismatch, RST before server reply, or repeated RST.

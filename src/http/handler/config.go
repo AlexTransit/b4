@@ -17,6 +17,61 @@ import (
 func (api *API) RegisterConfigApi() {
 
 	api.mux.HandleFunc("/api/config", api.handleConfig)
+	api.mux.HandleFunc("/api/config/reset", api.handleConfigReset)
+}
+
+// @Summary Reset configuration to defaults
+// @Description Resets configuration to defaults, preserving sets, web server settings and geo file paths.
+// @Tags Config
+// @Produce json
+// @Success 200 {object} ConfigResponse
+// @Security BearerAuth
+// @Router /config/reset [post]
+func (a *API) handleConfigReset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	curCfg := a.getCfg()
+	oldConfig := curCfg.Clone()
+
+	newCfg := config.NewConfig()
+	newCfg.ConfigPath = curCfg.ConfigPath
+	newCfg.Sets = oldConfig.Sets
+	newCfg.System.WebServer = curCfg.System.WebServer
+	newCfg.System.Geo = curCfg.System.Geo
+
+	a.applyRuntimeChanges(&newCfg, curCfg)
+
+	if err := a.saveAndPushConfig(&newCfg); err != nil {
+		log.Errorf("Failed to reset config: %v", err)
+		http.Error(w, "Failed to reset config", http.StatusInternalServerError)
+		return
+	}
+
+	a.PerformSoftRestart(&newCfg, oldConfig)
+
+	setJsonHeader(w)
+	_ = json.NewEncoder(w).Encode(ConfigResponse{
+		Success: true,
+		Message: "Configuration reset to defaults",
+		Config:  &newCfg,
+	})
+}
+
+func (a *API) applyRuntimeChanges(newCfg, oldCfg *config.Config) {
+	if newCfg.System.Logging.Level != log.Level(log.CurLevel.Load()) {
+		log.SetLevel(log.Level(newCfg.System.Logging.Level))
+		log.Infof("Log level changed to %s", newCfg.System.Logging.Level)
+	}
+
+	if newCfg.System.Timezone != oldCfg.System.Timezone {
+		config.ApplyTimezone(newCfg.System.Timezone)
+		log.Infof("Timezone changed to %s", newCfg.System.Timezone)
+	}
+
+	a.geodataManager.UpdatePaths(newCfg.System.Geo.GeoSitePath, newCfg.System.Geo.GeoIpPath)
 }
 
 func (a *API) handleConfig(w http.ResponseWriter, r *http.Request) {
@@ -199,19 +254,7 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 	oldConfig := curCfg.Clone()
 	newConfig.ConfigPath = curCfg.ConfigPath
 
-	// update logging level if changed
-	if newConfig.System.Logging.Level != log.Level(log.CurLevel.Load()) {
-		log.SetLevel(log.Level(newConfig.System.Logging.Level))
-		log.Infof("Log level changed to %s", newConfig.System.Logging.Level)
-	}
-
-	// update timezone if changed
-	if newConfig.System.Timezone != curCfg.System.Timezone {
-		config.ApplyTimezone(newConfig.System.Timezone)
-		log.Infof("Timezone changed to %s", newConfig.System.Timezone)
-	}
-
-	a.geodataManager.UpdatePaths(newConfig.System.Geo.GeoSitePath, newConfig.System.Geo.GeoIpPath)
+	a.applyRuntimeChanges(&newConfig, curCfg)
 
 	// Calculate statistics for response
 	setsWithStats := make([]SetWithStats, len(newConfig.Sets))

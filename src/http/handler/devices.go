@@ -38,6 +38,7 @@ type DeviceInfo struct {
 	Vendor    string `json:"vendor"`
 	IsPrivate bool   `json:"is_private"`
 	Alias     string `json:"alias,omitempty"`
+	IsManual  bool   `json:"is_manual,omitempty"`
 }
 
 type DevicesResponse struct {
@@ -242,97 +243,6 @@ func (api *API) RegisterDevicesApi() {
 
 	api.mux.HandleFunc("/api/devices", api.handleDevices)
 	api.mux.HandleFunc("/api/devices/{mac}/vendor", api.handleDeviceVendor)
-	api.mux.HandleFunc("/api/devices/{mac}/alias", api.handleDeviceAlias)
-}
-
-// @Summary Get device alias
-// @Tags Devices
-// @Produce json
-// @Param mac path string true "MAC address"
-// @Success 200 {object} object
-// @Security BearerAuth
-// @Router /devices/{mac}/alias [get]
-//
-// @Summary Set device alias
-// @Tags Devices
-// @Accept json
-// @Produce json
-// @Param mac path string true "MAC address"
-// @Param alias body object true "Alias payload"
-// @Success 200 {object} object
-// @Security BearerAuth
-// @Router /devices/{mac}/alias [put]
-//
-// @Summary Delete device alias
-// @Tags Devices
-// @Produce json
-// @Param mac path string true "MAC address"
-// @Success 200 {object} object
-// @Security BearerAuth
-// @Router /devices/{mac}/alias [delete]
-func (api *API) handleDeviceAlias(w http.ResponseWriter, r *http.Request) {
-	mac := r.PathValue("mac")
-	if mac == "" {
-		http.Error(w, "MAC address required", http.StatusBadRequest)
-		return
-	}
-
-	mac = normalizeMAC(mac)
-	if len(mac) == 12 {
-		mac = fmt.Sprintf("%s:%s:%s:%s:%s:%s", mac[0:2], mac[2:4], mac[4:6], mac[6:8], mac[8:10], mac[10:12])
-	}
-
-	switch r.Method {
-	case http.MethodGet:
-		alias, ok := api.deviceAliases.Get(mac)
-		setJsonHeader(w)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"mac":       mac,
-			"alias":     alias,
-			"has_alias": ok,
-		})
-
-	case http.MethodPut, http.MethodPost:
-		var req struct {
-			Alias string `json:"alias"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
-
-		if req.Alias == "" {
-			http.Error(w, "Alias cannot be empty", http.StatusBadRequest)
-			return
-		}
-
-		if err := api.deviceAliases.Set(mac, req.Alias); err != nil {
-			http.Error(w, "Failed to save alias", http.StatusInternalServerError)
-			return
-		}
-
-		setJsonHeader(w)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"mac":     mac,
-			"alias":   req.Alias,
-		})
-
-	case http.MethodDelete:
-		if err := api.deviceAliases.Delete(mac); err != nil {
-			http.Error(w, "Failed to delete alias", http.StatusInternalServerError)
-			return
-		}
-
-		setJsonHeader(w)
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"mac":     mac,
-		})
-
-	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-	}
 }
 
 // @Summary Get device vendor info
@@ -385,6 +295,7 @@ func (api *API) handleDevices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cfg := api.getCfg()
 	sourceName, _ := globalPool.Dhcp.SourceInfo()
 	mappings := globalPool.Dhcp.GetAllMappings()
 	hostnames := globalPool.Dhcp.GetAllHostnames()
@@ -397,11 +308,16 @@ func (api *API) handleDevices(w http.ResponseWriter, r *http.Request) {
 		if isPrivateMAC(macAddr) {
 			vendor = "Private"
 			isPrivate = true
-		} else if api.getCfg().Queue.Devices.VendorLookup {
+		} else if cfg.Queue.Devices.VendorLookup {
 			vendor = ouiDB.Lookup(macAddr)
 		}
 
-		alias, _ := api.deviceAliases.Get(macAddr)
+		var alias string
+		var isManual bool
+		if d := cfg.Queue.Devices.FindByMAC(macAddr); d != nil {
+			alias = d.Name
+			isManual = d.IsManual
+		}
 
 		devices = append(devices, DeviceInfo{
 			MAC:       macAddr,
@@ -410,6 +326,7 @@ func (api *API) handleDevices(w http.ResponseWriter, r *http.Request) {
 			Vendor:    vendor,
 			IsPrivate: isPrivate,
 			Alias:     alias,
+			IsManual:  isManual,
 		})
 	}
 

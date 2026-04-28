@@ -1,22 +1,20 @@
 ---
 sidebar_position: 7
-title: Бэкап
+title: Backup
 ---
 
-# Бэкап
+## Download a backup
 
-## Скачать резервную копию
+The **Download** button creates a `.tar.gz` archive with the full b4 configuration. The archive contains the contents of the configuration directory, except for `.dat` files (GeoSite/GeoIP) and the OUI database (vendor lookup).
 
-Кнопка **Скачать** создаёт архив `.tar.gz` со всей конфигурацией b4. В архив входит содержимое директории конфигурации, кроме файлов `.dat` (GeoSite/GeoIP) и базы OUI (vendor lookup).
+![20260418233824](../../static/img/backup/20260418233824.png)
 
-![backup](../../static/img/backup/20260323215742.png)
+## Restore from a backup
 
-## Восстановить из копии
-
-1. Нажмите **Загрузить** и выберите ранее скачанный `.tar.gz`
-2. Файлы конфигурации будут заменены на содержимое архива
-3. После восстановления будет предложено перезапустить сервис
+1. Click **Upload** and select a previously downloaded `.tar.gz`
+2. The configuration files will be replaced with the contents of the archive
+3. After restore, you will be prompted to restart the service
 
 :::warning
-Восстановление полностью заменяет текущую конфигурацию. Если нужно сохранить текущие настройки — сначала скачайте резервную копию.
+Restore fully replaces the current configuration. If you need to keep the current settings, download a backup first.
 :::

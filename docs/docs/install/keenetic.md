@@ -3,37 +3,50 @@ sidebar_position: 4
 title: Keenetic
 ---
 
-# Keenetic
+## Requirements
 
-## Требования
+- Keenetic router with OPKG support
+- Entware installed (required)
 
-- Роутер Keenetic с поддержкой OPKG
-- Установленный Entware (обязательно)
+## Install Entware
 
-## Установка Entware
+### Newer models (with built-in storage)
 
-### Новые модели (со встроенным хранилищем)
+1. Open the router web interface
+2. Go to **System settings**
+3. Enable the **OPKG package manager** component
 
-1. Откройте веб-интерфейс роутера
-2. Перейдите в **Параметры системы**
-3. Включите компонент **Менеджер пакетов OPKG**
+### Older models (USB drive required)
 
-### Старые модели (нужен USB-накопитель)
+1. Plug a USB drive into the router
+2. Install Entware through the package manager
 
-1. Вставьте USB-накопитель в роутер
-2. Установите Entware через менеджер пакетов
+More details: [help.keenetic.com](https://help.keenetic.com/hc/en-us/articles/360021214160)
 
-Подробнее: https://help.keenetic.com/hc/ru/articles/360021214160
+## Enable Netfilter components
 
-## Установка b4
+Keenetic NDMS does not ship all the netfilter kernel modules b4 needs out of the box. Before installing b4, enable the required components:
 
-Подключитесь по SSH и выполните:
+1. In the router web interface, go to **System settings** → **Component options**
+2. Enable **Netfilter** — the base netfilter component
+3. Once Netfilter is enabled, a new option appears: enable **Xtables-addons for Netfilter** (provides `xt_connbytes` and other extensions b4 relies on)
+4. Apply the changes and wait for the router to reboot or reload components
+
+Then, over SSH, install the iptables userspace:
+
+```bash
+opkg install iptables
+```
+
+## Install b4
+
+Connect over SSH and run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
 ```
 
-## Управление сервисом
+## Service control
 
 ```bash
 /opt/etc/init.d/S99b4 start
@@ -41,21 +54,33 @@ curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh 
 /opt/etc/init.d/S99b4 restart
 ```
 
-## Пути
+## Paths
 
-| Что | Где |
+| What | Where |
 | --- | --- |
-| Бинарник | `/opt/sbin/b4` |
-| Конфигурация | `/opt/etc/b4/b4.json` |
-| Сервис | `/opt/etc/init.d/S99b4` |
+| Binary | `/opt/sbin/b4` |
+| Configuration | `/opt/etc/b4/b4.json` |
+| Service | `/opt/etc/init.d/S99b4` |
 
-## Архитектура
+## Architecture
 
-- Старые модели (MT7621) — `mipsle_softfloat`
-- Новые модели (aarch64) — `arm64`
+- Older models (MT7621) - `mipsle_softfloat`
+- Newer models (aarch64) - `arm64`
 
-Установщик определяет архитектуру автоматически.
+The installer detects the architecture automatically.
 
-:::warning Без Entware
-Без Entware b4 устанавливается в `/tmp`, который очищается при каждой перезагрузке. Для постоянной работы Entware обязателен.
+:::warning Without Entware
+Without Entware, b4 is placed in `/tmp`, which is cleared on every reboot. For persistent operation, Entware is required.
 :::
+
+## Troubleshooting
+
+After starting the service, check the log:
+
+```bash
+cat /var/log/b4/errors.log
+```
+
+If you see `xt_connbytes kernel module is not available`, the Netfilter components weren't enabled correctly — return to [Enable Netfilter components](#enable-netfilter-components) above and make sure both **Netfilter** and **Xtables-addons for Netfilter** are active.
+
+If the log is empty (or has no errors), the b4 web interface should be reachable on the router's LAN IP.

@@ -82,6 +82,7 @@ type CheckSuite struct {
 	SuccessfulChecks       int                               `json:"successful_checks"`
 	FailedChecks           int                               `json:"failed_checks"`
 	DomainDiscoveryResults map[string]*DomainDiscoveryResult `json:"domain_discovery_results,omitempty"`
+	StrategyGroups         []StrategyGroup                   `json:"strategy_groups,omitempty"`
 	CheckURL               string                            `json:"check_url"`
 	Domain                 string                            `json:"domain"`
 	Domains                []DomainInput                     `json:"domains,omitempty"`
@@ -95,6 +96,7 @@ type DomainPresetResult struct {
 	PresetName string            `json:"preset_name"`
 	Family     StrategyFamily    `json:"family,omitempty"`
 	Phase      DiscoveryPhase    `json:"phase,omitempty"`
+	Priority   int               `json:"priority,omitempty"`
 	Status     CheckStatus       `json:"status"`
 	Duration   time.Duration     `json:"duration"`
 	Speed      float64           `json:"speed"`
@@ -102,6 +104,14 @@ type DomainPresetResult struct {
 	Error      string            `json:"error,omitempty"`
 	StatusCode int               `json:"status_code"`
 	Set        *config.SetConfig `json:"set"`
+}
+
+type StrategyGroup struct {
+	WinnerPreset string            `json:"winner_preset"`
+	Family       StrategyFamily    `json:"family"`
+	Domains      []string          `json:"domains"`
+	Set          *config.SetConfig `json:"set,omitempty"`
+	MedianSpeed  float64           `json:"median_speed,omitempty"`
 }
 
 type DomainDiscoveryResult struct {

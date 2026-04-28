@@ -3,39 +3,35 @@ sidebar_position: 3
 title: UDP
 ---
 
-# UDP
+The UDP tab controls UDP traffic handling. Two main scenarios:
 
-Вкладка UDP управляет обработкой UDP-трафика. Два основных сценария:
+1. **Block QUIC** - the browser falls back to TCP, where b4 applies DPI bypass
+2. **DPI bypass for UDP** - fake packets and fragmentation for UDP traffic
 
-1. **Блокировка QUIC** — браузер переключается на TCP, где b4 применяет обход DPI
-2. **Обход DPI для UDP** — фейковые пакеты и фрагментация для UDP-трафика
-
-<!-- screenshot: вкладка UDP -->
-
-## Как b4 обрабатывает UDP
+## How b4 handles UDP
 
 ```mermaid
 flowchart TD
-    A["UDP-пакет"] --> B{"IP или порт\nсовпал с сетом?"}
-    B -->|"Нет"| PASS["Пропустить"]
-    B -->|"Да"| C{"Это QUIC?"}
+    A["UDP packet"] --> B{"IP or port\nmatches a set?"}
+    B -->|"No"| PASS["Pass through"]
+    B -->|"Yes"| C{"Is it QUIC?"}
 
-    C -->|"Нет"| STUN{"Это STUN?"}
-    C -->|"Да"| D{"Фильтр QUIC\n(настройка сета)"}
+    C -->|"No"| STUN{"Is it STUN?"}
+    C -->|"Yes"| D{"QUIC filter\n(set option)"}
 
-    D -->|"Отключён"| PASS
-    D -->|"Весь QUIC"| ACTION
-    D -->|"Парсить SNI"| E{"Домен из SNI\nсовпал с целями?"}
-    E -->|"Да"| ACTION
-    E -->|"Нет"| PASS
+    D -->|"Off"| PASS
+    D -->|"All QUIC"| ACTION
+    D -->|"Parse SNI"| E{"SNI domain\nmatches targets?"}
+    E -->|"Yes"| ACTION
+    E -->|"No"| PASS
 
-    STUN -->|"Да + фильтр вкл."| PASS
-    STUN -->|"Нет"| ACTION
+    STUN -->|"Yes + filter on"| PASS
+    STUN -->|"No"| ACTION
 
-    ACTION{"Что делать\nс пакетом?"}
-    ACTION -->|"Drop"| DROP["Отбросить пакет\n→ приложение\nпереключится на TCP"]
-    ACTION -->|"Reject"| REJECT["Отбросить пакет\n→ отправить ICMP\nPort Unreachable\n→ мгновенный переход\nна TCP"]
-    ACTION -->|"Fake"| FAKE["Отправить фейки\n→ фрагментировать\nреальный пакет"]
+    ACTION{"Action?"}
+    ACTION -->|"Drop"| DROP["Drop packet\n-> application\nfalls back to TCP"]
+    ACTION -->|"Reject"| REJECT["Drop packet\n-> send ICMP\nPort Unreachable\n-> immediate\nfallback to TCP"]
+    ACTION -->|"Fake"| FAKE["Send fakes\n-> fragment\nthe real packet"]
 
     style A fill:#4a9eff,color:#fff,stroke:none
     style PASS fill:#666,color:#fff,stroke:none
@@ -45,82 +41,82 @@ flowchart TD
     style ACTION fill:#9c27b0,color:#fff,stroke:none
 ```
 
-## Какой UDP-трафик обрабатывать
+## Which UDP traffic to process
 
-Чтобы b4 начал обрабатывать UDP, должен быть включён хотя бы один из фильтров: QUIC или порты. Без них все UDP-пакеты проходят без изменений.
+For b4 to process UDP at all, at least one filter must be enabled: QUIC or ports. Without either, all UDP packets pass through unchanged.
 
-### Фильтр QUIC
+### QUIC filter
 
-QUIC — протокол поверх UDP, который используют браузеры (YouTube, Google, Discord и др.). Шифрование QUIC отличается от TCP/TLS, поэтому стратегии обхода TCP к нему неприменимы.
+QUIC is a protocol over UDP used by browsers (YouTube, Google, Discord, etc.). QUIC encryption differs from TCP/TLS, so TCP bypass strategies do not apply to it.
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| **Отключён** | QUIC-трафик не обрабатывается |
-| **Весь QUIC** | Совпадение со всеми QUIC Initial пакетами. Не анализирует содержимое — просто определяет, что пакет является QUIC |
-| **Парсить SNI** | Извлекает домен (SNI) из QUIC ClientHello и обрабатывает только пакеты, домен которых совпадает с целями сета |
+| **Off** | QUIC traffic is not processed |
+| **All QUIC** | Matches every QUIC Initial packet. Does not inspect contents - simply detects that the packet is QUIC |
+| **Parse SNI** | Extracts the domain (SNI) from the QUIC ClientHello and processes only packets whose domain matches the set targets |
 
-:::warning Парсинг SNI требует домены
-В режиме **Парсить SNI** необходимо добавить домены в разделе [Цели](./targets). Без доменов QUIC-трафик обрабатываться не будет.
+:::warning Parse SNI requires domains
+In **Parse SNI** mode you must add domains in the [Targets](./targets) section. Without domains, QUIC traffic is not processed.
 :::
 
-:::tip Когда использовать «Весь QUIC»
-Если цель — заставить браузер переключиться на TCP (где b4 работает эффективнее), используйте **Весь QUIC** в режиме **Reject**. Браузер мгновенно перейдёт на HTTPS/TCP, получив ICMP-ответ о недоступности порта.
+:::tip When to use "All QUIC"
+When the goal is to force the browser to fall back to TCP (where b4 is more effective), use **All QUIC** in **Reject** mode. The browser switches to HTTPS/TCP immediately after getting the ICMP unreachable response.
 :::
 
-### Фильтр портов
+### Port filter
 
-Совпадение с определёнными UDP-портами — для обработки трафика VoIP, игр и других UDP-приложений. Формат: `5000-6000,8000`. Оставьте пустым для отключения.
+Match specific UDP ports - useful for VoIP, games, and other UDP applications. Format: `5000-6000,8000`. Leave empty to disable.
 
-### Фильтровать STUN-пакеты
+### Filter STUN packets
 
-Игнорировать STUN-пакеты — они проходят без обработки. STUN используется для NAT traversal в WebRTC (голосовые/видеозвонки).
+Ignore STUN packets - they pass through without processing. STUN is used for NAT traversal in WebRTC (voice and video calls).
 
 :::info
-Рекомендуется включить, если вы используете голосовые или видеозвонки (Discord, Telegram, WhatsApp). Блокировка STUN нарушит их работу.
+Enable this when you use voice or video calls (Discord, Telegram, WhatsApp). Blocking STUN breaks them.
 :::
 
 ---
 
-## Как обрабатывать совпавший трафик
+## How to handle matched traffic
 
-Настройки ниже доступны, если включён хотя бы один фильтр (QUIC или порты).
+The settings below are available when at least one filter (QUIC or ports) is enabled.
 
-### Лимит пакетов соединения
+### Per-connection packet limit
 
-Максимальное количество пакетов в начале UDP-соединения, которые анализируются. Не может превышать глобальный лимит из [Настройки → Основные → Очередь](../settings/core#очередь-и-обработка-пакетов).
+Maximum number of packets at the start of a UDP connection that get analyzed. Cannot exceed the global limit in [Settings -> Core -> Queue](../settings/core#queue-and-packet-processing).
 
-### Режим действия
+### Action mode
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| **Drop** | Отбрасывает совпавшие UDP-пакеты. Приложение вынуждено переключиться на TCP (например, QUIC → HTTPS) |
-| **Reject** | Отбрасывает пакет и отправляет клиенту ICMP Port Unreachable. Клиент сразу понимает, что UDP недоступен, и переключается на TCP без ожидания таймаутов |
-| **Fake & Fragment** | Отправляет фейковые пакеты перед реальными и фрагментирует реальные для обхода DPI |
+| **Drop** | Drops matched UDP packets. The application is forced to fall back to TCP (for example, QUIC -> HTTPS) |
+| **Reject** | Drops the packet and sends ICMP Port Unreachable to the client. The client immediately learns UDP is unavailable and switches to TCP without waiting for a timeout |
+| **Fake & Fragment** | Sends fake packets before the real ones and fragments the real packets to bypass DPI |
 
 :::tip Drop vs Reject
-**Drop** — клиент ждёт таймаут (обычно 3–10 секунд) перед переходом на TCP. **Reject** — клиент получает ICMP-ответ и переключается на TCP практически мгновенно.
+**Drop** - the client waits for a timeout (usually 3-10 seconds) before falling back to TCP. **Reject** - the client gets an ICMP response and switches to TCP almost instantly.
 :::
 
 ---
 
-## Настройки Fake & Fragment
+## Fake & Fragment settings
 
-Доступны при режиме **Fake & Fragment**.
+Available in **Fake & Fragment** mode.
 
-### Стратегия фейка
+### Fake strategy
 
-Определяет, как фейковый пакет станет необрабатываемым для сервера:
+How the fake packet becomes unprocessable to the server:
 
-| Стратегия | Описание |
+| Strategy | Description |
 | --- | --- |
-| **Нет** | Без стратегии — фейковые пакеты отправляются как есть |
-| **TTL** | Низкий TTL — фейковые пакеты истекают на промежуточном узле и не доходят до сервера |
-| **Checksum** | Повреждённая контрольная сумма UDP — сервер отбрасывает пакеты с неверной суммой |
+| **None** | No strategy - fake packets are sent as-is |
+| **TTL** | Low TTL - fake packets expire on an intermediate hop and never reach the server |
+| **Checksum** | Broken UDP checksum - the server drops packets with an invalid checksum |
 
-### Параметры
+### Parameters
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Количество фейковых пакетов | Сколько фейковых пакетов отправить перед реальным | 1–20 |
-| Размер фейкового пакета | Размер payload каждого фейкового UDP-пакета в байтах | 32–1500 |
-| Задержка между сегментами | Задержка между отправкой фейковых и реальных пакетов. Задаётся как диапазон мин–макс — для каждого соединения выбирается случайное значение | 0–1000 мс |
+| Fake packet count | How many fake packets to send before the real one | 1-20 |
+| Fake packet size | Payload size of each fake UDP packet in bytes | 32-1500 |
+| Segment delay | Delay between sending fakes and real packets. Specified as a min-max range - each connection picks a random value from the range | 0-1000 ms |

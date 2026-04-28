@@ -1,17 +1,15 @@
 ---
 sidebar_position: 5
-title: Настройки
+title: Settings
 ---
 
-# Настройки
+b4 settings are split across several tabs:
 
-Настройки b4 разделены на несколько вкладок:
+- [Core](./core) - network, queue, features, logging, proxies, devices
+- [Geo data](./geodata) - GeoSite and GeoIP databases
+- [Security](./security) - authentication, HTTPS
+- [Payloads](./payloads) - generation and management of TLS payloads for faking
+- [Discovery](./discovery) - timeouts, DNS servers, reference domain
+- [Backup](./backup) - backup and restore
 
-- [Основные](./core) — сеть, очередь, функции, логирование, прокси, устройства
-- [Геоданные](./geodata) — базы GeoSite и GeoIP
-- [Безопасность](./security) — авторизация, HTTPS
-- [Пэйлоады](./payloads) — генерация и управление TLS-пэйлоадами для faking
-- [Дискавери](./discovery) — таймауты, DNS-серверы, эталонный домен
-- [Бэкап](./backup) — резервное копирование и восстановление
-
-Изменения в настройках применяются после нажатия кнопки сохранения. Некоторые параметры (SOCKS5, MTProto, очередь) требуют перезапуска сервиса.
+Changes are applied after clicking the save button. Some parameters (SOCKS5, MTProto, queue) require a service restart.

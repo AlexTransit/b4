@@ -1,4 +1,4 @@
-import { B4Config, DeviceMSSClamp } from "@b4.settings";
+import { B4Config, Device } from "@b4.settings";
 
 export interface DeviceInfo {
   mac: string;
@@ -7,6 +7,7 @@ export interface DeviceInfo {
   vendor: string;
   alias?: string;
   country: string;
+  is_manual?: boolean;
 }
 
 export interface DevicesResponse {
@@ -19,6 +20,6 @@ export interface DevicesSettingsProps {
   config: B4Config;
   onChange: (
     field: string,
-    value: boolean | string | string[] | number | DeviceMSSClamp[],
+    value: boolean | string | string[] | number | Device[],
   ) => void;
 }

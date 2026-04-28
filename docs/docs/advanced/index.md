@@ -1,13 +1,6 @@
 ---
 sidebar_position: 13
-title: Продвинутое
+title: Advanced
 ---
 
-# Продвинутое
-
-Справочные материалы для продвинутых пользователей:
-
-- [CLI-параметры](./cli) — флаги командной строки
-- [Конфигурационный файл](./config) — структура `b4.json`
-- [API](/swagger) — Swagger-документация и REST API
-- [Как работает ТСПУ](./tspu) — техническое описание российской системы DPI
+English translation is in progress. See the [Russian version](/ru/docs/advanced).

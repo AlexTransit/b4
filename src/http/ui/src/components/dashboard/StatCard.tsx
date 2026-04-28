@@ -1,127 +1,121 @@
-import { B4Card } from "@common/B4Card";
-import { Box, Stack, Typography } from "@mui/material";
-import { colors, spacing, radius } from "@design";
+import { Box, Typography } from "@mui/material";
+import { colors, fonts, radiusPx } from "@design";
+
+type Tone = "primary" | "secondary" | "muted";
 
 interface StatCardProps {
-  title: string;
+  label: string;
   value: string | number;
-  subtitle?: string;
-  icon: React.ReactNode;
-  color?: string;
-  variant?: "default" | "outlined" | "elevated";
-  onClick?: () => void;
-  trend?: {
-    value: number;
-    label?: string;
-  };
+  unit?: string;
+  sub?: string;
+  tone?: Tone;
 }
 
+const dotColor: Record<Tone, string> = {
+  primary: colors.primary,
+  secondary: colors.secondary,
+  muted: colors.text.disabled,
+};
+
+const splitValue = (
+  raw: string | number,
+): { value: string; unit?: string } => {
+  if (typeof raw === "number") return { value: String(raw) };
+  const match = /^(-?[\d.,]+)([A-Za-z%]+)$/.exec(raw);
+  return match ? { value: match[1], unit: match[2] } : { value: raw };
+};
+
 export const StatCard = ({
-  title,
+  label,
   value,
-  subtitle,
-  icon,
-  color = colors.primary,
-  variant = "outlined",
-  onClick,
-  trend,
-}: StatCardProps) => (
-  <B4Card
-    variant={variant}
-    sx={{
-      border: `1px solid ${color}33`,
-      cursor: onClick ? "pointer" : "default",
-      transition: "all 0.2s ease",
-      width: "100%",
-      display: "flex",
-      flexDirection: "column",
-      "&:hover": onClick
-        ? {
-            borderColor: `${color}66`,
-            boxShadow: `0 0 20px ${color}22`,
-            transform: "translateY(-2px)",
-          }
-        : {
-            borderColor: `${color}66`,
-            boxShadow: `0 0 20px ${color}22`,
-          },
-    }}
-    onClick={onClick}
-  >
-    <Box sx={{ p: spacing.md, flex: 1 }}>
-      <Stack
-        direction="row"
-        justifyContent="space-between"
-        alignItems="flex-start"
+  unit,
+  sub,
+  tone = "primary",
+}: StatCardProps) => {
+  const split = splitValue(value);
+  const renderedUnit = unit ?? split.unit;
+  const renderedValue = split.value;
+  return (
+    <Box
+      sx={{
+        bgcolor: colors.background.paper,
+        border: `1px solid ${colors.border.default}`,
+        borderRadius: `${radiusPx.md}px`,
+        p: "16px 18px",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        gap: "10px",
+        minWidth: 0,
+        minHeight: 0,
+        width: "100%",
+        height: "100%",
+      }}
+    >
+      <Typography
+        component="div"
+        sx={{
+          fontSize: 10,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: colors.text.secondary,
+          opacity: 0.8,
+          lineHeight: 1,
+        }}
       >
-        <Box sx={{ flex: 1 }}>
-          <Typography
-            variant="caption"
+        {label}
+      </Typography>
+      <Typography
+        component="div"
+        sx={{
+          fontSize: 30,
+          fontWeight: 700,
+          color: colors.text.primary,
+          lineHeight: 1,
+          letterSpacing: "-0.015em",
+          fontFeatureSettings: '"tnum"',
+        }}
+      >
+        {renderedValue}
+        {renderedUnit && (
+          <Box
+            component="span"
             sx={{
-              color: colors.text.secondary,
-              textTransform: "uppercase",
-              letterSpacing: "0.5px",
-            }}
-          >
-            {title}
-          </Typography>
-          <Typography
-            variant="h4"
-            sx={{
-              color: colors.text.primary,
+              fontSize: 16,
               fontWeight: 600,
-              mt: 0.5,
-              mb: 0.5,
+              color: colors.text.secondary,
+              ml: "2px",
+              letterSpacing: 0,
             }}
           >
-            {value}
-          </Typography>
-          {subtitle && (
-            <Typography variant="caption" sx={{ color: colors.text.secondary }}>
-              {subtitle}
-            </Typography>
-          )}
-          {trend && (
-            <Box
-              sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  color: trend.value > 0 ? "#4caf50" : "#f44336",
-                  fontWeight: 600,
-                }}
-              >
-                {trend.value > 0 ? "+" : ""}
-                {trend.value.toFixed(1)}%
-              </Typography>
-              {trend.label && (
-                <Typography
-                  variant="caption"
-                  sx={{ color: colors.text.secondary }}
-                >
-                  {trend.label}
-                </Typography>
-              )}
-            </Box>
-          )}
-        </Box>
+            {renderedUnit}
+          </Box>
+        )}
+      </Typography>
+      <Box
+        sx={{
+          fontFamily: fonts.mono,
+          fontSize: 11,
+          color: colors.text.secondary,
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          minHeight: 14,
+          lineHeight: 1,
+        }}
+      >
         <Box
+          component="span"
           sx={{
-            p: 1.5,
-            borderRadius: radius.lg,
-            bgcolor: `${color}22`,
-            color,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minWidth: 56,
-            minHeight: 56,
+            width: 5,
+            height: 5,
+            borderRadius: "50%",
+            bgcolor: dotColor[tone],
+            flexShrink: 0,
           }}
-        >
-          {icon}
-        </Box>
-      </Stack>
+        />
+        {sub ?? " "}
+      </Box>
     </Box>
-  </B4Card>
-);
+  );
+};

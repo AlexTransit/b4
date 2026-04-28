@@ -7,8 +7,6 @@ import {
   Stack,
   LinearProgress,
   Chip,
-  FormControlLabel,
-  Switch,
   Select,
   MenuItem,
   FormControl,
@@ -26,6 +24,7 @@ import {
   WarningIcon,
 } from "@b4.icons";
 import { B4Alert } from "@b4.elements";
+import { B4Switch } from "@common/B4Switch";
 import ReactMarkdown from "react-markdown";
 import { useSystemUpdate } from "@hooks/useSystemUpdate";
 import { systemApi } from "@api/settings";
@@ -226,15 +225,10 @@ export const UpdateModal = ({
                 ))}
               </Select>
             </FormControl>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={includePrerelease}
-                  onChange={(e) => onTogglePrerelease(e.target.checked)}
-                  size="small"
-                />
-              }
+            <B4Switch
               label={t("update.includePrereleases")}
+              checked={includePrerelease}
+              onChange={onTogglePrerelease}
             />
           </Stack>
           <Stack direction="row" spacing={1}>

@@ -1,5 +1,4 @@
 import { useState, useCallback } from "react";
-import { ApiResponse } from "@api/apiClient";
 import { DeviceInfo, devicesApi } from "@b4.devices";
 
 export function useDevices() {
@@ -24,43 +23,11 @@ export function useDevices() {
     }
   }, []);
 
-  const setAlias = useCallback(
-    async (mac: string, alias: string): Promise<ApiResponse<void>> => {
-      try {
-        await devicesApi.setAlias(mac, alias);
-        setDevices((prev) =>
-          prev.map((d) => (d.mac === mac ? { ...d, alias } : d))
-        );
-        return { success: true };
-      } catch (e) {
-        return { success: false, error: String(e) };
-      }
-    },
-    []
-  );
-
-  const resetAlias = useCallback(
-    async (mac: string): Promise<ApiResponse<void>> => {
-      try {
-        await devicesApi.resetAlias(mac);
-        setDevices((prev) =>
-          prev.map((d) => (d.mac === mac ? { ...d, alias: undefined } : d))
-        );
-        return { success: true };
-      } catch (e) {
-        return { success: false, error: String(e) };
-      }
-    },
-    []
-  );
-
   return {
     devices,
     loading,
     available,
     source,
     loadDevices,
-    setAlias,
-    resetAlias,
   };
 }

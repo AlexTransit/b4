@@ -1,10 +1,10 @@
-import { colors } from "@design";
+import { colors, radiusPx } from "@design";
 import { B4SetConfig } from "@models/config";
 import {
   Circle as CircleIcon,
   FolderOpen as FolderIcon,
 } from "@mui/icons-material";
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import { useNavigate } from "react-router";
 import { useTranslation } from "react-i18next";
 
@@ -22,25 +22,25 @@ export const ActiveSets = ({ sets }: ActiveSetsProps) => {
     <Box
       sx={{
         mb: 1.5,
-        p: 1.5,
-        borderRadius: 1,
+        p: "14px",
+        borderRadius: `${radiusPx.md}px`,
         bgcolor: colors.background.paper,
         border: `1px solid ${colors.border.default}`,
       }}
     >
       <Typography
-        variant="caption"
-        sx={{
-          color: colors.text.secondary,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-          mb: 1.5,
-          display: "block",
-        }}
+        variant="metricLabel"
+        sx={{ display: "block", color: colors.text.secondary, opacity: 0.8 }}
       >
         {t("dashboard.activeSets.title")}
       </Typography>
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+      <Stack
+        direction="row"
+        spacing={1}
+        flexWrap="wrap"
+        useFlexGap
+        sx={{ mt: 1 }}
+      >
         {sets.map((set) => {
           const domainCount =
             (set.targets.sni_domains?.length || 0) +
@@ -50,41 +50,64 @@ export const ActiveSets = ({ sets }: ActiveSetsProps) => {
             (set.targets.geoip_categories?.length || 0);
           const totalTargets = domainCount + ipCount;
 
+          const goToSet = () => {
+            navigate(`/sets/${set.id}`)?.catch(() => {});
+          };
           return (
-            <Chip
+            <Box
               key={set.id}
-              icon={
-                set.enabled ?
-                  <CircleIcon sx={{ fontSize: "8px !important" }} />
-                : <FolderIcon sx={{ fontSize: "14px !important" }} />
-              }
-              label={`${set.name}: ${totalTargets} ${t("dashboard.activeSets.targets")}`}
-              size="small"
-              onClick={() => { navigate(`/sets/${set.id}`)?.catch(() => {}); }}
+              role="button"
+              tabIndex={0}
+              onClick={goToSet}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  goToSet();
+                }
+              }}
               sx={{
-                bgcolor:
-                  set.enabled ?
-                    `${colors.secondary}15`
-                  : `${colors.text.disabled}10`,
-                color: set.enabled ? colors.text.primary : colors.text.disabled,
-                borderColor:
-                  set.enabled ?
-                    `${colors.secondary}40`
-                  : `${colors.text.disabled}20`,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                height: 22,
+                padding: "0 10px",
+                borderRadius: "11px",
+                fontSize: 12,
+                fontWeight: 600,
                 cursor: "pointer",
-                fontWeight: 500,
-                "& .MuiChip-icon": {
-                  color: set.enabled ? "#4caf50" : colors.text.disabled,
-                },
+                bgcolor: set.enabled
+                  ? colors.accent.secondary
+                  : colors.accent.primaryStrong,
+                color: set.enabled ? colors.secondary : colors.text.disabled,
+                transition: "background-color 120ms ease",
                 "&:hover": {
-                  bgcolor:
-                    set.enabled ?
-                      `${colors.secondary}25`
-                    : `${colors.text.disabled}20`,
+                  bgcolor: set.enabled
+                    ? colors.accent.secondaryHover
+                    : colors.accent.primary,
                 },
               }}
-              variant="outlined"
-            />
+            >
+              {set.enabled ? (
+                <CircleIcon
+                  sx={{
+                    fontSize: 8,
+                    color: colors.state.success,
+                    flexShrink: 0,
+                  }}
+                />
+              ) : (
+                <FolderIcon
+                  sx={{
+                    fontSize: 14,
+                    color: colors.text.disabled,
+                    flexShrink: 0,
+                  }}
+                />
+              )}
+              <Box component="span">
+                {set.name} · {totalTargets} {t("dashboard.activeSets.targets")}
+              </Box>
+            </Box>
           );
         })}
       </Stack>

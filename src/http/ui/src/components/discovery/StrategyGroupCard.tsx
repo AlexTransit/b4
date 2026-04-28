@@ -65,6 +65,14 @@ export const StrategyGroupCard = ({
           <Typography variant="h6" sx={{ color: colors.text.primary }}>
             {familyNames[group.family]}
           </Typography>
+          {group.winnerPreset && (
+            <B4Badge
+              label={group.winnerPreset}
+              size="small"
+              variant="filled"
+              color="primary"
+            />
+          )}
           <B4Badge
             label={t("discovery.badges.success")}
             size="small"

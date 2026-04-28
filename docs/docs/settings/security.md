@@ -1,44 +1,42 @@
 ---
 sidebar_position: 3
-title: Безопасность
+title: Security
 ---
 
-# Безопасность
+## Authentication
 
-## Авторизация
+By default the web interface is open without a password. To restrict access, set a username and password:
 
-По умолчанию веб-интерфейс доступен без пароля. Для ограничения доступа задайте логин и пароль:
+1. Go to **Settings -> Core -> Web server**
+2. Fill in the **Username** and **Password** fields
+3. Save the settings
 
-1. Перейдите в **Настройки → Основные → Веб-сервер**
-2. Заполните поля **Имя пользователя** и **Пароль**
-3. Сохраните настройки
+After that, opening the web interface requires credentials.
 
-После этого при открытии веб-интерфейса потребуется ввести учётные данные.
-
-:::warning Доступ извне
-Если b4 доступен извне (например, на VPS), настройте авторизацию. Без неё любой, кто знает адрес и порт, получит полный доступ к управлению.
+:::warning External access
+If b4 is exposed externally (for example, on a VPS), set up authentication. Without it, anyone who knows the address and port gets full management access.
 :::
 
-:::danger Авторизация без HTTPS
-Если авторизация включена, но HTTPS **не настроен** — логин и пароль передаются по сети **открытым текстом**. Любой, кто может перехватить трафик (например, в публичной Wi-Fi сети), увидит ваши учётные данные. Всегда включайте HTTPS вместе с авторизацией, особенно если b4 доступен не только из локальной сети.
+:::danger Authentication without HTTPS
+If authentication is enabled but HTTPS is **not configured**, the username and password are transmitted over the network **in plain text**. Anyone who can intercept traffic (for example, on public Wi-Fi) can see your credentials. Always enable HTTPS together with authentication, especially if b4 is reachable outside the local network.
 :::
 
 ## HTTPS
 
-Для включения HTTPS:
+To enable HTTPS:
 
-1. Подготовьте файлы сертификата и ключа (`.crt`/`.pem` и `.key`/`.pem`)
-2. В настройках веб-сервера укажите пути к файлам:
-   - **TLS Сертификат** — путь к файлу сертификата (`.crt` или `.pem`)
-   - **TLS Ключ** — путь к файлу ключа (`.key` или `.pem`)
-3. Сохраните и перезапустите
+1. Prepare certificate and key files (`.crt`/`.pem` and `.key`/`.pem`)
+2. In the web server settings enter the file paths:
+   - **TLS Certificate** - path to the certificate file (`.crt` or `.pem`)
+   - **TLS Key** - path to the key file (`.key` or `.pem`)
+3. Save and restart
 
-Для самоподписанного сертификата (подходит для локальной сети):
+For a self-signed certificate (suitable for a local network):
 
 ```bash
 openssl req -x509 -newkey rsa:2048 -keyout server.key -out server.crt -days 365 -nodes -subj "/CN=b4"
 ```
 
-Скопируйте файлы в директорию конфигурации (например, `/etc/b4/`) и укажите пути в настройках.
+Copy the files to the configuration directory (for example, `/etc/b4/`) and point the settings at them.
 
-После включения HTTPS веб-интерфейс будет доступен по `https://`.
+After HTTPS is enabled, the web interface is available over `https://`.

@@ -1,114 +1,111 @@
 ---
 sidebar_position: 3
-title: Быстрый старт
+title: Quickstart
 ---
 
-## Обзор
+## Overview
 
-После установки b4 запускается как сервис и становится доступен через веб-интерфейс. Эта страница описывает путь от первого запуска до работающего обхода блокировок.
+After installation, b4 runs as a service and is available through the web interface. This page walks through the path from first launch to a working bypass.
 
-## Открыть веб-интерфейс
+## Open the web interface
 
-Откройте в браузере:
+Open in the browser:
 
 ```text
-http://<IP-адрес>:7000
+http://<IP-address>:7000
 ```
 
-Где `<IP-адрес>` — адрес устройства, на котором установлен b4:
+Where `<IP-address>` is the address of the device where b4 is installed:
 
-- Если b4 на этом же компьютере: `http://localhost:7000`
-- Если на роутере: `http://192.168.1.1:7000` (подставьте IP роутера)
+- If b4 is on the same computer: `http://localhost:7000`
+- If on a router: `http://192.168.1.1:7000` (use the router's IP)
 
 :::info HTTPS
-Если в настройках b4 включён HTTPS, используйте `https://` вместо `http://`. Браузер может показать предупреждение о сертификате — это нормально для самоподписанного сертификата, его можно принять.
+If HTTPS is enabled in b4 settings, use `https://` instead of `http://`. The browser may show a certificate warning - that is expected with a self-signed certificate and can be accepted.
 :::
 
-![dashboard](../static/img/quickstart/20260323203514.png)
+![dashboard](../static/img/quickstart/20260418215543.png)
 
-При первом запуске дашборд будет пустым — это нормально. Данные появятся после настройки.
+On first launch the dashboard will be empty - that is normal. Data appears after configuration.
 
-## Запустить обнаружение
+## Run discovery
 
-b4 может автоматически подобрать рабочую конфигурацию для вашего провайдера. Для этого используется раздел **Дискавери**.
+b4 can automatically pick a working configuration for your provider. This is done in the **Discovery** section.
 
-### Шаг 1: Перейти в Дискавери
+### Step 1: Open Discovery
 
-В боковом меню нажмите **Дискавери**.
+In the side menu click **Discovery**.
 
-![discovery](../static/img/quickstart/20260323203615.png)
+![20260418215702](../static/img/quickstart/20260418215702.png)
 
-### Шаг 2: Добавить домены
+### Step 2: Add domains
 
-В поле **Добавить домен или URL** введите адрес заблокированного сайта и нажмите Enter. Можно добавить несколько доменов через запятую.
+In the **Add domain or URL** field enter a blocked site address and press Enter. You can add several domains separated by commas.
 
-Примеры:
+Examples:
 
 - `youtube.com`
 - `googlevideo.com`
 
-![discovery2](../static/img/quickstart/20260323203727.png)
+![20260418215910](../static/img/quickstart/20260418215910.png)
 
-### Шаг 3: Начать поиск
+### Step 3: Start the search
 
-Нажмите **Начать поиск**.
+Click **Start search**.
 
-b4 начнёт перебирать стратегии обхода и тестировать их на указанных доменах. Процесс проходит несколько фаз:
+b4 iterates through bypass strategies and tests them against the listed domains. The process goes through several phases:
 
-1. **Базовый тест** — проверка, действительно ли сайт заблокирован
-2. **Поиск стратегий** — перебор методов обхода
-3. **Оптимизация** — подбор параметров
-4. **Тест комбинаций** — проверка комбинированных стратегий
-5. **Проверка DNS** — проверка DNS-блокировки
+1. **Basic test** - check whether the site is actually blocked
+2. **Strategy search** - iterate through bypass methods
+3. **Optimization** - tune parameters
+4. **Combination test** - check combined strategies
+5. **DNS check** - check for DNS-based blocking
 
-![disearch](../static/img/quickstart/20260323203826.png)
+![20260418220026](../static/img/quickstart/20260418220026.png)
 
-Поиск может занять от 1 до 10 минут в зависимости от провайдера.
+The search can take from 1 to 10 minutes depending on the provider.
 
-:::tip Пропустить проверку DNS
-Если вы уверены, что DNS работает нормально (например, используете DoH или сторонний DNS-сервер), включите опцию **Пропустить поиск DNS** в **Параметрах поиска**. Это ускорит процесс и уберёт ложные срабатывания по DNS.
+:::tip Skip DNS check
+If you are sure DNS works normally (for example, you use DoH or a third-party DNS server), enable **Skip DNS search** in **Search parameters**. This speeds up the process and removes false DNS-related results.
 :::
 
-### Шаг 4: Результаты
+### Step 4: Results
 
-После завершения для каждого домена отображается результат:
+After the search finishes, each domain shows a result:
 
-- **Успешно** — найдена рабочая конфигурация
-- **Заблокирован** — сайт заблокирован на уровне DNS или транспорта, нужны дополнительные настройки
+- **Success** - a working configuration was found
+- **Blocked** - the site is blocked at the DNS or transport layer and needs additional settings
 
-![success](../static/img/quickstart/20260323203905.png)
+![20260418220109](../static/img/quickstart/20260418220109.png)
 
-## Применить конфигурацию
+## Apply the configuration
 
-На карточке успешного результата нажмите **Использовать эту конфигурацию**.
+On a successful result card click **Use this configuration**.
 
-![addset](../static/img/quickstart/20260323204345.png)
+In the dialog that opens:
 
-В открывшемся диалоге:
+1. Choose **Create a new set** (or **Add to an existing similar set** if you already have configured sets)
+2. Enter the set name (or keep the suggested one)
+3. Click **Create set**
 
-1. Выберите **Создать новый сет** (или **Добавить в существующий похожий сет**, если у вас уже есть настроенные сеты)
-2. Укажите название сета (или оставьте предложенное)
-3. Нажмите **Создать сет**
+A set is a bundle of bypass settings tied to a list of domains or IP addresses. More on sets in the [Sets](./sets/) section.
 
-Сет — это набор настроек обхода, привязанный к списку доменов или ip адресов. Подробнее о сетах — в разделе [Сеты](./sets/).
+## Verify it works
 
-## Проверить работу
+### Through the browser
 
-### Через браузер
+Open a site that is covered by the bypass. If everything works, the site loads.
 
-Откройте сайт, для которого настроен обход. Если всё работает — сайт загрузится.
+### Through the Connections section
 
-### Через раздел Соединения
+In the side menu click **Connections**. This view shows all current TCP/UDP connections in real time.
 
-В боковом меню нажмите **Соединения**. Здесь отображаются все текущие TCP/UDP-соединения в реальном времени.
+![20260418220155](../static/img/quickstart/20260418220155.png)
 
-![connections](../static/img/quickstart/20260323204510.png)
+If the bypass is working, the **Set** column for connections to the configured domain shows the name of your set.
 
-Если обход работает, в столбце **Сет** напротив соединений с настроенным доменом будет отображаться название вашего сета.
+## What's next
 
-## Что дальше
-
-- Добавить другие домены — через Дискавери или вручную в настройках сета
-
-- Настроить обход по категориям (GeoSite) — чтобы не добавлять домены по одному
-- Посмотреть раздел [Сеты](./sets/) для подробного описания всех возможностей
+- Add more domains - through Discovery or manually in the set settings
+- Configure bypass by category (GeoSite) - to avoid adding domains one by one
+- See the [Sets](./sets/) section for a detailed description of all features

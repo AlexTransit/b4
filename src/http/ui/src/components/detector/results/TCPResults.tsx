@@ -65,7 +65,7 @@ export function TCPResults({
           <Box key={tr.target.id} sx={{ flex: "1 1 300px", minWidth: 0 }}>
             <ResultCard
               index={index}
-              status={status as "ok" | "error" | "warning"}
+              status={status}
               title={`${tr.target.provider} (AS${tr.target.asn})`}
               subtitle={`${tr.target.ip}:${tr.target.port}`}
               badge={

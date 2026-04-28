@@ -3,6 +3,8 @@ package dhcp
 import (
 	"context"
 	"testing"
+
+	"github.com/daniellavrushin/b4/config"
 )
 
 func TestNormalizeMAC(t *testing.T) {
@@ -136,5 +138,81 @@ func TestCallbackReceivesSnapshot(t *testing.T) {
 	received["10.0.0.1"] = "MUTATED"
 	if m.ipToMAC["10.0.0.1"] != "AA:BB:CC:DD:EE:FF" {
 		t.Error("callback snapshot mutation affected internal state")
+	}
+}
+
+func TestManualDevicesMerge(t *testing.T) {
+	m := newTestManager()
+	m.ipToMAC["192.168.1.1"] = "AA:BB:CC:DD:EE:FF"
+	m.macToIP["AA:BB:CC:DD:EE:FF"] = "192.168.1.1"
+
+	m.SetManualDevices([]config.Device{
+		{MAC: "02:B4:C0:A8:0A:01", IP: "192.168.10.1", Name: "server"},
+	})
+
+	// drain the refresh channel so we can call refresh manually
+	select {
+	case <-m.refreshCh:
+	default:
+	}
+
+	m.mu.Lock()
+	m.ipToMAC = map[string]string{"192.168.1.1": "AA:BB:CC:DD:EE:FF"}
+	m.macToIP = map[string]string{"AA:BB:CC:DD:EE:FF": "192.168.1.1"}
+	m.hostnames = make(map[string]string)
+	for _, d := range m.manualDevices {
+		mac := normalizeMAC(d.MAC)
+		m.ipToMAC[d.IP] = mac
+		m.macToIP[mac] = d.IP
+		if d.Name != "" {
+			m.hostnames[mac] = d.Name
+		}
+	}
+	m.mu.Unlock()
+
+	if mac := m.GetMACForIP("192.168.10.1"); mac != "02:B4:C0:A8:0A:01" {
+		t.Errorf("manual device MAC = %q, want 02:B4:C0:A8:0A:01", mac)
+	}
+	if h := m.GetHostnameForMAC("02:B4:C0:A8:0A:01"); h != "server" {
+		t.Errorf("manual device hostname = %q, want server", h)
+	}
+	if mac := m.GetMACForIP("192.168.1.1"); mac != "AA:BB:CC:DD:EE:FF" {
+		t.Errorf("ARP device should still exist, got %q", mac)
+	}
+}
+
+func TestIsAvailableWithManualDevices(t *testing.T) {
+	m := newTestManager()
+	if m.IsAvailable() {
+		t.Error("empty manager should not be available")
+	}
+
+	m.SetManualDevices([]config.Device{
+		{MAC: "02:B4:C0:A8:01:01", IP: "192.168.1.1", IsManual: true},
+	})
+	if !m.IsAvailable() {
+		t.Error("manager with manual devices should be available")
+	}
+}
+
+func TestSourceInfoWithManualDevices(t *testing.T) {
+	m := newTestManager()
+	name, _ := m.SourceInfo()
+	if name != "" {
+		t.Errorf("empty manager source = %q, want empty", name)
+	}
+
+	m.mu.Lock()
+	m.manualDevices = []config.Device{{MAC: "02:B4:01:01:01:01", IP: "1.1.1.1"}}
+	m.mu.Unlock()
+	name, _ = m.SourceInfo()
+	if name != "manual" {
+		t.Errorf("manual-only source = %q, want manual", name)
+	}
+
+	m.available = true
+	name, _ = m.SourceInfo()
+	if name != "arp+manual" {
+		t.Errorf("arp+manual source = %q, want arp+manual", name)
 	}
 }

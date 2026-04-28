@@ -1,39 +1,38 @@
 ---
 sidebar_position: 1
-title: Общее
+title: General
 ---
 
-# Общее
+Basic parameters for processing TCP traffic in a set.
 
-Базовые параметры обработки TCP-трафика в сете.
+![20260418235044](../../../static/img/general/20260418235044.png)
 
-![common](../../../static/img/general/20260323224155.png)
+## TCP per-connection packet limit
 
-## Лимит TCP пакетов соединения
-
-Сколько пакетов в начале каждого соединения анализировать. После этого лимита пакеты проходят без модификации. TLS-рукопожатие (ClientHello) обычно происходит в первых 3–5 пакетах, поэтому обрабатывать всё соединение не нужно.
+How many packets at the start of each connection to analyze. After that limit, packets pass without modification. The TLS handshake (ClientHello) normally happens in the first 3-5 packets, so processing the whole connection is not needed.
 
 :::info
-Значение не может превышать глобальный лимит, заданный в [Настройки → Основные → Очередь](../../settings/core#очередь-и-обработка-пакетов). Если в сете указано больше — будет использован глобальный лимит.
+This value cannot exceed the global limit in [Settings -> Core -> Queue](../../settings/core#queue-and-packet-processing). If a higher value is set here, the global limit is used instead.
 :::
 
-## Задержка между пакетами (Seg2Delay)
+## Inter-packet delay (Seg2Delay)
 
-Задержка (мс) между отправкой фрагментов. Задаётся как диапазон **мин–макс** — для каждого соединения b4 выбирает случайное значение из этого диапазона. Если мин и макс одинаковы — задержка фиксированная.
+Delay (ms) between sending fragments. Specified as a **min-max** range - each connection picks a random value from the range. When min and max are equal, the delay is fixed.
 
-## Фильтр портов
+## Port filter
 
-Ограничивает, на каких портах назначения этот сет будет применяться. Формат iptables: `443` или `443,80`.
+Limits the destination ports this set applies to. iptables-style format: `443` or `443,80`.
 
 :::info
-На уровне фаервола b4 всегда перехватывает трафик на порт 443. Если в сетах указаны дополнительные порты — они добавляются к перехвату. Фильтр портов в сете сужает, к какому трафику **этот конкретный сет** будет применяться, а не то, что b4 обрабатывает глобально.
+At the firewall level, b4 always intercepts port 443 traffic. Any extra ports listed in sets are added to the intercept. The port filter in a set narrows down what **this particular set** applies to, not what b4 processes globally.
 :::
 
-## Отбросить `SACK`
+## Drop `SACK`
 
-Удаляет опцию `Selective Acknowledgment` из TCP-пакетов. `SACK` помогает серверу и клиенту эффективно пересылать потерянные фрагменты — некоторые DPI-системы используют `SACK` для восстановления порядка фрагментов.
+Removes the `Selective Acknowledgment` option from TCP packets. `SACK` helps the server and client retransmit lost fragments efficiently - some DPI systems use `SACK` to reassemble fragments in order.
 
-## Дублирование пакетов
+## Packet duplication
 
-Отправляет каждый пакет несколько раз (1–10 копий). Полезно, если провайдер отбрасывает часть пакетов при обнаружении аномалий.
-![dup](../../../static/img/general/20260323224129.png)
+Sends each packet several times (1-10 copies). Useful when the provider drops some packets on anomaly detection.
+
+![20260418235123](../../../static/img/general/20260418235123.png)

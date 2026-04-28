@@ -1,25 +1,23 @@
 ---
 sidebar_position: 4
-title: Пэйлоады
+title: Payloads
 ---
 
-# Пэйлоады
+![20260418233650](../../static/img/payloads/20260418233650.png)
 
-![payloads](../../static/img/payloads/20260323222921.png)
+## Why payloads exist
 
-## Зачем нужны пэйлоады
-
-Одна из стратегий обхода DPI — отправка **фейковых пакетов** (faking). b4 отправляет провайдеру поддельный пакет с подменёнными данными, а настоящий пакет отправляет так, чтобы DPI его не заметила. Для этого фейковый пакет должен содержать какие-то данные — это и есть **пэйлоад**.
+One of the DPI bypass strategies is sending **fake packets** (faking). b4 sends the provider a fake packet with decoy data, and sends the real packet in a way the DPI does not notice. The fake packet has to carry some data - that is the **payload**.
 
 ```mermaid
 flowchart TD
-    A["Браузер отправляет\nзапрос к сайту"] --> B["b4 перехватывает"]
-    B --> C["1. Отправляет фейковый пакет"]
-    C --> D{"DPI провайдера"}
-    D -->|"DPI видит фейк,\nсчитает соединение\nбезопасным"| E["Пакет умирает\nне дойдя до сайта\n(TTL истёк)"]
-    B --> F["2. Отправляет настоящий пакет\n(фрагментирован)"]
+    A["Browser sends\na request to the site"] --> B["b4 intercepts"]
+    B --> C["1. Sends a fake packet"]
+    C --> D{"Provider DPI"}
+    D -->|"DPI sees the fake\nand treats the connection\nas safe"| E["Packet dies\nbefore reaching the site\n(TTL expired)"]
+    B --> F["2. Sends the real packet\n(fragmented)"]
     F --> D
-    D -->|"DPI уже принял\nрешение по фейку,\nпропускает"| G["Сайт получает\nнастоящие данные"]
+    D -->|"DPI has already decided\nbased on the fake,\nlets it through"| G["Site receives\nthe real data"]
 
     style B fill:#e91e63,color:#fff,stroke:none
     style D fill:#ff9800,color:#fff,stroke:none
@@ -29,77 +27,77 @@ flowchart TD
     style F fill:#4a9eff,color:#fff,stroke:none
 ```
 
-Фейковый пакет отправляется с **заниженным TTL** (время жизни). Он проходит через оборудование провайдера (DPI его видит и анализирует), но не доходит до настоящего сервера — пакет «умирает» по дороге. Сервер никогда не получает мусор, а DPI уже принял решение на основе фейка.
+The fake packet is sent with a **reduced TTL** (time to live). It goes through the provider's equipment (the DPI sees and analyzes it), but does not reach the real server - the packet "dies" along the way. The server never sees the junk, and the DPI has already made its decision based on the fake.
 
-## Типы пэйлоадов
+## Payload types
 
-b4 поддерживает несколько типов содержимого для фейковых пакетов. Тип выбирается в настройках сета: **TCP → Faking → Тип пэйлоада**.
+b4 supports several content types for fake packets. The type is selected in set settings: **TCP -> Faking -> Payload type**.
 
-| Тип | Что содержит | Когда использовать |
+| Type | Contents | When to use |
 | --- | --- | --- |
-| **Random** | 1200 случайных байтов | По умолчанию. Работает у большинства провайдеров |
-| **Google ClientHello** | Готовый TLS ClientHello от имени Google | Если DPI пропускает трафик к Google |
-| **DuckDuckGo ClientHello** | Готовый TLS ClientHello от имени DuckDuckGo | Альтернатива Google |
-| **Captured Payload** | Сгенерированный или загруженный пэйлоад | Для продвинутой настройки (см. ниже) |
-| **Zeros** | 1200 нулевых байтов (0x00) | Минимальная нагрузка на процессор |
-| **Inverted** | Побитовая инверсия оригинального TLS-пакета | Выглядит как повреждённый пакет |
+| **Random** | 1200 random bytes | Default. Try this first |
+| **Google ClientHello** | Prebuilt TLS ClientHello pretending to be Google | If the DPI lets Google traffic through |
+| **DuckDuckGo ClientHello** | Prebuilt TLS ClientHello pretending to be DuckDuckGo | Alternative to Google |
+| **Captured Payload** | Generated or uploaded payload | For advanced setup (see below) |
+| **Zeros** | 1200 zero bytes (0x00) | Minimal CPU load |
+| **Inverted** | Bitwise inversion of the original TLS packet | Looks like a corrupted packet |
 
-:::tip Какой выбрать
-Используйте тот тип, который предложил дискавери. Если настраиваете вручную — начните с **Random** и попробуйте другие варианты, если не сработает. Поведение DPI зависит от провайдера и может меняться со временем.
+:::tip Which to pick
+Use what discovery suggests. When configuring manually, start with **Random** and try other options if that does not work. DPI behavior depends on the provider and can change over time.
 :::
 
-## Генерация пэйлоада (Captured Payload)
+## Generating a payload (Captured Payload)
 
-Сгенерированный пэйлоад — это **оптимизированный TLS ClientHello**, который выглядит как настоящее TLS-рукопожатие браузера. В отличие от случайных байтов, DPI распознаёт его как легитимный TLS и применяет другие правила обработки.
+A generated payload is an **optimized TLS ClientHello** that looks like a real browser TLS handshake. Unlike random bytes, the DPI recognizes it as legitimate TLS and applies different handling rules.
 
-### Почему SNI-first
+### Why SNI-first
 
-Российские DPI (ТСПУ) используют оптимизацию: если в TLS ClientHello расширение SNI стоит **первым**, система проверяет домен по белому списку и, если домен разрешён — пропускает соединение по ускоренному пути. b4 генерирует ClientHello именно так — SNI на первом месте — чтобы использовать эту особенность.
+Russian DPI (TSPU) uses an optimization: if the SNI extension in the TLS ClientHello is **first**, the system checks the domain against an allowlist and, if the domain is allowed, routes the connection through a fast path. b4 builds the ClientHello this way - with SNI first - to take advantage of this behavior.
 
-### Как сгенерировать
+### How to generate
 
-1. Введите домен в поле **Домен** (например, `youtube.com`)
-2. Нажмите **Сгенерировать**
+1. Enter the domain in the **Domain** field (for example, `youtube.com`)
+2. Click **Generate**
 
-b4 создаст ClientHello с реалистичным набором TLS-расширений и шифров, SNI на первом месте. Генерация мгновенная — реальное соединение с сайтом не устанавливается. Один домен — один пэйлоад. Повторная генерация не создаст дубликат.
+b4 builds a ClientHello with a realistic set of TLS extensions and ciphers, SNI placed first. Generation is instant - no real connection to the site is made. One domain = one payload. Running generate again does not create a duplicate.
 
-### Загрузка своего пэйлоада
+### Uploading your own payload
 
-Если у вас есть бинарный файл (`.bin`, до 64 КБ):
+If you have a binary file (`.bin`, up to 64 KB):
 
-1. Укажите **Имя/Домен** — идентификатор пэйлоада
-2. Нажмите **Выбрать файл** и выберите `.bin`
-3. Нажмите **Загрузить**
+1. Enter **Name/Domain** - the payload identifier
+2. Click **Choose file** and pick the `.bin`
+3. Click **Upload**
 
-:::tip Имя из файла
-Если имя файла содержит домен (например, `tls_youtube_com.bin`), поле имени заполнится автоматически.
+:::tip Name from the file
+If the file name contains a domain (for example, `tls_youtube_com.bin`), the name field is filled in automatically.
 :::
 
-## Использование в сетах
+## Using in sets
 
-После генерации пэйлоады становятся доступны в настройках сета:
+Once generated, payloads become available in the set settings:
 
-1. Откройте сет → вкладка **TCP** → секция **Faking**
-2. В поле **Тип пэйлоада** выберите **Captured Payload**
-3. В появившемся списке выберите нужный пэйлоад по домену
+1. Open the set -> **TCP** tab -> **Faking** section
+2. In the **Payload type** field pick **Captured Payload**
+3. In the list that appears, pick the payload by domain
 
-## Использование в дискавери
+## Using in discovery
 
-При запуске дискавери можно указать пэйлоады в **Параметрах поиска → Пользовательские payloads**. Дискавери протестирует каждую стратегию с каждым из указанных пэйлоадов и выберет наиболее эффективную комбинацию.
+When running discovery you can supply payloads in **Search parameters -> Custom payloads**. Discovery tests every strategy with each of the listed payloads and picks the most effective combination.
 
-:::info Когда это полезно
-Если стандартный дискавери (с Random-пэйлоадом) не находит рабочую конфигурацию — сгенерируйте пэйлоады для нескольких доменов и запустите дискавери с ними. Некоторые провайдеры реагируют на содержимое фейкового пакета, и реалистичный ClientHello может сработать там, где случайные байты не помогли.
+:::info When this is useful
+If standard discovery (with the Random payload) does not find a working configuration, generate payloads for several domains and run discovery with them. Some providers react to the fake packet's contents, and a realistic ClientHello may work where random bytes did not.
 :::
 
-## Управление
+## Management
 
-Каждый пэйлоад отображается как карточка с доменом, размером и датой создания.
+Each payload is shown as a card with the domain, size, and creation date.
 
-| Действие | Описание |
+| Action | Description |
 | --- | --- |
-| Просмотр hex | Показать содержимое в hex-формате, скопировать в буфер |
-| Скачать .bin | Скачать как бинарный файл |
-| Удалить | Удалить пэйлоад |
-| Очистить все | Удалить все пэйлоады (кнопка в заголовке) |
+| View hex | Show the contents in hex, copy to clipboard |
+| Download .bin | Download as a binary file |
+| Delete | Remove the payload |
+| Clear all | Remove every payload (button in the header) |
 
-Пэйлоады хранятся в директории `captures/` внутри директории конфигурации b4 (обычно `/etc/b4/captures/`).
+Payloads are stored in the `captures/` directory inside the b4 configuration directory (usually `/etc/b4/captures/`).

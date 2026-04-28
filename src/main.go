@@ -26,6 +26,7 @@ import (
 	"github.com/daniellavrushin/b4/quic"
 	"github.com/daniellavrushin/b4/socks5"
 	"github.com/daniellavrushin/b4/tables"
+	"github.com/daniellavrushin/b4/tproxy"
 	"github.com/daniellavrushin/b4/watchdog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -100,6 +101,9 @@ func runB4(cmd *cobra.Command, args []string) error {
 
 	discoveryRT := discovery.NewRuntime()
 
+	tproxyResolver := tproxy.NewLearnedIPResolver(nil)
+	tproxyMgr := tproxy.NewManager(tproxyResolver)
+
 	handler.SetTablesRefreshFunc(func() error {
 		c := cfgPtr.Load()
 		if c.System.Tables.SkipSetup {
@@ -124,11 +128,15 @@ func runB4(cmd *cobra.Command, args []string) error {
 		if err := tables.AddRules(c); err != nil {
 			return err
 		}
+		tproxyMgr.SyncConfig(c)
 		tables.RoutingSyncConfig(c)
 		handler.GetMetricsCollector().TablesStatus = tables.DetectBackend(c)
 		return nil
 	})
-	handler.SetRoutingSyncFunc(tables.RoutingSyncConfig)
+	handler.SetRoutingSyncFunc(func(c *config.Config) {
+		tproxyMgr.SyncConfig(c)
+		tables.RoutingSyncConfig(c)
+	})
 	handler.SetDiscoveryRuntime(discoveryRT)
 	nfq.RoutingHandleDNSFunc = tables.RoutingHandleDNS
 
@@ -190,6 +198,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 
 	// Ensure routing runtime state is applied at startup as well.
 	if !cfg.System.Tables.SkipSetup {
+		tproxyMgr.SyncConfig(&cfg)
 		tables.RoutingSyncConfig(&cfg)
 	} else {
 		log.Tracef("Skipping routing sync due to --skip-tables")
@@ -206,6 +215,8 @@ func runB4(cmd *cobra.Command, args []string) error {
 
 	metrics.RecordEvent("info", fmt.Sprintf("NFQueue started with %d threads", cfg.Queue.Threads))
 	metrics.NFQueueStatus = "active"
+
+	tproxyResolver.Set(pool.GetMatcher())
 
 	// Start tables monitor to handle rule restoration if system wipes them
 	var tablesMonitor *tables.Monitor
@@ -249,6 +260,8 @@ func runB4(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to save config: %v", err)
 		}
 		cfgPtr.Store(c)
+		tproxyResolver.Set(pool.GetMatcher())
+		tproxyMgr.SyncConfig(c)
 		tables.RoutingSyncConfig(c)
 		return nil
 	})
@@ -267,6 +280,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	metrics.RecordEvent("info", fmt.Sprintf("Shutdown initiated by signal: %v", sig))
 
 	wd.Stop()
+	tproxyMgr.Stop()
 
 	// Perform graceful shutdown with timeout
 	return gracefulShutdown(cfgPtr.Load(), pool, httpServer, socks5Server, mtprotoServer, metrics, discoveryRT)

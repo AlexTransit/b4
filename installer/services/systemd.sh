@@ -23,9 +23,8 @@ WantedBy=multi-user.target
 EOF
 
     systemctl daemon-reload
-    log_ok "Systemd service created: ${B4_SERVICE_NAME}"
-    log_info "  systemctl start ${B4_SERVICE_NAME}"
-    log_info "  systemctl enable ${B4_SERVICE_NAME}  # auto-start on boot"
+    systemctl enable "${B4_SERVICE_NAME}" 2>/dev/null || true
+    log_ok "Systemd service created and enabled: ${B4_SERVICE_NAME}"
 }
 
 service_systemd_remove() {

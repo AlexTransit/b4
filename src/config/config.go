@@ -91,7 +91,9 @@ var DefaultSetConfig = SetConfig{
 
 	Routing: RoutingConfig{
 		Enabled:          false,
+		Mode:             RoutingModeInterface,
 		EgressInterface:  "",
+		Upstream:         UpstreamProxyConfig{UseDomain: true},
 		FWMark:           0,
 		Table:            0,
 		SourceInterfaces: []string{},
@@ -143,6 +145,7 @@ var DefaultSetConfig = SetConfig{
 		Strategy:          "pastseq",
 		SeqOffset:         10000,
 		PayloadFile:       "",
+		PayloadDomain:     "",
 		PayloadData:       []byte{},
 		TLSMod:            []string{},
 		TimestampDecrease: 600000, // Default value for timestamp faking strategy
@@ -183,8 +186,7 @@ var DefaultConfig = Config{
 			Enabled:      false,
 			VendorLookup: false,
 			WhiteIsBlack: false,
-			Mac:          []string{},
-			MSSClamps:    []DeviceMSSClamp{},
+			Devices:      []Device{},
 		},
 		MSSClamp: MSSClampConfig{
 			Enabled: false,

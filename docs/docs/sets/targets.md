@@ -1,61 +1,63 @@
 ---
 sidebar_position: 1
-title: Цели
+title: Targets
 ---
 
-# Цели
+The "Targets" tab defines which traffic the set applies to. Traffic is filtered by domains, IP addresses, GeoSite/GeoIP categories, and source devices.
 
-Вкладка «Цели» определяет, к какому трафику применяется сет. Трафик фильтруется по доменам, IP-адресам, категориям GeoSite/GeoIP и исходным устройствам.
+## TLS version filter
 
-## Фильтр версии TLS
+At the top of the tab is the TLS version selector:
 
-В верхней части вкладки — выбор версии TLS:
+- **Any** - process all TLS traffic
+- **1.2** - only TLS 1.2
+- **1.3** - only TLS 1.3
 
-- **Any** — обрабатывать весь TLS-трафик
-- **1.2** — только TLS 1.2
-- **1.3** — только TLS 1.3
+Useful when different TLS versions need different bypass strategies (some providers block TLS 1.2 and TLS 1.3 in different ways).
 
-Это полезно, если для разных версий TLS нужны разные стратегии обхода (некоторые провайдеры блокируют TLS 1.2 и TLS 1.3 по-разному).
+## Domains
 
-## Домены
+Manual domain entry for bypass. Enter a domain and press Enter.
 
-Ручной ввод доменов для обхода. Введите домен и нажмите Enter.
+- Multiple domains can be added separated by commas or newlines
+- Duplicates with another set trigger a warning
+- The **Edit list** button opens a text editor (one domain per line)
 
-- Можно добавлять несколько через запятую или перенос строки
-- При дублировании с другим сетом — появляется предупреждение
-- Кнопка **Редактировать список** открывает текстовый редактор (по одному домену на строку)
+![20260418234818](../../static/img/targets/20260418234818.png)
 
-![targets](../../static/img/targets/20260323211836.png)
+## GeoSite categories
 
-## Категории GeoSite
+Instead of adding domains one by one, pick a category from the GeoSite database. Each category contains hundreds or thousands of domains (for example, `youtube`, `discord`, `google`).
 
-Вместо добавления доменов по одному можно выбрать категорию из базы GeoSite. Каждая категория содержит сотни или тысячи доменов (например, `youtube`, `discord`, `google`).
+To use GeoSite, the database must be loaded (Settings -> Geodat settings).
 
-Для использования GeoSite нужно загрузить базу данных (Настройки → Geodat настройки).
+Clicking a category shows the list of domains it contains.
 
-Клик по категории показывает список входящих в неё доменов.
+## IP addresses
 
-## IP-адреса
+Manual entry of IPs or CIDR ranges (for example, `10.0.0.0/8`, `192.168.1.100`).
 
-Ручной ввод IP или CIDR-диапазонов (например, `10.0.0.0/8`, `192.168.1.100`).
+Works the same way as domains: bulk editing supported, duplicates warned.
 
-Работает аналогично доменам: поддержка массового редактирования, предупреждения о дублях.
+## GeoIP categories
 
-## Категории GeoIP
+The GeoIP equivalent for IP ranges. Categories are keyed to countries and ASNs.
 
-Аналог GeoSite, но для IP-диапазонов. Категории привязаны к странам и ASN.
+![20260418234851](../../static/img/targets/20260418234851.png)
 
-## Исходные устройства
+## Source devices
 
-Ограничивает действие сета трафиком от конкретных устройств в сети (по MAC-адресу).
+Limits the set to traffic from specific devices on the network (by MAC address).
 
-Таблица показывает доступные устройства:
+The table shows available devices:
 
-| Столбец | Описание |
+| Column | Description |
 | --- | --- |
-| Выбор | Чекбокс для включения устройства |
-| MAC | MAC-адрес устройства |
-| IP | Текущий IP-адрес |
-| Имя | Имя устройства или vendor |
+| Select | Checkbox to include the device |
+| MAC | Device MAC address |
+| IP | Current IP address |
+| Name | Device alias or vendor |
 
-Если устройства не выбраны — сет применяется ко всему трафику. Если выбраны — только к трафику от этих устройств. Сеты с привязкой к устройствам имеют приоритет над общими.
+![20260418234934](../../static/img/targets/20260418234934.png)
+
+If no device is selected, the set applies to all traffic. When devices are selected, only their traffic is matched. Device-bound sets take priority over generic ones.

@@ -146,6 +146,18 @@ _openwrt_check_recommended() {
         fi
     fi
 
+    if ! _nft_functional; then
+        if ! command_exists ipset; then
+            rec_missing="${rec_missing} ipset"
+            if [ "$B4_PKG_MANAGER" = "opkg" ]; then
+                _kmod_available "ip_set" || rec_missing="${rec_missing} kmod-ipt-ipset"
+            fi
+        fi
+        if ! _kmod_available "xt_connbytes" && [ "$B4_PKG_MANAGER" = "opkg" ]; then
+            rec_missing="${rec_missing} kmod-ipt-conntrack-extra iptables-mod-conntrack-extra"
+        fi
+    fi
+
     # SSL support
     if ! command_exists curl || ! curl -sI --max-time 3 "https://github.com" >/dev/null 2>&1; then
         if [ "$B4_PKG_MANAGER" = "apk" ]; then

@@ -3,18 +3,17 @@ import {
   Box,
   Paper,
   Typography,
-  Stack,
   IconButton,
   Tooltip,
   Menu,
   MenuItem,
 } from "@mui/material";
 import { AddCircleOutline as AddIcon } from "@mui/icons-material";
-import { colors } from "@design";
+import { colors, fonts, radiusPx } from "@design";
 import { formatNumber } from "@utils";
 import { B4SetConfig } from "@models/config";
 import { setsApi } from "@b4.sets";
-import { B4Badge } from "@b4.elements";
+import { B4ConfidencePill, B4CountPill } from "@b4.elements";
 import { useTranslation } from "react-i18next";
 
 interface UnmatchedDomainsProps {
@@ -55,36 +54,35 @@ export const UnmatchedDomains = ({
   return (
     <Paper
       sx={{
-        p: 2,
         bgcolor: colors.background.paper,
         borderColor: colors.border.default,
+        borderRadius: `${radiusPx.md}px`,
+        p: 0,
+        overflow: "hidden",
       }}
       variant="outlined"
     >
       <Typography
-        variant="caption"
+        variant="metricLabel"
         sx={{
-          color: colors.text.secondary,
-          textTransform: "uppercase",
-          letterSpacing: "0.5px",
-          mb: 1.5,
           display: "block",
+          color: colors.text.secondary,
+          opacity: 0.8,
+          p: "12px 14px 6px",
         }}
       >
         {t("dashboard.unmatchedDomains.title")}
       </Typography>
-      <Stack spacing={0.25}>
-        {unmatched.map(([domain, count]) => (
-          <UnmatchedRow
-            key={domain}
-            domain={domain}
-            count={count}
-            tls={domainTLS[domain]}
-            sets={sets}
-            onAdded={onRefreshSets}
-          />
-        ))}
-      </Stack>
+      {unmatched.map(([domain, count]) => (
+        <UnmatchedRow
+          key={domain}
+          domain={domain}
+          count={count}
+          tls={domainTLS[domain]}
+          sets={sets}
+          onAdded={onRefreshSets}
+        />
+      ))}
     </Paper>
   );
 };
@@ -107,6 +105,7 @@ const UnmatchedRow = ({
   const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [adding, setAdding] = useState(false);
+  const enabledSets = sets.filter((s) => s.enabled);
 
   const handleAdd = async (setId: string) => {
     setAnchorEl(null);
@@ -126,63 +125,75 @@ const UnmatchedRow = ({
       sx={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "space-between",
-        py: 0.5,
-        px: 1,
-        borderRadius: 0.5,
-        "&:hover": { bgcolor: `${colors.primary}06` },
+        gap: "10px",
+        p: "8px 14px",
+        borderBottom: `1px solid ${colors.border.light}`,
+        "&:last-of-type": { borderBottom: 0 },
+        transition: "background-color 120ms ease",
+        "&:hover": { bgcolor: "rgba(255, 255, 255, 0.025)" },
       }}
     >
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="center"
-        sx={{ minWidth: 0, flex: 1 }}
-      >
-        {tls && <B4Badge label={tls} color="secondary" title={t("core.tlsVersion")} />}
-        <Typography variant="overline">{domain}</Typography>
-        <B4Badge label={formatNumber(count)} />
-      </Stack>
-
-      <Tooltip title={t("core.addToSet")}>
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            setAnchorEl(e.currentTarget);
-          }}
-          disabled={adding}
-          sx={{ color: colors.secondary, ml: 0.5, p: 0.25 }}
-        >
-          <AddIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Tooltip>
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => {
-          setAnchorEl(null);
+      {tls && <B4ConfidencePill score={tls} />}
+      <Box
+        component="span"
+        sx={{
+          fontFamily: fonts.mono,
+          fontSize: 11,
+          letterSpacing: "0.04em",
+          color: colors.text.primary,
+          textTransform: "uppercase",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          flex: 1,
+          minWidth: 0,
         }}
-        slotProps={{
-          paper: {
-            sx: {
-              bgcolor: colors.background.default,
-              border: `1px solid ${colors.border.default}`,
-            },
-          },
-        }}
+        title={domain}
       >
-        {sets
-          .filter((s) => s.enabled)
-          .map((set) => (
-            <MenuItem
-              key={set.id}
-              onClick={() => void handleAdd(set.id)}
-              sx={{ color: colors.text.primary, fontSize: "0.8rem" }}
+        {domain}
+      </Box>
+      <B4CountPill value={formatNumber(count)} />
+      {enabledSets.length > 0 && (
+        <>
+          <Tooltip title={t("core.addToSet")}>
+            <IconButton
+              size="small"
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              disabled={adding}
+              sx={{
+                color: colors.text.secondary,
+                p: 0.25,
+                "&:hover": { color: colors.secondary },
+              }}
             >
-              {set.name}
-            </MenuItem>
-          ))}
-      </Menu>
+              <AddIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={anchorEl}
+            open={Boolean(anchorEl)}
+            onClose={() => setAnchorEl(null)}
+            slotProps={{
+              paper: {
+                sx: {
+                  bgcolor: colors.background.default,
+                  border: `1px solid ${colors.border.default}`,
+                },
+              },
+            }}
+          >
+            {enabledSets.map((set) => (
+              <MenuItem
+                key={set.id}
+                onClick={() => void handleAdd(set.id)}
+                sx={{ color: colors.text.primary, fontSize: "0.8rem" }}
+              >
+                {set.name}
+              </MenuItem>
+            ))}
+          </Menu>
+        </>
+      )}
     </Box>
   );
 };

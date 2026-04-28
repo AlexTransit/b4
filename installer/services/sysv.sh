@@ -59,14 +59,25 @@ esac
 EOF
 
     chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+
+    if command -v update-rc.d >/dev/null 2>&1; then
+        update-rc.d "${B4_SERVICE_NAME}" defaults 2>/dev/null || true
+    elif command -v chkconfig >/dev/null 2>&1; then
+        chkconfig --add "${B4_SERVICE_NAME}" 2>/dev/null || true
+        chkconfig "${B4_SERVICE_NAME}" on 2>/dev/null || true
+    fi
+
     log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
-    log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} start"
-    log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} stop"
 }
 
 service_sysv_remove() {
     if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
         "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
+        if command -v update-rc.d >/dev/null 2>&1; then
+            update-rc.d -f "${B4_SERVICE_NAME}" remove 2>/dev/null || true
+        elif command -v chkconfig >/dev/null 2>&1; then
+            chkconfig --del "${B4_SERVICE_NAME}" 2>/dev/null || true
+        fi
         rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
         log_info "Removed init script: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
     fi

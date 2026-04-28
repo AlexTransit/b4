@@ -22,6 +22,18 @@ export function sortDevices(
   });
 }
 
+export function formatRelativeShort(
+  t: (key: string) => string,
+  ts: number,
+  now: number,
+): string {
+  const diff = Math.max(0, Math.floor((now - ts) / 1000));
+  if (diff < 2) return t("core.timeAgo.nowShort");
+  if (diff < 60) return `${diff}s`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+  return `${Math.floor(diff / 3600)}h`;
+}
+
 export const formatBytes = (
   bytes: number | string | null | undefined,
 ): string => {

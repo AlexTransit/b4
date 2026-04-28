@@ -17,9 +17,12 @@ import (
 const hostRouteCTMark = uint32(0x40000000)
 
 type routeState struct {
+	mode       string
 	mark       uint32
 	table      int
 	iface      string
+	tproxyPort int
+	upstreamKey string
 	sourcesKey string
 	setV4      string
 	setV6      string
@@ -28,7 +31,6 @@ type routeState struct {
 	chainSNAT  string
 }
 
-// routeBackend abstracts firewall operations so routing works on both nftables and iptables.
 type routeBackend interface {
 	name() string
 	available() bool
@@ -68,7 +70,7 @@ func getRouteBackend(cfg *config.Config) routeBackend {
 		if nft.available() {
 			routeEngine = nft
 		}
-	default: // "iptables", "iptables-legacy"
+	default:
 		if ipt.available() {
 			routeEngine = ipt
 		}
@@ -81,12 +83,15 @@ func getRouteBackend(cfg *config.Config) routeBackend {
 	return routeEngine
 }
 
-// RoutingHandleDNS is called from the nfq DNS handler when resolved IPs are available.
 func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 	if cfg == nil || set == nil || !set.Routing.Enabled || len(ips) == 0 {
 		return
 	}
-	if set.Routing.EgressInterface == "" {
+	mode := set.Routing.Mode
+	if mode == "" {
+		mode = config.RoutingModeInterface
+	}
+	if mode == config.RoutingModeInterface && set.Routing.EgressInterface == "" {
 		return
 	}
 	if !hasBinary("ip") {
@@ -108,33 +113,33 @@ func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 		return
 	}
 
+	cur := buildRouteState(cfg, set)
 	sources := routeNormalizedSources(set.Routing.SourceInterfaces)
-	sourcesKey := strings.Join(sources, ",")
-	setV4, setV6 := routeBuildSetNames(set.Id)
-	chainPre, chainOut, chainSNAT := routeBuildChainNames(set.Id)
-	mark, table := routeResolveIDs(cfg, set)
-
-	cur := routeState{
-		mark: mark, table: table,
-		iface: set.Routing.EgressInterface, sourcesKey: sourcesKey,
-		setV4: setV4, setV6: setV6,
-		chainPre: chainPre, chainOut: chainOut, chainSNAT: chainSNAT,
-	}
 
 	if old, ok := routeRuleCache[set.Id]; ok {
-		if old.mark != cur.mark || old.table != cur.table || old.iface != cur.iface || old.sourcesKey != cur.sourcesKey {
-			routeCleanupRule(be, old)
+		if !routeStateEqual(old, cur) {
+			routeCleanupAny(be, old)
 			delete(routeRuleCache, set.Id)
 		}
 	}
 
 	if _, ok := routeRuleCache[set.Id]; !ok {
-		if err := routeEnsureRule(be, cfg, set, cur, sources); err != nil {
+		var err error
+		if cur.mode == config.RoutingModeProxy {
+			err = routeEnsureProxyRule(be, cfg, set, cur, sources)
+		} else {
+			err = routeEnsureRule(be, cfg, set, cur, sources)
+		}
+		if err != nil {
 			log.Errorf("Routing: failed to ensure rule for set '%s': %v", set.Name, err)
 			return
 		}
 		routeRuleCache[set.Id] = cur
-		log.Infof("Routing [%s]: enabled set '%s' -> iface=%s mark=0x%x table=%d", be.name(), set.Name, set.Routing.EgressInterface, mark, table)
+		if cur.mode == config.RoutingModeProxy {
+			log.Infof("Routing [%s]: enabled proxy set '%s' -> %s:%d mark=0x%x port=%d", be.name(), set.Name, set.Routing.Upstream.Host, set.Routing.Upstream.Port, cur.mark, cur.tproxyPort)
+		} else {
+			log.Infof("Routing [%s]: enabled set '%s' -> iface=%s mark=0x%x table=%d", be.name(), set.Name, set.Routing.EgressInterface, cur.mark, cur.table)
+		}
 	}
 
 	ttl := set.Routing.IPTTLSeconds
@@ -143,6 +148,56 @@ func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 	}
 
 	routeAddIPsToSets(be, cur, ttl, ips, cfg.Queue.IPv4Enabled, cfg.Queue.IPv6Enabled)
+}
+
+func buildRouteState(cfg *config.Config, set *config.SetConfig) routeState {
+	mode := set.Routing.Mode
+	if mode == "" {
+		mode = config.RoutingModeInterface
+	}
+	sources := routeNormalizedSources(set.Routing.SourceInterfaces)
+	sourcesKey := strings.Join(sources, ",")
+	setV4, setV6 := routeBuildSetNames(set.Id)
+	chainPre, chainOut, chainSNAT := routeBuildChainNames(set.Id)
+
+	st := routeState{
+		mode:       mode,
+		sourcesKey: sourcesKey,
+		setV4:      setV4, setV6: setV6,
+		chainPre: chainPre, chainOut: chainOut, chainSNAT: chainSNAT,
+	}
+
+	if mode == config.RoutingModeProxy {
+		mark, port := proxyMarkAndPort(set)
+		st.mark = mark
+		st.table = proxyTable(mark)
+		st.tproxyPort = port
+		st.upstreamKey = fmt.Sprintf("%s:%d|%s", set.Routing.Upstream.Host, set.Routing.Upstream.Port, set.Routing.Upstream.Username)
+	} else {
+		mark, table := routeResolveIDs(cfg, set)
+		st.mark = mark
+		st.table = table
+		st.iface = set.Routing.EgressInterface
+	}
+	return st
+}
+
+func routeStateEqual(a, b routeState) bool {
+	return a.mode == b.mode &&
+		a.mark == b.mark &&
+		a.table == b.table &&
+		a.iface == b.iface &&
+		a.tproxyPort == b.tproxyPort &&
+		a.upstreamKey == b.upstreamKey &&
+		a.sourcesKey == b.sourcesKey
+}
+
+func routeCleanupAny(be routeBackend, st routeState) {
+	if st.mode == config.RoutingModeProxy {
+		routeCleanupProxyRule(be, st)
+		return
+	}
+	routeCleanupRule(be, st)
 }
 
 func routeAddIPsToSets(be routeBackend, st routeState, ttl int, ips []net.IP, ipv4Enabled, ipv6Enabled bool) {
@@ -206,7 +261,7 @@ func routeCollectEntries(set *config.SetConfig) (v4, v6 []string) {
 			if err != nil || ip == nil || ipNet == nil {
 				continue
 			}
-			entry = ipNet.String() // normalized CIDR
+			entry = ipNet.String()
 			isV6 = ip.To4() == nil
 		} else {
 			ip := net.ParseIP(raw)
@@ -242,7 +297,6 @@ func RoutingClearAll() {
 		if nft.available() {
 			nft.clearAll()
 		}
-		// Try both iptables and iptables-legacy for best-effort cleanup.
 		for _, legacy := range []bool{false, true} {
 			ipt := &routeIptBackend{legacy: legacy}
 			if hasBinary(ipt.ipt4()) || hasBinary(ipt.ipt6()) {
@@ -251,7 +305,7 @@ func RoutingClearAll() {
 		}
 	} else {
 		for _, st := range routeRuleCache {
-			routeCleanupRule(be, st)
+			routeCleanupAny(be, st)
 		}
 		be.clearAll()
 	}
@@ -291,7 +345,17 @@ func RoutingSyncConfig(cfg *config.Config) {
 
 	desired := make(map[string]*config.SetConfig, len(cfg.Sets))
 	for _, set := range cfg.Sets {
-		if set == nil || !set.Enabled || !set.Routing.Enabled || set.Routing.EgressInterface == "" {
+		if set == nil || !set.Enabled || !set.Routing.Enabled {
+			continue
+		}
+		mode := set.Routing.Mode
+		if mode == "" {
+			mode = config.RoutingModeInterface
+		}
+		if mode == config.RoutingModeInterface && set.Routing.EgressInterface == "" {
+			continue
+		}
+		if mode == config.RoutingModeProxy && set.Routing.Upstream.Port < 1 {
 			continue
 		}
 		desired[set.Id] = set
@@ -299,7 +363,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 
 	for setID, st := range routeRuleCache {
 		if _, ok := desired[setID]; !ok {
-			routeCleanupRule(be, st)
+			routeCleanupAny(be, st)
 			delete(routeRuleCache, setID)
 		}
 	}
@@ -313,28 +377,24 @@ func RoutingSyncConfig(cfg *config.Config) {
 			continue
 		}
 
+		cur := buildRouteState(cfg, set)
 		sources := routeNormalizedSources(set.Routing.SourceInterfaces)
-		sourcesKey := strings.Join(sources, ",")
-		setV4, setV6 := routeBuildSetNames(set.Id)
-		chainPre, chainOut, chainSNAT := routeBuildChainNames(set.Id)
-		mark, table := routeResolveIDs(cfg, set)
-
-		cur := routeState{
-			mark: mark, table: table,
-			iface: set.Routing.EgressInterface, sourcesKey: sourcesKey,
-			setV4: setV4, setV6: setV6,
-			chainPre: chainPre, chainOut: chainOut, chainSNAT: chainSNAT,
-		}
 
 		if old, ok := routeRuleCache[set.Id]; ok {
-			if old.mark != cur.mark || old.table != cur.table || old.iface != cur.iface || old.sourcesKey != cur.sourcesKey {
-				routeCleanupRule(be, old)
+			if !routeStateEqual(old, cur) {
+				routeCleanupAny(be, old)
 				delete(routeRuleCache, set.Id)
 			}
 		}
 
 		if _, ok := routeRuleCache[set.Id]; !ok {
-			if err := routeEnsureRule(be, cfg, set, cur, sources); err != nil {
+			var err error
+			if cur.mode == config.RoutingModeProxy {
+				err = routeEnsureProxyRule(be, cfg, set, cur, sources)
+			} else {
+				err = routeEnsureRule(be, cfg, set, cur, sources)
+			}
+			if err != nil {
 				log.Errorf("Routing: failed to ensure rule for set '%s' during sync: %v", set.Name, err)
 				continue
 			}
@@ -353,6 +413,9 @@ func RoutingSyncConfig(cfg *config.Config) {
 
 	routeIfaceAuto = make(map[string]routeState)
 	for _, st := range routeRuleCache {
+		if st.mode == config.RoutingModeProxy || st.iface == "" {
+			continue
+		}
 		if _, ok := routeIfaceAuto[st.iface]; !ok {
 			routeIfaceAuto[st.iface] = routeState{mark: st.mark, table: st.table}
 		}
@@ -377,7 +440,14 @@ func RoutingPeriodicReResolve(cfg *config.Config) {
 
 	var setsToResolve []*config.SetConfig
 	for _, set := range cfg.Sets {
-		if set == nil || !set.Enabled || !set.Routing.Enabled || set.Routing.EgressInterface == "" {
+		if set == nil || !set.Enabled || !set.Routing.Enabled {
+			continue
+		}
+		mode := set.Routing.Mode
+		if mode == "" {
+			mode = config.RoutingModeInterface
+		}
+		if mode == config.RoutingModeInterface && set.Routing.EgressInterface == "" {
 			continue
 		}
 		if _, ok := routeRuleCache[set.Id]; !ok {
@@ -445,8 +515,6 @@ func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {
 		}
 	}
 }
-
-// --- internal orchestration ---
 
 func routeEnsureRule(be routeBackend, cfg *config.Config, set *config.SetConfig, st routeState, sources []string) error {
 	if cfg.Queue.IPv4Enabled {
@@ -519,10 +587,13 @@ func routeAddMasqueradeRules(be routeBackend, iface, chain string, mark uint32, 
 
 func routeCleanupRule(be routeBackend, st routeState) {
 	markStr := fmt.Sprintf("0x%x", st.mark)
+	markStrMask := fmt.Sprintf("0x%x/0x%x", st.mark, st.mark)
 	tableStr := fmt.Sprintf("%d", st.table)
 	if hasBinary("ip") {
 		routeDelRuleLoop(false, markStr, tableStr)
+		routeDelRuleLoop(false, markStrMask, tableStr)
 		routeDelRuleLoop(true, markStr, tableStr)
+		routeDelRuleLoop(true, markStrMask, tableStr)
 		runLogged("routing: flush route table v4", "ip", "route", "flush", "table", tableStr)
 		runLogged("routing: flush route table v6", "ip", "-6", "route", "flush", "table", tableStr)
 	}
@@ -544,25 +615,62 @@ func routeCleanupRule(be routeBackend, st routeState) {
 	be.destroyIPSet(st.setV6)
 }
 
-// --- helpers ---
-
 func routeEnsurePolicyRouting(iface string, mark uint32, table int, ipv4, ipv6 bool) {
 	prio := 10000 + table
 	markStr := fmt.Sprintf("0x%x", mark)
+	markStrMask := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	tableStr := fmt.Sprintf("%d", table)
 	prioStr := fmt.Sprintf("%d", prio)
-	ifaceV4 := routeGetIfaceAddr(iface, false)
-	ifaceV6 := routeGetIfaceAddr(iface, true)
 
 	if ipv4 {
 		routeDelRuleLoop(false, markStr, tableStr)
-		runLogged("routing: add ip rule v4", "ip", "rule", "add", "fwmark", markStr, "lookup", tableStr, "priority", prioStr)
-		routeReplaceDefaultRoute(iface, ifaceV4, tableStr, false)
+		routeDelRuleLoop(false, markStrMask, tableStr)
+		runLogged("routing: add ip rule v4", "ip", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
 	}
 	if ipv6 {
 		routeDelRuleLoop(true, markStr, tableStr)
-		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStr, "lookup", tableStr, "priority", prioStr)
+		routeDelRuleLoop(true, markStrMask, tableStr)
+		runLogged("routing: add ip rule v6", "ip", "-6", "rule", "add", "fwmark", markStrMask, "lookup", tableStr, "priority", prioStr)
+	}
+
+	if _, err := net.InterfaceByName(iface); err != nil {
+		log.Infof("Routing: interface %s not present (%v); default route deferred until it appears", iface, err)
+		return
+	}
+
+	ifaceV4 := routeGetIfaceAddr(iface, false)
+	ifaceV6 := routeGetIfaceAddr(iface, true)
+	if ipv4 {
+		routeReplaceDefaultRoute(iface, ifaceV4, tableStr, false)
+	}
+	if ipv6 {
 		routeReplaceDefaultRoute(iface, ifaceV6, tableStr, true)
+	}
+}
+
+func RoutingReinstallForInterface(cfg *config.Config, iface string) {
+	if cfg == nil || iface == "" || !hasBinary("ip") {
+		return
+	}
+	if _, err := net.InterfaceByName(iface); err != nil {
+		log.Tracef("Routing: interface %s no longer present; skipping reinstall", iface)
+		return
+	}
+	routeMu.Lock()
+	defer routeMu.Unlock()
+
+	ipv4 := cfg.Queue.IPv4Enabled
+	ipv6 := cfg.Queue.IPv6Enabled
+	count := 0
+	for _, st := range routeRuleCache {
+		if st.mode == config.RoutingModeProxy || st.iface != iface {
+			continue
+		}
+		routeEnsurePolicyRouting(st.iface, st.mark, st.table, ipv4, ipv6)
+		count++
+	}
+	if count > 0 {
+		log.Infof("Routing: reinstalled policy routes for interface %s (%d set(s))", iface, count)
 	}
 }
 
@@ -694,7 +802,7 @@ func routeResolveIDs(cfg *config.Config, set *config.SetConfig) (uint32, int) {
 	base := h.Sum32()
 
 	for attempt := uint32(0); attempt < 4096; attempt++ {
-		table := 100 + int((base+attempt)%2000)
+		table := 100 + int((base+attempt)%150)
 		mark := uint32(0x100 + (base+attempt)%0x7E00)
 		if _, ok := usedMarks[mark]; ok {
 			continue
@@ -716,6 +824,9 @@ func routeResolveIDs(cfg *config.Config, set *config.SetConfig) (uint32, int) {
 		}
 		mark++
 		table++
+		if table > 249 {
+			table = 100
+		}
 	}
 	routeIfaceAuto[set.Routing.EgressInterface] = routeState{mark: mark, table: table}
 	return mark, table

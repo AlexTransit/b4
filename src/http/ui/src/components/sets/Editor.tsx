@@ -2,9 +2,11 @@ import {
   Box,
   Button,
   CircularProgress,
+  Fab,
   Fade,
   Paper,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -151,6 +153,11 @@ export const SetEditorPage = ({
 
   if (!editedSet) return null;
 
+  let saveTooltip: string;
+  if (saving) saveTooltip = t("core.saving");
+  else if (isNew) saveTooltip = t("sets.editor.createSet");
+  else saveTooltip = t("core.save");
+
   return (
     <>
       {/* Header with tabs */}
@@ -295,6 +302,27 @@ export const SetEditorPage = ({
           />
         </TabPanel>
       </Box>
+
+      <Tooltip title={saveTooltip} placement="left">
+        <span style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1200 }}>
+          <Fab
+            size="medium"
+            onClick={handleSave}
+            disabled={!editedSet.name.trim() || saving}
+            sx={{
+              bgcolor: colors.secondary,
+              color: colors.background.default,
+              "&:hover": { bgcolor: colors.secondary },
+              "&.Mui-disabled": {
+                bgcolor: colors.border.strong,
+                color: colors.background.default,
+              },
+            }}
+          >
+            {saving ? <CircularProgress size={20} /> : <SaveIcon />}
+          </Fab>
+        </span>
+      </Tooltip>
     </>
   );
 };

@@ -8,15 +8,8 @@ import (
 	"github.com/daniellavrushin/b4/sock"
 )
 
-// sendFakeSyn sends a fake SYN packet with payload to confuse DPI systems
 func (w *Worker) sendFakeSyn(set *config.SetConfig, raw []byte, ipHdrLen, tcpHdrLen int) {
-	var fakePayload []byte
-	switch set.Faking.SNIType {
-	case config.FakePayloadDefault2:
-		fakePayload = sock.FakeSNI2
-	default:
-		fakePayload = sock.FakeSNI1
-	}
+	fakePayload := sock.GetPayload(&set.Faking)
 
 	fakePayloadLen := 0
 	if set.TCP.SynFakeLen > 0 {
@@ -76,15 +69,8 @@ func (w *Worker) sendFakeSyn(set *config.SetConfig, raw []byte, ipHdrLen, tcpHdr
 	_ = w.sock.SendIPv4(fakePkt, dst)
 }
 
-// sendFakeSynV6 sends a fake SYN packet for IPv6
 func (w *Worker) sendFakeSynV6(set *config.SetConfig, raw []byte, ipHdrLen, tcpHdrLen int) {
-	var fakePayload []byte
-	switch set.Faking.SNIType {
-	case config.FakePayloadDefault2:
-		fakePayload = sock.FakeSNI2
-	default:
-		fakePayload = sock.FakeSNI1
-	}
+	fakePayload := sock.GetPayload(&set.Faking)
 
 	fakePayloadLen := 0
 	if set.TCP.SynFakeLen > 0 {

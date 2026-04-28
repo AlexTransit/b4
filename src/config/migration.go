@@ -3,7 +3,10 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/daniellavrushin/b4/log"
 	"github.com/google/uuid"
@@ -50,6 +53,142 @@ var migrationRegistry = map[int]MigrationFunc{
 	30: migrateV30to31, // Add TCP IP block detection config
 	31: migrateV31to32, // Add watchdog config
 	32: migrateV32to33, // Add TCP RST protection config
+	33: migrateV33to34, // Add manual devices to device config
+	34: migrateV34to35, // Add routing mode and upstream proxy config
+}
+
+func migrateV34to35(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v34->v35: Adding routing mode and upstream proxy config")
+	for _, set := range c.Sets {
+		if set.Routing.Mode == "" {
+			set.Routing.Mode = RoutingModeInterface
+		}
+		set.Routing.Upstream.UseDomain = true
+	}
+	return nil
+}
+
+func migrateV33to34(c *Config, raw map[string]interface{}) error {
+	log.Tracef("Migration v33->v34: Unifying device model")
+
+	deviceMap := make(map[string]*Device)
+
+	queue, _ := raw["queue"].(map[string]interface{})
+	devicesRaw, _ := queue["devices"].(map[string]interface{})
+
+	if macs, ok := devicesRaw["mac"].([]interface{}); ok {
+		for _, m := range macs {
+			if mac, ok := m.(string); ok {
+				mac = strings.ToUpper(strings.TrimSpace(mac))
+				if mac == "" {
+					continue
+				}
+				d := deviceMap[mac]
+				if d == nil {
+					d = &Device{MAC: mac}
+					deviceMap[mac] = d
+				}
+				d.Selected = true
+			}
+		}
+	}
+
+	if clamps, ok := devicesRaw["mss_clamps"].([]interface{}); ok {
+		for _, item := range clamps {
+			m, _ := item.(map[string]interface{})
+			mac, _ := m["mac"].(string)
+			size, _ := m["size"].(float64)
+			mac = strings.ToUpper(strings.TrimSpace(mac))
+			if mac == "" || int(size) <= 0 {
+				continue
+			}
+			d := deviceMap[mac]
+			if d == nil {
+				d = &Device{MAC: mac}
+				deviceMap[mac] = d
+			}
+			d.MSSClamp = int(size)
+		}
+	}
+
+	if manuals, ok := devicesRaw["manual_devices"].([]interface{}); ok {
+		for _, item := range manuals {
+			m, _ := item.(map[string]interface{})
+			ip, _ := m["ip"].(string)
+			mac, _ := m["mac"].(string)
+			name, _ := m["name"].(string)
+			if ip == "" {
+				continue
+			}
+			mac = strings.ToUpper(strings.TrimSpace(mac))
+			if mac == "" {
+				mac = generateSyntheticMAC(ip)
+			}
+			if mac == "" {
+				continue
+			}
+			d := deviceMap[mac]
+			if d == nil {
+				d = &Device{MAC: mac}
+				deviceMap[mac] = d
+			}
+			d.IP = ip
+			d.IsManual = true
+			if name != "" {
+				d.Name = name
+			}
+		}
+	}
+
+	aliases := loadAliasesForMigration(c.ConfigPath)
+	for mac, name := range aliases {
+		mac = strings.ToUpper(strings.TrimSpace(mac))
+		d := deviceMap[mac]
+		if d == nil {
+			d = &Device{MAC: mac}
+			deviceMap[mac] = d
+		}
+		if d.Name == "" {
+			d.Name = name
+		}
+	}
+
+	devices := make([]Device, 0, len(deviceMap))
+	for _, d := range deviceMap {
+		devices = append(devices, *d)
+	}
+	c.Queue.Devices.Devices = devices
+
+	return nil
+}
+
+func generateSyntheticMAC(ip string) string {
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return ""
+	}
+	v4 := parsed.To4()
+	if v4 != nil {
+		return fmt.Sprintf("02:B4:%02X:%02X:%02X:%02X", v4[0], v4[1], v4[2], v4[3])
+	}
+	v6 := parsed.To16()
+	return fmt.Sprintf("02:B4:%02X:%02X:%02X:%02X", v6[12], v6[13], v6[14], v6[15])
+}
+
+func loadAliasesForMigration(configPath string) map[string]string {
+	if configPath == "" {
+		return nil
+	}
+	path := filepath.Join(filepath.Dir(configPath), "mac_aliases.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	var aliases map[string]string
+	if err := json.Unmarshal(data, &aliases); err != nil {
+		return nil
+	}
+	return aliases
 }
 
 func migrateV32to33(c *Config, _ map[string]interface{}) error {
@@ -160,12 +299,7 @@ func migrateV23to24(c *Config, _ map[string]interface{}) error {
 
 func migrateV22to23(c *Config, _ map[string]interface{}) error {
 	log.Tracef("Migration v22->v23: Adding queue-level MSS clamping config")
-
 	c.Queue.MSSClamp = DefaultConfig.Queue.MSSClamp
-	if c.Queue.Devices.MSSClamps == nil {
-		c.Queue.Devices.MSSClamps = []DeviceMSSClamp{}
-	}
-
 	return nil
 }
 
@@ -495,8 +629,6 @@ func (c *Config) LoadWithMigration(path string) error {
 			c.Sets = append(c.Sets, &set)
 		}
 	}
-
-	ApplyConfigDefaults(c)
 
 	if c.Version < CurrentConfigVersion {
 		log.Infof("Config version %d is older than current version %d, migrating",

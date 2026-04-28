@@ -3,49 +3,49 @@ sidebar_position: 2
 title: OpenWRT
 ---
 
-# OpenWRT
+## Requirements
 
-## Требования
+- OpenWRT 19.07 or newer
+- External storage (USB or extroot) is recommended, since the internal router memory may not have enough space
 
-- OpenWRT 19.07 и выше
-- Внешнее хранилище (USB или extroot) — рекомендуется, так как на внутренней памяти роутера может не хватить места
+:::warning Disk space
+On OpenWRT routers, internal memory is limited (overlay). If less than 2 MB is available, the installer will warn you. Using extroot or a USB drive is recommended.
 
-:::warning Место на диске
-На роутерах с OpenWRT внутренняя память ограничена (overlay). Если доступно менее 2 МБ, установщик предупредит об этом. Рекомендуется использовать extroot или USB-накопитель.
-
-Инструкция по настройке extroot: https://openwrt.org/docs/guide-user/additional-software/extroot_configuration
+Extroot setup guide: https://openwrt.org/docs/guide-user/additional-software/extroot_configuration
 :::
 
-## Установка
+## Install
 
-Подключитесь к роутеру по SSH и выполните:
+Connect to the router over SSH and run:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
 ```
 
-Если `curl` не установлен:
+If `curl` is not installed:
 
 ```bash
 opkg update && opkg install curl ca-certificates
 ```
 
-Или через `wget`:
+Or with `wget`:
 
 ```bash
 wget -qO- https://raw.githubusercontent.com/DanielLavrushin/b4/main/install.sh | sh
 ```
 
-:::info wget на OpenWRT
-Стандартный `wget` в OpenWRT (BusyBox) не поддерживает HTTPS. Установите полную версию:
+:::info wget on OpenWRT
+The default `wget` in OpenWRT (BusyBox) does not support HTTPS. Install the full version:
+
 ```bash
 opkg update && opkg install wget-ssl ca-certificates
 ```
+
 :::
 
-## Модули ядра
+## Kernel modules
 
-Установщик попытается загрузить необходимые модули автоматически. Если при запуске вы видите предупреждение `[WARN] No netfilter queue module available` или ошибки связанные с nftables — установите модули вручную.
+The installer will try to load the required modules automatically. If on startup you see the warning `[WARN] No netfilter queue module available` or errors related to nftables, install the modules manually.
 
 ### OpenWRT 24.x+ (apk)
 
@@ -53,22 +53,22 @@ opkg update && opkg install wget-ssl ca-certificates
 apk add kmod-nft-queue kmod-nft-nat kmod-nft-compat kmod-nft-conntrack
 ```
 
-### OpenWRT 23.x и ниже (opkg)
+### OpenWRT 23.x and older (opkg)
 
 ```bash
 opkg update
 opkg install kmod-nft-queue kmod-nft-conntrack nftables-json coreutils-nohup
 ```
 
-Для совсем старых версий (без nftables):
+For very old versions (without nftables):
 
 ```bash
 opkg install kmod-nfnetlink-queue kmod-ipt-nfqueue iptables-mod-nfqueue iptables-mod-conntrack-extra
 ```
 
-### Загрузка модулей
+### Loading modules
 
-После установки модулей может потребоваться загрузить их вручную:
+After installing the modules you may need to load them manually:
 
 ```bash
 modprobe nft_queue
@@ -76,70 +76,70 @@ modprobe nft_ct
 modprobe xt_connbytes
 ```
 
-Если команда выполняется без вывода — модуль загружен успешно.
+If the command runs with no output, the module loaded successfully.
 
-## Управление сервисом
+## Service control
 
 ```bash
-/etc/init.d/b4 enable     # автозапуск при загрузке
+/etc/init.d/b4 enable     # autostart on boot
 /etc/init.d/b4 start
 /etc/init.d/b4 stop
 /etc/init.d/b4 restart
 ```
 
-:::tip Работа через SSH
-Сервис b4 работает как системный демон — он продолжит работать после закрытия SSH-сессии (PuTTY, терминал и т.д.). Не нужно использовать `screen` или `nohup` вручную.
+:::tip Working over SSH
+The b4 service runs as a system daemon - it keeps running after the SSH session is closed (PuTTY, terminal, etc.). You do not need to use `screen` or `nohup` manually.
 :::
 
-## Пути
+## Paths
 
-При наличии `/opt` (extroot/USB):
+When `/opt` is available (extroot/USB):
 
-| Что | Где |
+| What | Where |
 | --- | --- |
-| Бинарник | `/opt/bin/b4` |
-| Конфигурация | `/opt/etc/b4/b4.json` |
+| Binary | `/opt/bin/b4` |
+| Configuration | `/opt/etc/b4/b4.json` |
 
-Без внешнего хранилища (fallback):
+Without external storage (fallback):
 
-| Что | Где |
+| What | Where |
 | --- | --- |
-| Бинарник | `/usr/bin/b4` |
-| Конфигурация | `/etc/b4/b4.json` |
+| Binary | `/usr/bin/b4` |
+| Configuration | `/etc/b4/b4.json` |
 
-## Веб-интерфейс
+## Web interface
 
-После запуска b4 доступен по адресу `http://<IP роутера>:7000`. Например, если IP роутера `192.168.1.1`, откройте в браузере:
+After startup, b4 is reachable at `http://<router IP>:7000`. For example, if the router IP is `192.168.1.1`, open in the browser:
 
 ```text
 http://192.168.1.1:7000
 ```
 
-## LuCI-приложение
+## LuCI application
 
-Существует сторонний пакет [luci-app-b4](https://github.com/BugOldfag/luci-app-b4), который добавляет управление b4 в интерфейс LuCI. Проект находится в стадии alpha и покрывает часть функций. Основной веб-интерфейс b4 (порт 7000) по-прежнему доступен.
+There is a third-party package [luci-app-b4](https://github.com/BugOldfag/luci-app-b4) that adds b4 management to the LuCI interface. The project is in alpha and covers only part of the features. The main b4 web interface (port 7000) remains available.
 
-## Устранение неполадок
+## Troubleshooting
 
-### Service crashed / сервис не запускается
+### Service crashed / service will not start
 
-1. Убедитесь что модули ядра установлены и загружены (см. раздел «Модули ядра» выше)
-2. Проверьте логи: `logread | grep b4`
+1. Make sure the kernel modules are installed and loaded (see "Kernel modules" above)
+2. Check the logs: `logread | grep b4`
 
 ### Error: Could not process rule
 
-Если b4 вылетает с ошибкой при добавлении правил в цепочку, возможно остались «битые» таблицы от предыдущего неудачного запуска. Очистите их:
+If b4 fails with an error while adding rules to a chain, there may be leftover "broken" tables from a previous failed run. Clear them:
 
 ```bash
 nft delete table inet b4_mangle 2>/dev/null
 ```
 
-После этого запустите b4 заново:
+Then start b4 again:
 
 ```bash
 /etc/init.d/b4 restart
 ```
 
-### Низкая скорость / тормозит видео
+### Slow speed / video stuttering
 
-Проверьте настройку **Software flow offloading** в разделе Network → Firewall. Попробуйте включить или выключить её — на некоторых устройствах это влияет на производительность b4.
+Check the **Software flow offloading** setting under Network -> Firewall. Try turning it on or off - on some devices this affects b4 performance.

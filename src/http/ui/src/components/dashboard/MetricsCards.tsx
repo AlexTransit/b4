@@ -1,12 +1,6 @@
 import { Grid } from "@mui/material";
-import {
-  Shield as ShieldIcon,
-  Lan as LanIcon,
-  Storage as StorageIcon,
-} from "@mui/icons-material";
 import { StatCard } from "./StatCard";
 import { formatNumber } from "@utils";
-import { colors } from "@design";
 import { useTranslation } from "react-i18next";
 import type { Metrics } from "./Page";
 
@@ -21,38 +15,43 @@ export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
       ? ((metrics.targeted_connections / metrics.total_connections) * 100).toFixed(1)
       : "0.0";
 
+  const isIdle = metrics.rst_dropped === 0;
+
   return (
-    <Grid container spacing={2}>
-      <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
+    <Grid container spacing={1.5}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
         <StatCard
-          title={t("dashboard.metrics.connections")}
+          label={t("dashboard.metrics.connections")}
           value={formatNumber(metrics.total_connections)}
-          subtitle={`${metrics.current_cps.toFixed(1)} ${t("dashboard.metrics.connPerSec")}`}
-          icon={<LanIcon />}
-          color={colors.primary}
-          variant="outlined"
+          sub={`${metrics.current_cps.toFixed(1)} ${t("dashboard.metrics.connPerSec")}`}
+          tone="primary"
         />
       </Grid>
 
-      <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
         <StatCard
-          title={t("dashboard.metrics.bypassed")}
+          label={t("dashboard.metrics.bypassed")}
           value={formatNumber(metrics.targeted_connections)}
-          subtitle={`${targetRate}% ${t("dashboard.metrics.ofTotal")}`}
-          icon={<ShieldIcon />}
-          color={colors.secondary}
-          variant="outlined"
+          sub={`${targetRate}% ${t("dashboard.metrics.ofTotal")}`}
+          tone="secondary"
         />
       </Grid>
 
-      <Grid size={{ xs: 12, sm: 4 }} sx={{ display: "flex" }}>
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
         <StatCard
-          title={t("dashboard.metrics.packets")}
+          label={t("dashboard.metrics.rstDropped")}
+          value={formatNumber(metrics.rst_dropped)}
+          sub={isIdle ? t("dashboard.metrics.idle") : undefined}
+          tone={isIdle ? "muted" : "primary"}
+        />
+      </Grid>
+
+      <Grid size={{ xs: 12, sm: 6, md: 3 }} sx={{ display: "flex" }}>
+        <StatCard
+          label={t("dashboard.metrics.packets")}
           value={formatNumber(metrics.packets_processed)}
-          subtitle={`${metrics.current_pps.toFixed(1)} ${t("dashboard.metrics.pktPerSec")}`}
-          icon={<StorageIcon />}
-          color={colors.tertiary}
-          variant="outlined"
+          sub={`${metrics.current_pps.toFixed(1)} ${t("dashboard.metrics.pktPerSec")}`}
+          tone="primary"
         />
       </Grid>
     </Grid>

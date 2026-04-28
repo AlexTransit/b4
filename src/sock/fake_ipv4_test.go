@@ -34,7 +34,7 @@ func TestBuildFakeSNIPacketV4_DefaultPayload1(t *testing.T) {
 	}
 
 	// Should contain FakeSNI payload
-	if len(result) < 40+len(FakeSNI1) {
+	if len(result) < 40+len(config.FakeSNI1) {
 		t.Errorf("result too short: %d", len(result))
 	}
 }
@@ -50,7 +50,7 @@ func TestBuildFakeSNIPacketV4_DefaultPayload2(t *testing.T) {
 	}
 
 	// Should contain FakeSNI payload
-	if len(result) < 40+len(FakeSNI2) {
+	if len(result) < 40+len(config.FakeSNI2) {
 		t.Errorf("result too short: %d", len(result))
 	}
 }

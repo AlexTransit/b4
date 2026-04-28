@@ -3,12 +3,8 @@ sidebar_position: 2
 title: TCP
 ---
 
-# TCP
+The TCP tab is the core of DPI bypass configuration. It contains three sub-tabs matching three aspects of packet processing:
 
-Вкладка TCP — основная часть настройки обхода DPI. Содержит три подвкладки, соответствующие трём аспектам обработки пакетов:
-
-- [Общее](./general) — лимиты, задержки, дублирование
-- [Фрагментация](./splitting) — разбиение пакетов на части
-- [Faking](./faking) — отправка ложных пакетов, десинхронизация, мутация
-
-<!-- screenshot: вкладка TCP с тремя подвкладками -->
+- [General](./general) - limits, delays, duplication
+- [Splitting](./splitting) - breaking packets into pieces
+- [Faking](./faking) - sending fake packets, desync, mutation

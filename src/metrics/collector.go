@@ -19,6 +19,7 @@ type MetricsCollector struct {
 	TCPConnections      uint64            `json:"tcp_connections"`
 	UDPConnections      uint64            `json:"udp_connections"`
 	TargetedConnections uint64            `json:"targeted_connections"`
+	RSTDropped          uint64            `json:"rst_dropped"`
 	CurrentCPS          float64           `json:"current_cps"`
 	CurrentPPS          float64           `json:"current_pps"`
 	CPUUsage            float64           `json:"cpu_usage"`
@@ -267,6 +268,12 @@ func (m *MetricsCollector) RecordConnection(protocol, domain, source, destinatio
 	}
 }
 
+func (m *MetricsCollector) RecordRSTDrop() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.RSTDropped++
+}
+
 func (m *MetricsCollector) RecordPacket(bytes uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -325,6 +332,7 @@ func (m *MetricsCollector) ResetStats() {
 	m.TCPConnections = 0
 	m.UDPConnections = 0
 	m.TargetedConnections = 0
+	m.RSTDropped = 0
 	m.CurrentCPS = 0
 	m.CurrentPPS = 0
 
@@ -367,6 +375,7 @@ func (m *MetricsCollector) GetSnapshot() *MetricsCollector {
 		TCPConnections:      m.TCPConnections,
 		UDPConnections:      m.UDPConnections,
 		TargetedConnections: m.TargetedConnections,
+		RSTDropped:          m.RSTDropped,
 		StartTime:           m.StartTime,
 		Uptime:              m.Uptime,
 		CPUUsage:            m.CPUUsage,

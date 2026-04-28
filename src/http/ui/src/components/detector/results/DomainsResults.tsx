@@ -76,7 +76,7 @@ export function DomainsResults({
           <Box key={d.domain} sx={{ flex: "1 1 280px", minWidth: 0 }}>
             <ResultCard
               index={index}
-              status={status as "ok" | "error" | "warning"}
+              status={status}
               title={d.domain}
               subtitle={d.ip ? `IP: ${d.ip}` : undefined}
               badge={

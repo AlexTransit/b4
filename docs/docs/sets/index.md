@@ -1,81 +1,79 @@
 ---
 sidebar_position: 6
-title: Сеты
+title: Sets
 ---
 
-# Сеты
+A set is a bundle of DPI bypass settings tied to a list of domains, IP addresses, UDP ports, or GeoSite/GeoIP categories. You can create multiple sets with different strategies for different sites.
 
-Сет — это набор настроек обхода DPI, привязанный к списку доменов, IP-адресов, UDP-портов  или категорий GeoSite/GeoIP. Можно создать несколько сетов с разными стратегиями для разных сайтов.
+## Managing sets
 
-## Управление сетами
+The **Sets** page shows every set you have created. For each set you see:
 
-На странице **Сеты** отображаются все созданные наборы. Для каждого сета видно:
+- Name and status (on/off)
+- Number of domains and IPs
+- Active techniques (COMBO, DISORDER, HYBRID, etc.)
+- State of DNS routing and SNI Faking
 
-- Название и статус (включён/выключен)
-- Количество доменов и IP
-- Активные техники (COMBO, DISORDER, HYBRID и т.д.)
-- Состояние DNS-маршрутизации и SNI Faking
+![20260418234612](../../static/img/index/20260418234612.png)
 
-![sets](../../static/img/index/20260323210109.png)
+Available actions:
 
-Доступные действия:
+- **Create set** - a new bundle of settings
+- **Edit** - click the card
+- **Duplicate** - create a copy of an existing set
+- **Compare** - side-by-side comparison of two sets
+- **Delete** - remove one or several sets (via bulk selection)
+- **Drag and drop** - change the order of sets (order affects processing priority)
 
-- **Создать сет** — новый набор настроек
-- **Редактировать** — клик по карточке
-- **Дублировать** — создать копию существующего сета
-- **Сравнить** — сравнение двух сетов в два столбца
-- **Удалить** — удаление одного или нескольких сетов (через массовое выделение)
-- **Перетаскивание** — изменение порядка сетов (порядок влияет на приоритет обработки)
+## Set editor
 
-## Редактор сета
+The editor has 5 tabs:
 
-Редактор содержит 5 вкладок:
+- [Targets](./targets) - domains, IPs, GeoSite/GeoIP categories, devices
+- [TCP](./tcp/) - fragmentation, faking, desync, and other TCP strategies
+- [UDP](./udp) - UDP traffic handling, QUIC, STUN
+- [Routing](./routing) - DNS redirect and traffic routing through interfaces
+- **Import/Export** - JSON representation of the set configuration for moving between devices
 
-- [Цели](./targets) — домены, IP, GeoSite/GeoIP категории, устройства
-- [TCP](./tcp/) — фрагментация, faking, desync и другие TCP-стратегии
-- [UDP](./udp) — обработка UDP-трафика, QUIC, STUN
-- [Маршрутизация](./routing) — DNS-редирект и маршрутизация трафика через интерфейсы
-- **Импорт/Экспорт** — JSON-представление конфигурации сета для переноса между устройствами
+![20260418234644](../../static/img/index/20260418234644.png)
 
-![set](../../static/img/index/20260323210150.png)
-
-## Как это работает
+## How it works
 
 ```mermaid
 flowchart TD
-    A["Пакет из сети"] --> B{"IP назначения\nсовпал с сетом?"}
+    A["Packet from the network"] --> B{"Destination IP\nmatches a set?"}
 
-    B -->|"Да"| C["Предварительный сет\n(по IP)"]
-    B -->|"Нет"| D
+    B -->|"Yes"| C["Preliminary set\n(by IP)"]
+    B -->|"No"| D
 
-    C --> D{"Есть ли\nTLS/QUIC данные?"}
+    C --> D{"TLS/QUIC data\npresent?"}
 
-    D -->|"Да"| E["Извлечь домен (SNI)"]
-    D -->|"Нет"| F
+    D -->|"Yes"| E["Extract domain (SNI)"]
+    D -->|"No"| F
 
-    E --> G{"Домен совпал\nс сетом?"}
-    G -->|"Да"| SEL
-    G -->|"Нет"| TLSCHK
+    E --> G{"Domain matches\na set?"}
+    G -->|"Yes"| SEL
+    G -->|"No"| TLSCHK
 
-    TLSCHK{"IP совпал ранее\nи версия TLS\nподходит?"}
-    TLSCHK -->|"Да"| SEL
-    TLSCHK -->|"Нет"| F
+    TLSCHK{"IP matched earlier\nand TLS version\nmatches?"}
+    TLSCHK -->|"Yes"| SEL
+    TLSCHK -->|"No"| F
 
-    F{"IP ранее\nсвязывался\nс доменом?"}
-    F -->|"Да"| SEL
-    F -->|"Нет"| H
+    F{"IP previously\nseen with\na domain?"}
+    F -->|"Yes"| SEL
+    F -->|"No"| H
 
-    H{"Есть сет\nтолько по порту?"}
-    H -->|"Да"| SEL
-    H -->|"Нет"| SKIP["Пропустить"]
+    H{"Is there a set\nby port only?"}
+    H -->|"Yes"| SEL
+    H -->|"No"| SKIP["Skip"]
 
-    SEL{"Сет с устройством\n+ версия TLS?"}
-    SEL -->|"Да"| OK["Применить сет"]
-    SEL -->|"Нет"| SEL2{"Общий сет\n+ версия TLS?"}
-    SEL2 -->|"Да"| OK
-    SEL2 -->|"Нет"| SEL3{"Любой\nподходящий сет?"}
-    SEL3 -->|"Да"| OK
-    SEL3 -->|"Нет"| SKIP
+    SEL{"Set with device\n+ TLS version?"}
+    SEL -->|"Yes"| OK["Apply set"]
+    SEL -->|"No"| SEL2{"Generic set\n+ TLS version?"}
+    SEL2 -->|"Yes"| OK
+    SEL2 -->|"No"| SEL3{"Any\nmatching set?"}
+    SEL3 -->|"Yes"| OK
+    SEL3 -->|"No"| SKIP
 
     style A fill:#4a9eff,color:#fff,stroke:none
     style OK fill:#4caf50,color:#fff,stroke:none
@@ -87,52 +85,52 @@ flowchart TD
     style TLSCHK fill:#ff9800,color:#fff,stroke:none
 ```
 
-### Порядок сопоставления
+### Match order
 
-1. **IP-адрес** — проверяется первым. Если IP назначения совпал с IP/CIDR в каком-то сете, это запоминается как предварительное совпадение
-2. **Домен (SNI)** — если в пакете есть TLS/QUIC-данные, b4 извлекает домен. Если домен совпал с сетом — **этот сет заменяет** предварительное совпадение по IP. Домен всегда имеет приоритет
-3. **Выученный IP** — если b4 ранее видел этот IP в связке с доменом (из предыдущих соединений), используется тот же сет
-4. **Порт** — проверяется, только если сет настроен исключительно по порту (без доменов и IP)
-5. **Предварительный IP** — если ни домен, ни выученный IP, ни порт не сработали, используется совпадение по IP из шага 1
+1. **IP address** - checked first. If the destination IP matches an IP/CIDR in some set, this is remembered as a preliminary match
+2. **Domain (SNI)** - if the packet contains TLS/QUIC data, b4 extracts the domain. If the domain matches a set, **that set replaces** the preliminary IP match. Domain always has priority
+3. **Learned IP** - if b4 has previously seen this IP tied to a domain (from earlier connections), the same set is used
+4. **Port** - checked only if a set is configured by port only (no domains or IPs)
+5. **Preliminary IP** - if neither domain, learned IP, nor port matched, the IP match from step 1 is used
 
-:::tip Фильтр портов
-Если в сете настроен фильтр портов — он работает как дополнительное условие. Даже если домен или IP совпали, пакет будет обработан только при совпадении порта.
+:::tip Port filter
+When a port filter is configured in a set, it acts as an additional condition. Even if the domain or IP matches, the packet is processed only when the port matches as well.
 :::
 
-:::info Выбор сета при нескольких совпадениях
-Если один и тот же домен или IP настроен в нескольких сетах, b4 выбирает сет по приоритету:
+:::info Picking a set when multiple match
+If the same domain or IP is configured in multiple sets, b4 picks a set by priority:
 
-1. Сет с указанным **исходным устройством**, совпавшим с MAC отправителя + совпавшей **версией TLS**
-2. Сет без привязки к устройству + совпавшей версией TLS
-3. Если ни один сет не подошёл по TLS — версия TLS игнорируется и проверка повторяется
+1. A set with a defined **source device** matching the sender's MAC + matching **TLS version**
+2. A set with no device binding + matching TLS version
+3. If no set matches by TLS, the TLS version is ignored and the check is repeated
 
-Таким образом, сеты с привязкой к устройствам всегда имеют приоритет над общими, а фильтр TLS-версии уточняет выбор, но не блокирует обработку.
+This way, device-bound sets always win over generic ones, and the TLS version filter narrows the choice without blocking processing.
 :::
 
-:::info Выученные IP
-Когда b4 видит соединение, где домен (SNI) совпал с сетом, он запоминает связку IP → домен на 10 минут. Это ускоряет обработку последующих пакетов к тому же серверу, даже если в них нет SNI.
+:::info Learned IPs
+When b4 sees a connection where the domain (SNI) matches a set, it remembers the IP -> domain mapping for 10 minutes. This speeds up handling of later packets to the same server even when they do not carry SNI.
 :::
 
-### Что происходит при совпадении
+### What happens on a match
 
-Для TCP-пакетов b4 перехватывает оригинальный пакет и отправляет вместо него модифицированную версию. В зависимости от настроек сета применяются:
+For TCP packets, b4 intercepts the original packet and sends a modified version instead. Depending on the set settings, the following may be applied:
 
-1. Удаление SACK-опции (если включено)
-2. Мутация ClientHello (если включена)
-3. Десинхронизация (RST/FIN/ACK)
-4. Манипуляция TCP-окном
-5. Отправка фейковых SNI-пакетов
-6. Фрагментация по выбранной стратегии
+1. Removing the SACK option (if enabled)
+2. ClientHello mutation (if enabled)
+3. Desync (RST/FIN/ACK)
+4. TCP window manipulation
+5. Sending fake SNI packets
+6. Fragmentation by the chosen strategy
 
-Для UDP — пакет либо отбрасывается (режим drop), либо заменяется фейковым ответом (режим fake).
+For UDP, the packet is either dropped (drop mode) or replaced with a fake response (fake mode).
 
-Если ни один сет не совпал — пакет проходит без изменений.
+If no set matches, the packet passes through unchanged.
 
-## Импорт и экспорт
+## Import and export
 
-Вкладка **Импорт/Экспорт** показывает JSON-конфигурацию сета. Можно:
+The **Import/Export** tab shows the JSON configuration of a set. You can:
 
-- Скопировать JSON для переноса на другое устройство
-- Вставить JSON для импорта конфигурации
+- Copy the JSON to move it to another device
+- Paste JSON to import a configuration
 
-Исходные устройства (MAC-адреса) не экспортируются — их нужно настроить заново на целевом устройстве.
+Source devices (MAC addresses) are not exported - they must be configured again on the target device.

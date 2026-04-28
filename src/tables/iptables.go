@@ -329,6 +329,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 	queueNum := cfg.Queue.StartNum
 	threads := cfg.Queue.Threads
 	chainName := "B4"
+	preChainName := "B4_PREROUTING"
 	markAccept := fmt.Sprintf("0x%x/0x%x", cfg.Queue.Mark, cfg.Queue.Mark)
 	if cfg.Queue.Mark == 0 {
 		markAccept = "0x8000/0x8000"
@@ -341,6 +342,8 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 	for _, ipt := range ipts {
 		ch := Chain{manager: manager, IPT: ipt, Table: "mangle", Name: chainName}
 		chains = append(chains, ch)
+		preCh := Chain{manager: manager, IPT: ipt, Table: "mangle", Name: preChainName}
+		chains = append(chains, preCh)
 
 		tcpConnbytesRange := fmt.Sprintf("0:%d", cfg.Queue.TCPConnBytesLimit)
 		udpConnbytesRange := fmt.Sprintf("0:%d", cfg.Queue.UDPConnBytesLimit)
@@ -387,9 +390,9 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 					manager.buildNFQSpec(queueNum, threads)...,
 				)
 				rules = append(rules,
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: rstSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: tcpResponseSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: synackSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: rstSpec},
 				)
 			}
 		} else {
@@ -409,15 +412,16 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 					manager.buildNFQSpec(queueNum, threads)...,
 				)
 				rules = append(rules,
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: tcpResponseSpec},
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: synackSpec},
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: rstSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: tcpResponseSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: synackSpec},
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: rstSpec},
 				)
 			}
 		}
 
 		rules = append(rules,
-			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsResponseSpec},
+			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: dnsSpec},
+			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I", Spec: dnsResponseSpec},
 		)
 
 		dupIPv4, dupIPv6 := cfg.CollectDuplicateIPs()
@@ -519,13 +523,14 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			}
 		}
 
-		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+		selectedMACs := cfg.Queue.Devices.SelectedMACs()
+		if cfg.Queue.Devices.Enabled && len(selectedMACs) > 0 {
 			if cfg.Queue.Devices.WhiteIsBlack {
 				rules = append(rules,
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
 						Spec: []string{"-j", chainName}},
 				)
-				for _, mac := range cfg.Queue.Devices.Mac {
+				for _, mac := range selectedMACs {
 					mac = strings.ToUpper(strings.TrimSpace(mac))
 					if mac == "" {
 						continue
@@ -536,7 +541,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 					)
 				}
 			} else {
-				for _, mac := range cfg.Queue.Devices.Mac {
+				for _, mac := range selectedMACs {
 					mac = strings.ToUpper(strings.TrimSpace(mac))
 					if mac == "" {
 						continue
@@ -555,7 +560,8 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 		}
 
 		rules = append(rules,
-			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I", Spec: dnsResponseSpec},
+			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I",
+				Spec: []string{"-j", preChainName}},
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I", Spec: dnsResponseSpec},
 			Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "OUTPUT", Action: "I",
 				Spec: []string{"-m", "mark", "--mark", markAccept, "-j", "ACCEPT"}},
@@ -591,7 +597,7 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 						Spec: []string{"-p", "tcp", "--dport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
 					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "FORWARD", Action: "I",
 						Spec: []string{"-p", "tcp", "--dport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
-					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: "PREROUTING", Action: "I",
+					Rule{manager: manager, IPT: ipt, Table: "mangle", Chain: preChainName, Action: "I",
 						Spec: []string{"-p", "tcp", "--sport", "443", "--tcp-flags", "SYN,RST", "SYN", "-j", "TCPMSS", "--set-mss", tcpMSSSpec}},
 				)
 				log.Infof("IPTABLES[%s]: global MSS clamp enabled (size: %d)", ipt, globalSize)
@@ -724,7 +730,13 @@ func (ipt *IPTablesManager) clearB4JumpRules() {
 			}
 		}
 
-		// Clean PREROUTING - parse and remove any NFQUEUE rules for DNS and TCP
+		for {
+			_, err := run(iptBin, "-w", "-t", "mangle", "-D", "PREROUTING", "-j", "B4_PREROUTING")
+			if err != nil {
+				break
+			}
+		}
+
 		for {
 			out, _ := run(iptBin, "-w", "-t", "mangle", "--line-numbers", "-nL", "PREROUTING")
 			lines := strings.Split(out, "\n")
@@ -735,10 +747,9 @@ func (ipt *IPTablesManager) clearB4JumpRules() {
 				if isDNS || isTCP {
 					parts := strings.Fields(line)
 					if len(parts) > 0 {
-						lineNum := parts[0]
-						if _, err := run(iptBin, "-w", "-t", "mangle", "-D", "PREROUTING", lineNum); err == nil {
+						if _, err := run(iptBin, "-w", "-t", "mangle", "-D", "PREROUTING", parts[0]); err == nil {
 							removed = true
-							break // Re-parse after deletion since line numbers shift
+							break
 						}
 					}
 				}

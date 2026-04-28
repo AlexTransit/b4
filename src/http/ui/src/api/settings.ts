@@ -18,6 +18,7 @@ export const configApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(config),
     }),
+  reset: () => apiPost<void>("/api/config/reset"),
 };
 
 // Geodat API

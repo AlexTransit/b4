@@ -31,6 +31,7 @@ export interface DomainPresetResult {
   preset_name: string;
   family?: StrategyFamily;
   phase?: DiscoveryPhase;
+  priority?: number;
   status: "complete" | "failed";
   duration: number;
   speed: number;
@@ -38,6 +39,14 @@ export interface DomainPresetResult {
   error?: string;
   status_code: number;
   set?: B4SetConfig;
+}
+
+export interface BackendStrategyGroup {
+  winner_preset: string;
+  family: StrategyFamily;
+  domains: string[];
+  set?: B4SetConfig;
+  median_speed?: number;
 }
 
 export interface DNSDiscoveryResult {
@@ -70,6 +79,7 @@ export interface DiscoverySuite {
   current_domain?: string;
   domains?: { domain: string; check_url: string }[];
   domain_discovery_results?: Record<string, DiscoveryResult>;
+  strategy_groups?: BackendStrategyGroup[];
 }
 
 export interface DiscoveryResponse {

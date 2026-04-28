@@ -3,13 +3,11 @@ sidebar_position: 6
 title: Docker
 ---
 
-# Docker
-
-Образ: [lavrushin/b4](https://hub.docker.com/r/lavrushin/b4) на Docker Hub.
+Image: [lavrushin/b4](https://hub.docker.com/r/lavrushin/b4) on Docker Hub.
 
 ## docker-compose
 
-Создайте файл `docker-compose.yml`:
+Create a `docker-compose.yml` file:
 
 ```yaml
 services:
@@ -26,7 +24,7 @@ services:
     restart: unless-stopped
 ```
 
-Запуск:
+Run:
 
 ```bash
 mkdir -p config
@@ -48,27 +46,27 @@ docker run -d \
   lavrushin/b4:latest
 ```
 
-## Параметры
+## Parameters
 
-| Параметр | Зачем |
+| Parameter | Purpose |
 | --- | --- |
-| `network_mode: host` | b4 работает с сетевым стеком хоста напрямую |
-| `NET_ADMIN` | управление netfilter и правилами firewall |
-| `NET_RAW` | работа с raw-сокетами |
-| `SYS_MODULE` | загрузка модулей ядра (modprobe) |
-| `-v ./config:/etc/b4` | конфигурация сохраняется на хосте |
+| `network_mode: host` | b4 works with the host network stack directly |
+| `NET_ADMIN` | manage netfilter and firewall rules |
+| `NET_RAW` | use raw sockets |
+| `SYS_MODULE` | load kernel modules (modprobe) |
+| `-v ./config:/etc/b4` | configuration is stored on the host |
 
-## Управление
+## Management
 
 ```bash
-docker compose logs -f b4     # логи
-docker compose restart b4     # перезапуск
-docker compose down            # остановка
-docker compose pull && docker compose up -d   # обновление
+docker compose logs -f b4     # logs
+docker compose restart b4     # restart
+docker compose down            # stop
+docker compose pull && docker compose up -d   # update
 ```
 
-## Веб-интерфейс
+## Web interface
 
-После запуска: `http://localhost:7000`
+After startup: `http://localhost:7000`
 
-Порт настраивается в `config/b4.json` (параметр `web_server.port`).
+The port is configured in `config/b4.json` (`web_server.port`).

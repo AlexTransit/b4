@@ -1,206 +1,204 @@
 ---
 sidebar_position: 2
-title: Фрагментация
+title: Splitting
 ---
 
-# Фрагментация
+The primary DPI bypass tool. The idea: break a TCP packet into pieces so the DPI cannot reassemble them and read the contents (in particular, the SNI field in the TLS ClientHello).
 
-Основной инструмент обхода DPI. Суть: разбить TCP-пакет на части так, чтобы DPI не смог собрать их и прочитать содержимое (в частности, поле SNI в TLS ClientHello).
+![20260418235219](../../../static/img/splitting/20260418235219.png)
 
-![fragment](../../../static/img/splitting/20260323224335.png)
+## Splitting method
 
-## Метод фрагментации
-
-| Метод | Описание |
+| Method | Description |
 | --- | --- |
-| **tcp** | Разделение на уровне TCP-сегментов. Один пакет становится двумя TCP-сегментами |
-| **ip** | Разделение на уровне IP. Один IP-пакет разбивается на IP-фрагменты |
-| **tls** | Одна TLS-запись разбивается на несколько TLS-записей внутри одного TCP-пакета |
-| **oob** | Out-of-Band — вставка байта с TCP URG флагом, который сбивает DPI |
-| **combo** | Комбинация нескольких точек разделения с приманками, перемешиванием и фейками между фрагментами |
-| **hybrid** | Гибрид combo и disorder — комбинированные методы с изменённым порядком |
-| **disorder** | Фрагменты отправляются не по порядку со случайными задержками |
-| **extsplit** | Автоматическое разделение перед SNI-расширением в TLS ClientHello |
-| **firstbyte** | Отправка одного байта, пауза, затем остальное — атака по таймингу |
-| **none** | Без фрагментации (используйте, если нужен только faking) |
+| **tcp** | Splitting at the TCP segment layer. One packet becomes two TCP segments |
+| **ip** | Splitting at the IP layer. One IP packet is broken into IP fragments |
+| **tls** | One TLS record is broken into several TLS records inside a single TCP packet |
+| **oob** | Out-of-Band - inserts a byte with the TCP URG flag that throws off the DPI |
+| **combo** | Combination of several split points with decoys, shuffling, and fakes between fragments |
+| **hybrid** | Hybrid of combo and disorder - combined methods with reordered packets |
+| **disorder** | Fragments are sent out of order with random delays |
+| **extsplit** | Automatic splitting right before the SNI extension in the TLS ClientHello |
+| **firstbyte** | Send a single byte, pause, then the rest - a timing attack |
+| **none** | No splitting (use when only faking is needed) |
 
-:::info Как выбрать метод
-Используйте [Дискавери](../../discovery) — он протестирует все методы и найдёт рабочий. Ручной подбор нужен, если дискавери не справился или вы хотите оптимизировать конкретный случай.
+:::info How to pick a method
+Use [Discovery](../../discovery) - it tests every method and finds one that works. Manual picking is for cases where discovery failed or you want to tune a specific case.
 :::
 
-## Пул стратегий
+## Strategy pool
 
-Если включён пул, b4 случайным образом выбирает метод из пула для каждого нового соединения. Это затрудняет DPI адаптацию к конкретному методу — каждое соединение выглядит по-разному.
+When the pool is enabled, b4 picks a method at random from the pool for every new connection. This makes it harder for DPI to adapt to a specific method - each connection looks different.
 
 :::tip
-Выберите несколько стратегий, которые работают у вашего провайдера (через дискавери), и включите их в пул. Пул не используется, если он пуст — в этом случае используется метод, выбранный выше.
+Pick a few strategies that work on your provider (via discovery) and include them in the pool. The pool is ignored when empty - in that case the method selected above is used.
 :::
 
-## Обратный порядок
+## Reverse order
 
-Отправляет фрагменты в обратном порядке (последний фрагмент первым). DPI, ожидающий данные по порядку, не сможет собрать содержимое.
+Sends fragments in reverse order (last fragment first). A DPI that expects data in order cannot reassemble the content.
 
 ---
 
 ## TCP/IP Segmentation
 
-Доступно при методе **tcp** или **ip**.
+Available for the **tcp** or **ip** method.
 
-### Умное разделение SNI
+### Smart SNI splitting
 
-Автоматически находит SNI-поле в TLS ClientHello и разделяет посередине имени хоста. Рекомендуемый вариант — не требует ручной настройки.
+Automatically finds the SNI field in the TLS ClientHello and splits in the middle of the hostname. Try this first - no manual tuning required.
 
-### Фиксированная позиция разделения
+### Fixed split position
 
-Ручное смещение точки разделения (0–50 байт от начала TLS payload). Используйте, если умное разделение не работает у вашего провайдера. Задаётся как диапазон **мин–макс** — для каждого соединения b4 выберет случайную позицию из диапазона.
+Manual offset of the split point (0-50 bytes from the start of the TLS payload). Use this when smart splitting does not work on your provider. Specified as a **min-max** range - each connection picks a random position from the range.
 
-:::info 3 сегмента
-Если включены оба варианта (умное SNI + фиксированная позиция) — пакет разделяется на **3 сегмента**: на фиксированной позиции и в середине SNI.
+:::info 3 segments
+When both options (smart SNI + fixed position) are enabled, the packet is split into **3 segments**: at the fixed position and in the middle of the SNI.
 :::
 
 ---
 
 ## Combo
 
-Комбинирует несколько точек разделения с приманками и перемешиванием. Самый гибкий метод.
+Combines several split points with decoys and shuffling. The most flexible method.
 
-### Приманка (Decoy)
+### Decoy
 
-Отправляет фейковый ClientHello с разрешённым SNI перед реальным трафиком:
+Sends a fake ClientHello with an allowed SNI before the real traffic:
 
-1. Фейковый пакет (с низким TTL) → DPI видит и анализирует, но пакет не доходит до сервера
-2. Реальный пакет (фрагментированный) → проходит мимо DPI и доставляется серверу
+1. Fake packet (low TTL) -> DPI sees and analyzes it, but the packet does not reach the server
+2. Real packet (fragmented) -> passes the DPI and is delivered to the server
 
-### Точки разделения
+### Split points
 
-![splitpoints](../../../static/img/splitting/20260323224920.png)
+![20260418235306](../../../static/img/splitting/20260418235306.png)
 
-| Параметр | Описание |
+| Parameter | Description |
 | --- | --- |
-| First Byte | Разделение после первого байта (десинхронизация по времени) |
-| Extension Split | Разделение перед SNI-расширением |
-| SNI Split | Разделение в середине имени хоста SNI |
+| First Byte | Split after the first byte (timing-based desync) |
+| Extension Split | Split before the SNI extension |
+| SNI Split | Split in the middle of the SNI hostname |
 
-Каждая включённая точка добавляет дополнительный сегмент. Интерфейс показывает количество активных разделений и результирующее число сегментов.
+Each enabled split point adds another segment. The interface shows the number of active splits and the resulting number of segments.
 
 :::warning
-Должна быть включена хотя бы одна точка разделения, иначе combo отправит пакет одним сегментом.
+At least one split point must be enabled, otherwise combo sends the packet as a single segment.
 :::
 
-### Режим перемешивания
+### Shuffle mode
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| `middle` | Первый и последний сегменты остаются на месте, перемешиваются только средние |
-| `full` | Все сегменты случайно перемешиваются |
-| `reverse` | Сегменты отправляются в обратном порядке |
+| `middle` | First and last segments keep their position, only the middle ones are shuffled |
+| `full` | All segments are shuffled randomly |
+| `reverse` | Segments are sent in reverse order |
 
-### Тайминги
+### Timing
 
-![timeings](../../../static/img/splitting/20260323225046.png)
+![20260418235400](../../../static/img/splitting/20260418235400.png)
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Задержка первого сегмента | Пауза после отправки первого сегмента | 10–500 мс |
-| Макс. джиттер | Случайная задержка между остальными сегментами | 100–10000 мкс |
+| First segment delay | Pause after sending the first segment | 10-500 ms |
+| Max jitter | Random delay between the other segments | 100-10000 us |
 
-### Фейк на сегмент (мультидисордер)
+### Fake per segment (multidisorder)
 
-Отправляет фейковые перекрывающие пакеты перед **каждым** реальным сегментом, а не только перед первым. Засоряет реассемблер DPI мусором.
+Sends fake overlapping packets before **every** real segment, not only the first. Fills the DPI reassembler with junk.
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Фейк на сегмент | Включить фейки между сегментами | — |
-| Фейков на сегмент | Количество фейковых пакетов перед каждым сегментом | 1–11 |
+| Fake per segment | Send fakes between segments | - |
+| Fakes per segment | Number of fake packets before each segment | 1-11 |
 
 ---
 
 ## Disorder
 
-Отправляет реальные TCP-сегменты не по порядку со случайными задержками. В отличие от combo, disorder не использует фейковые пакеты (кроме мультидисордера) — он полагается на то, что DPI ожидает последовательные данные.
+Sends real TCP segments out of order with random delays. Unlike combo, disorder does not use fake packets (except in multidisorder) - it relies on the DPI expecting sequential data.
 
-### Режим перемешивания
+### Disorder shuffle mode
 
-| Режим | Описание |
+| Mode | Description |
 | --- | --- |
-| `full` | Все сегменты случайно перемешиваются |
-| `reverse` | Сегменты отправляются в обратном порядке |
+| `full` | All segments are shuffled randomly |
+| `reverse` | Segments are sent in reverse order |
 
-### Временной джиттер
+### Timing jitter
 
-Случайная задержка между сегментами. Задаётся как диапазон **мин–макс** (мкс).
+Random delay between segments. Specified as a **min-max** range (us).
 
 :::info
-Джиттер используется, когда Seg2Delay (задержка между пакетами на вкладке [Общее](./general)) равен 0. Если Seg2Delay задан — он имеет приоритет.
+Jitter is used when Seg2Delay (inter-packet delay on the [General](./general) tab) is 0. When Seg2Delay is set, it takes priority.
 :::
 
 :::warning
-Максимальный джиттер должен быть больше минимального.
+The maximum jitter must be greater than the minimum.
 :::
 
-### Перекрытие последовательности (seqovl)
+### Sequence overlap (seqovl)
 
-Добавляет фейковые байты с уменьшённым TCP sequence number. DPI видит фейковый заголовок протокола, а сервер отбрасывает перекрытие (у него уже есть правильные данные).
+Adds fake bytes with a decreased TCP sequence number. The DPI sees a fake protocol header while the server discards the overlap (it already has the correct data).
 
-| Паттерн | Что видит DPI |
+| Pattern | What the DPI sees |
 | --- | --- |
-| `tls12` | Заголовок TLS 1.2 |
-| `tls11` | Заголовок TLS 1.1 |
-| `tls10` | Заголовок TLS 1.0 |
-| `http_get` | HTTP GET-запрос |
-| `zeros` | Нулевые байты |
-| `custom` | Свои hex-байты |
+| `tls12` | TLS 1.2 header |
+| `tls11` | TLS 1.1 header |
+| `tls10` | TLS 1.0 header |
+| `http_get` | HTTP GET request |
+| `zeros` | Zero bytes |
+| `custom` | Custom hex bytes |
 
-### Мультидисордер
+### Multidisorder
 
-Аналогично combo — отправляет фейковые перекрывающие пакеты перед каждым реальным сегментом.
+Same as in combo - sends fake overlapping packets before each real segment.
 
 ---
 
 ## Extension Split
 
-Автоматически разделяет TLS ClientHello прямо перед расширением SNI. DPI видит неполный список расширений и не может распарсить SNI.
+Automatically splits the TLS ClientHello right before the SNI extension. The DPI sees an incomplete extension list and cannot parse the SNI.
 
 ```text
-[TLS Header] [Handshake] [Ciphers] [Ext₁] [Ext₂] | [SNI: youtube.com] [Ext...]
-                                                   ↑ разделение здесь
+[TLS Header] [Handshake] [Ciphers] [Ext1] [Ext2] | [SNI: youtube.com] [Ext...]
+                                                   ^ split here
 ```
 
-:::info Настройка не требуется
-Extension Split работает автоматически. Используйте переключатель **Обратный порядок** и **Задержку между пакетами** (Seg2Delay) на вкладке [Общее](./general) для дополнительной настройки.
+:::info No setup required
+Extension Split works automatically. Use the **Reverse order** toggle and **Inter-packet delay** (Seg2Delay) on the [General](./general) tab for extra tuning.
 :::
 
 ---
 
 ## First-Byte Desync
 
-Атака по таймингу: отправляет один байт (`0x16` — тип TLS-записи), делает паузу, затем отправляет остальной ClientHello. DPI видит неполную TLS-запись и не может распарсить SNI до истечения таймаута.
+Timing attack: sends a single byte (`0x16` - the TLS record type), pauses, then sends the rest of the ClientHello. The DPI sees an incomplete TLS record and cannot parse the SNI before its timeout.
 
 ```text
-[0x16] ──── пауза ──── [остальная часть TLS ClientHello...]
+[0x16] ---- pause ---- [rest of the TLS ClientHello...]
 ```
 
-:::info Настройка не требуется
-Задержка контролируется **Seg2Delay** на вкладке [Общее](./general). Минимум 100 мс применяется автоматически — если Seg2Delay меньше, b4 использует 100 мс.
+:::info No setup required
+The delay is controlled by **Seg2Delay** on the [General](./general) tab. A minimum of 100 ms is applied automatically - if Seg2Delay is lower, b4 uses 100 ms.
 :::
 
 ---
 
 ## OOB (Out-of-Band)
 
-Вставляет байт с TCP URG (urgent) флагом в поток данных. Сервер игнорирует OOB-данные (они обрабатываются отдельно от основного потока), но DPI с отслеживанием состояния путается — видит лишний байт, который смещает его парсинг.
+Injects a byte with the TCP URG (urgent) flag into the data stream. The server ignores OOB data (it is handled separately from the main stream), but a stateful DPI gets confused - it sees an extra byte that shifts its parsing.
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Позиция вставки | Сколько байтов до точки вставки OOB. Задаётся как диапазон мин–макс | 1–50 |
-| OOB байт | Байт, передаваемый через OOB (отображается символ + hex) | — |
+| Insert position | Number of bytes before the OOB insertion point. Specified as a min-max range | 1-50 |
+| OOB byte | Byte sent via OOB (symbol + hex are shown) | - |
 
 ---
 
 ## TLS Record Splitting
 
-Разделяет ClientHello на несколько TLS-записей внутри одного TCP-пакета. DPI, ожидающий однозаписный хендшейк, не может сопоставить сигнатуру.
+Splits the ClientHello into several TLS records inside a single TCP packet. A DPI that expects a single-record handshake cannot match its signature.
 
-| Параметр | Описание | Диапазон |
+| Parameter | Description | Range |
 | --- | --- | --- |
-| Позиция разделения | Размер первой TLS-записи в байтах. Задаётся как диапазон мин–макс | 1–100 |
+| Split position | Size of the first TLS record in bytes. Specified as a min-max range | 1-100 |

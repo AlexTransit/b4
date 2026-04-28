@@ -187,15 +187,20 @@ func (n *NFTablesManager) Apply() error {
 		return err
 	}
 
-	markAccept := fmt.Sprintf("0x%x", cfg.Queue.Mark)
+	markValue := cfg.Queue.Mark
+	if markValue == 0 {
+		markValue = 0x8000
+	}
+	markAccept := fmt.Sprintf("0x%x", markValue)
 
-	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+	selectedMACs := cfg.Queue.Devices.SelectedMACs()
+	if cfg.Queue.Devices.Enabled && len(selectedMACs) > 0 {
 		if err := n.createChain("forward", "forward", -150, "accept"); err != nil {
 			return err
 		}
 
 		if cfg.Queue.Devices.WhiteIsBlack {
-			for _, mac := range cfg.Queue.Devices.Mac {
+			for _, mac := range selectedMACs {
 				if mac = strings.ToUpper(strings.TrimSpace(mac)); mac != "" {
 					if err := n.addRule("forward", "ether", "saddr", mac, "return"); err != nil {
 						return err
@@ -206,7 +211,7 @@ func (n *NFTablesManager) Apply() error {
 				return err
 			}
 		} else {
-			for _, mac := range cfg.Queue.Devices.Mac {
+			for _, mac := range selectedMACs {
 				if mac = strings.ToUpper(strings.TrimSpace(mac)); mac != "" {
 					if err := n.addRule("forward", "ether", "saddr", mac, "jump", nftChainName); err != nil {
 						return err
@@ -227,14 +232,14 @@ func (n *NFTablesManager) Apply() error {
 	if err := n.addRule("output", "oifname", `"lo"`, "return"); err != nil {
 		return err
 	}
-	if err := n.addRule("output", "meta", "mark", markAccept, "accept"); err != nil {
+	if err := n.addRule("output", "meta", "mark", "&", markAccept, "==", markAccept, "accept"); err != nil {
 		return err
 	}
 	if err := n.addRule("output", "jump", nftChainName); err != nil {
 		return err
 	}
 
-	if err := n.addRule(nftChainName, "meta", "mark", markAccept, "return"); err != nil {
+	if err := n.addRule(nftChainName, "meta", "mark", "&", markAccept, "==", markAccept, "return"); err != nil {
 		return err
 	}
 
@@ -284,6 +289,10 @@ func (n *NFTablesManager) Apply() error {
 	}
 
 	if err := n.addQueueRule(nftChainName, "udp", "dport", "53", "counter"); err != nil {
+		return err
+	}
+
+	if err := n.addQueueRule("prerouting", "udp", "dport", "53", "counter"); err != nil {
 		return err
 	}
 

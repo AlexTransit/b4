@@ -22,6 +22,8 @@ type Monitor struct {
 
 	ifaceStateMu sync.Mutex
 	ifaceState   map[string]ifaceSnapshot
+
+	linkWatcher *linkWatcher
 }
 
 type ifaceSnapshot struct {
@@ -30,7 +32,8 @@ type ifaceSnapshot struct {
 }
 
 var (
-	dnsPortMatch = "sport 53"
+	dnsResponsePortMatch = "sport 53"
+	dnsRequestPortMatch  = "dport 53"
 )
 
 func NewMonitor(cfgPtr *atomic.Pointer[config.Config]) *Monitor {
@@ -41,15 +44,19 @@ func NewMonitor(cfgPtr *atomic.Pointer[config.Config]) *Monitor {
 	}
 
 	return &Monitor{
-		cfgPtr:     cfgPtr,
-		stop:       make(chan struct{}),
-		interval:   interval,
-		backend:    detectFirewallBackend(cfg),
-		ifaceState: make(map[string]ifaceSnapshot),
+		cfgPtr:      cfgPtr,
+		stop:        make(chan struct{}),
+		interval:    interval,
+		backend:     detectFirewallBackend(cfg),
+		ifaceState:  make(map[string]ifaceSnapshot),
+		linkWatcher: newLinkWatcher(cfgPtr),
 	}
 }
 
 func (m *Monitor) Start() {
+	if m.started {
+		return
+	}
 	cfg := m.cfgPtr.Load()
 	if cfg.System.Tables.SkipSetup || cfg.System.Tables.MonitorInterval <= 0 {
 		log.Infof("Tables monitor disabled")
@@ -60,6 +67,15 @@ func (m *Monitor) Start() {
 	m.wg.Add(1)
 	go m.monitorLoop()
 	log.Infof("Started tables monitor (backend: %s, interval: %v)", m.backend, m.interval)
+
+	if m.linkWatcher != nil {
+		if err := m.linkWatcher.Start(); err != nil {
+			log.Warnf("Link watcher failed to start, falling back to periodic monitoring only: %v", err)
+			m.linkWatcher = nil
+		} else {
+			log.Infof("Started link watcher (RTNETLINK RTMGRP_LINK)")
+		}
+	}
 }
 
 func (m *Monitor) Stop() {
@@ -67,6 +83,9 @@ func (m *Monitor) Stop() {
 		return
 	}
 
+	if m.linkWatcher != nil {
+		m.linkWatcher.Stop()
+	}
 	close(m.stop)
 	m.wg.Wait()
 	log.Infof("Stopped tables monitor")
@@ -75,7 +94,11 @@ func (m *Monitor) Stop() {
 func (m *Monitor) monitorLoop() {
 	defer m.wg.Done()
 
-	time.Sleep(5 * time.Second)
+	select {
+	case <-m.stop:
+		return
+	case <-time.After(5 * time.Second):
+	}
 
 	ticker := time.NewTicker(m.interval)
 	defer ticker.Stop()
@@ -140,7 +163,7 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 			return false
 		}
 
-		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+		if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.SelectedMACs()) > 0 {
 			out, _ := run(ipt, "-w", "-t", "mangle", "-S", "FORWARD")
 			if !strings.Contains(out, "B4") {
 				log.Tracef("Monitor: FORWARD->B4 rule missing")
@@ -153,11 +176,20 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 			}
 		}
 
-		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "PREROUTING")
-		hasDNS := strings.Contains(out, dnsPortMatch) && strings.Contains(out, "NFQUEUE")
+		if _, err := run(ipt, "-w", "-t", "mangle", "-S", "B4_PREROUTING"); err != nil {
+			log.Tracef("Monitor: B4_PREROUTING chain missing")
+			return false
+		}
+		if _, err := run(ipt, "-w", "-t", "mangle", "-C", "PREROUTING", "-j", "B4_PREROUTING"); err != nil {
+			log.Tracef("Monitor: PREROUTING->B4_PREROUTING jump missing")
+			return false
+		}
+		out, _ := run(ipt, "-w", "-t", "mangle", "-S", "B4_PREROUTING")
+		hasDNSResponse := strings.Contains(out, dnsResponsePortMatch) && strings.Contains(out, "NFQUEUE")
+		hasDNSRequest := strings.Contains(out, dnsRequestPortMatch) && strings.Contains(out, "NFQUEUE")
 		hasTCP := strings.Contains(out, "tcp") && strings.Contains(out, "NFQUEUE")
-		if !hasDNS || !hasTCP {
-			log.Tracef("Monitor: PREROUTING response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
+		if !hasDNSResponse || !hasDNSRequest || !hasTCP {
+			log.Tracef("Monitor: B4_PREROUTING rules missing (dnsReq=%v, dnsResp=%v, tcp=%v)", hasDNSRequest, hasDNSResponse, hasTCP)
 			return false
 		}
 
@@ -167,7 +199,7 @@ func (m *Monitor) checkIPTablesRules(cfg *config.Config) bool {
 		}
 
 		out, _ = run(ipt, "-w", "-t", "mangle", "-S", "OUTPUT")
-		if !strings.Contains(out, dnsPortMatch) || !strings.Contains(out, "NFQUEUE") {
+		if !strings.Contains(out, dnsResponsePortMatch) || !strings.Contains(out, "NFQUEUE") {
 			log.Tracef("Monitor: OUTPUT DNS response rule missing")
 			return false
 		}
@@ -216,7 +248,7 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 		return false
 	}
 
-	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.Mac) > 0 {
+	if cfg.Queue.Devices.Enabled && len(cfg.Queue.Devices.SelectedMACs()) > 0 {
 		if !nft.chainExists("forward") {
 			log.Tracef("Monitor: forward chain missing")
 			return false
@@ -243,10 +275,11 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 		return false
 	}
 	out, _ := nft.runNft("list", "chain", "inet", nftTableName, "prerouting")
-	hasDNS := strings.Contains(out, dnsPortMatch) && strings.Contains(out, "queue")
+	hasDNSResponse := strings.Contains(out, dnsResponsePortMatch) && strings.Contains(out, "queue")
+	hasDNSRequest := strings.Contains(out, dnsRequestPortMatch) && strings.Contains(out, "queue")
 	hasTCP := strings.Contains(out, "tcp sport") && strings.Contains(out, "queue")
-	if !hasDNS || !hasTCP {
-		log.Tracef("Monitor: prerouting response rules missing (dns=%v, tcp=%v)", hasDNS, hasTCP)
+	if !hasDNSResponse || !hasDNSRequest || !hasTCP {
+		log.Tracef("Monitor: prerouting rules missing (dnsReq=%v, dnsResp=%v, tcp=%v)", hasDNSRequest, hasDNSResponse, hasTCP)
 		return false
 	}
 
@@ -256,7 +289,7 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 	}
 
 	out, _ = nft.runNft("list", "chain", "inet", nftTableName, "output")
-	if !strings.Contains(out, dnsPortMatch) || !strings.Contains(out, "queue") {
+	if !strings.Contains(out, dnsResponsePortMatch) || !strings.Contains(out, "queue") {
 		log.Tracef("Monitor: output DNS response rule missing")
 		return false
 	}

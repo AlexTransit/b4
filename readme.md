@@ -3,7 +3,7 @@
 ![GitHub Release](https://img.shields.io/github/v/release/daniellavrushin/b4)
 ![GitHub Downloads](https://img.shields.io/github/downloads/daniellavrushin/b4/total)
 
-[[русский язык](readme_ru.md)] [[telegram](https://t.me/byebyebigbro)]
+[[Documentation](https://daniellavrushin.github.io/b4/)] [[Документация (RU)](https://daniellavrushin.github.io/b4/ru/)] [[Telegram](https://t.me/byebyebigbro)]
 
 Network packet processor that bypasses Deep Packet Inspection (DPI) using netfilter queue manipulation.
 
@@ -100,9 +100,7 @@ git clone https://github.com/daniellavrushin/b4.git
 cd b4
 
 # Build UI
-cd src/http/ui
-pnpm install && pnpm build
-cd ../../..
+make build-ui
 
 # Build binary
 make build
@@ -114,7 +112,7 @@ make build-all
 make linux-amd64
 make linux-arm64
 make linux-armv7
-````
+```
 
 ## Docker
 

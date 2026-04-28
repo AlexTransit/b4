@@ -1,25 +1,23 @@
 ---
 sidebar_position: 4
-title: Маршрутизация
+title: Routing
 ---
 
-# Маршрутизация
+The routing tab controls how DNS queries are handled and where traffic matched by the set is sent. It has two sections: **DNS redirect** and **Traffic routing**.
 
-Вкладка маршрутизации управляет тем, как обрабатываются DNS-запросы и куда направляется трафик, совпавший с целями сета. Содержит два раздела: **DNS-редирект** и **Маршрутизация трафика**.
+## DNS redirect
 
-## DNS-редирект
+Redirects DNS queries for domains in the set to a specified DNS server.
 
-Перенаправляет DNS-запросы для доменов из сета на указанный DNS-сервер.
-
-Некоторые провайдеры перехватывают DNS-ответы и подменяют IP-адреса (DNS poisoning). В результате подключение идёт на неправильный адрес, даже если домен не заблокирован напрямую. DNS-редирект отправляет запрос на альтернативный сервер, минуя перехват.
+Some providers intercept DNS responses and substitute IP addresses (DNS poisoning). The connection ends up going to the wrong address even if the domain itself is not blocked directly. DNS redirect sends the query to an alternative server, bypassing the interception.
 
 ```mermaid
 flowchart LR
-    A["Приложение"] -->|"DNS-запрос<br/>instagram.com"| B["b4"]
-    B -->|"Перехват"| C{"DNS провайдера"}
-    C -->|"Подмена IP"| X["❌ Неправильный адрес"]
-    B -->|"Редирект"| D["Указанный DNS"]
-    D -->|"Реальный IP"| E["✅ Сайт работает"]
+    A["Application"] -->|"DNS query<br/>instagram.com"| B["b4"]
+    B -->|"Intercept"| C{"Provider DNS"}
+    C -->|"Spoofed IP"| X["❌ Wrong address"]
+    B -->|"Redirect"| D["Configured DNS"]
+    D -->|"Real IP"| E["✅ Site works"]
 
     style A fill:#4a9eff,color:#fff,stroke:none
     style B fill:#e91e63,color:#fff,stroke:none
@@ -29,59 +27,59 @@ flowchart LR
     style E fill:#4caf50,color:#fff,stroke:none
 ```
 
-### Настройка
+### Configuration
 
-1. Включите **DNS-редирект**
-2. Выберите DNS-сервер из списка или введите IP вручную
+1. Enable **DNS redirect**
+2. Pick a DNS server from the list or enter an IP manually
 
 :::tip
-Если не знаете, какой DNS выбрать — начните с любого из списка, кроме Google DNS (8.8.8.8). Google DNS блокируется некоторыми провайдерами в первую очередь.
+If you do not know which DNS to pick, start with any server from the list other than Google DNS (8.8.8.8). Google DNS is often one of the first to be blocked by providers.
 :::
 
-### Список серверов
+### Server list
 
-В интерфейсе отображается список DNS-серверов с иконками:
+The interface shows a list of DNS servers with icons:
 
-| Иконка | Значение |
+| Icon | Meaning |
 | --- | --- |
-| ⚡ | Fast — ориентирован на скорость |
-| 🛑 | AdBlock — блокирует рекламные домены |
-| 🔒 | DNSSEC — криптографическая проверка ответов |
+| ⚡ | Fast - focused on low latency |
+| 🛑 | AdBlock - blocks advertising domains |
+| 🔒 | DNSSEC - cryptographic validation of responses |
 
-При выборе сервера его IP автоматически подставляется в поле. Можно ввести любой другой IP вручную.
+Picking a server fills the IP into the field automatically. You can also enter any other IP manually.
 
 :::warning
-Если поле DNS-сервера пустое, редирект не будет работать, даже если он включён.
+If the DNS server field is empty, the redirect will not work, even when it is turned on.
 :::
 
-### Фрагментация DNS-запроса
+### DNS query fragmentation
 
-Переключатель **Фрагментировать запрос** разбивает DNS-пакет на несколько частей перед отправкой.
+The **Fragment query** toggle splits the DNS packet into several parts before sending.
 
-Используется, если провайдер анализирует содержимое DNS-пакетов даже к сторонним серверам и блокирует запросы по содержимому.
+Used when the provider inspects the contents of DNS packets, even those to third-party servers, and blocks queries based on their contents.
 
 :::info
-Фрагментация затрагивает только DNS-запросы доменов из текущего сета. Остальной DNS-трафик не изменяется.
+Fragmentation only affects DNS queries for domains in the current set. Other DNS traffic is not modified.
 :::
 
 ---
 
-## Маршрутизация трафика
+## Traffic routing
 
-Направляет трафик, совпавший с целями сета, через указанный сетевой интерфейс — например, VPN, WireGuard или другой туннель.
+Routes traffic matched by the set through a specific network interface - for example, a VPN, WireGuard, or another tunnel.
 
-### Общая схема
+### General diagram
 
 ```mermaid
 flowchart TB
-    DNS["DNS-ответ для домена из сета"] -->|"IP + TTL"| IPSET
-    STATIC["Статические IP из целей сета"] -->|"IP"| IPSET
-    IPSET["IP-набор<br/>(nftables set / ipset)"]
+    DNS["DNS response for a domain in the set"] -->|"IP + TTL"| IPSET
+    STATIC["Static IPs from set targets"] -->|"IP"| IPSET
+    IPSET["IP set<br/>(nftables set / ipset)"]
 
-    IPSET --> MARK["PREROUTING / OUTPUT<br/>dst IP в наборе? → fwmark"]
+    IPSET --> MARK["PREROUTING / OUTPUT<br/>dst IP in the set? -> fwmark"]
 
-    MARK -->|"fwmark"| RULE["ip rule<br/>fwmark → таблица маршрутизации"]
-    RULE --> ROUTE["Таблица маршрутизации<br/>default → выходной интерфейс"]
+    MARK -->|"fwmark"| RULE["ip rule<br/>fwmark -> routing table"]
+    RULE --> ROUTE["Routing table<br/>default -> output interface"]
     ROUTE --> MASQ["POSTROUTING<br/>Masquerade"]
     MASQ --> IFACE["wg0 / tun0 / ..."]
 
@@ -95,106 +93,106 @@ flowchart TB
     style IFACE fill:#4caf50,color:#fff,stroke:none
 ```
 
-### Как это работает (подробно)
+### How it works (in detail)
 
-Маршрутизация использует policy-based routing — маршрутизацию на основе меток пакетов:
+Routing uses policy-based routing - routing decisions based on packet marks:
 
-1. **Сбор IP-адресов.** Когда b4 видит DNS-ответ для домена из сета, он извлекает из него IP-адреса и добавляет их во внутренний IP-набор (nftables set или ipset). IP-адреса, указанные вручную в [целях сета](./targets.md), добавляются при загрузке конфигурации.
+1. **Collecting IPs.** When b4 sees a DNS response for a domain in the set, it extracts the IP addresses and adds them to an internal IP set (nftables set or ipset). IPs entered manually in the [set targets](./targets.md) are added when the configuration is loaded.
 
-2. **Маркировка пакетов.** b4 создаёт цепочки в firewall для каждого сета:
-   - **PREROUTING** (mangle) — маркирует транзитный трафик (от устройств в сети), если IP назначения есть в наборе. Если указаны исходные интерфейсы — маркирует только трафик с этих интерфейсов.
-   - **OUTPUT** (mangle) — маркирует трафик от самого роутера.
+2. **Marking packets.** b4 creates firewall chains for each set:
+   - **PREROUTING** (mangle) - marks forwarded traffic (from devices on the network) when the destination IP is in the set. If source interfaces are set, only traffic from those interfaces is marked.
+   - **OUTPUT** (mangle) - marks traffic originating from the router itself.
 
-3. **Policy routing.** Для маркированных пакетов создаётся правило `ip rule`: пакеты с определённым `fwmark` направляются в отдельную таблицу маршрутизации, где default route указывает на выходной интерфейс.
+3. **Policy routing.** For marked packets an `ip rule` is created: packets with a specific `fwmark` are sent to a separate routing table where the default route points at the output interface.
 
-4. **Masquerade.** В цепочке **POSTROUTING** (nat) ко всему маркированному трафику, выходящему через целевой интерфейс, применяется masquerade — исходный IP пакета заменяется на IP выходного интерфейса. Это необходимо, чтобы ответные пакеты возвращались через тот же туннель.
+4. **Masquerade.** In the **POSTROUTING** (nat) chain, masquerade is applied to all marked traffic leaving through the target interface - the packet's source IP is replaced with the output interface's IP. This is required so that reply packets return through the same tunnel.
 
-5. **Предварительное разрешение.** При включении маршрутизации b4 сразу резолвит все домены из целей сета и добавляет полученные IP в набор. Это обеспечивает маршрутизацию с первого запроса, не дожидаясь DNS-трафика через NFQUEUE.
+5. **Pre-resolution.** When routing is enabled, b4 immediately resolves all domains in the set targets and adds their IPs to the set. This enables routing from the first request without waiting for DNS traffic to pass through NFQUEUE.
 
-### Настройка
+### Routing setup
 
-1. Включите **Маршрутизацию**
-2. Выберите **Исходные интерфейсы** — с каких интерфейсов перехватывать трафик
-3. Выберите **Выходной интерфейс** — куда направить трафик
+1. Enable **Routing**
+2. Pick **Source interfaces** - which interfaces to intercept traffic from
+3. Pick the **Output interface** - where to send the traffic
 
-![routing](../../static/img/routing/20260326230827.png)
+![20260418235517](../../static/img/routing/20260418235517.png)
 
-После включения в верхней части раздела отображается диаграмма потока:
+Once enabled, a flow diagram appears at the top of the section:
 
 ```text
-[Исходные интерфейсы] → B4 → [Выходной интерфейс] → Интернет
+[Source interfaces] -> B4 -> [Output interface] -> Internet
 ```
 
-Диаграмма обновляется при изменении настроек.
+The diagram updates as settings change.
 
-### Исходные интерфейсы
+### Source interfaces
 
-Определяют, с каких сетевых интерфейсов перехватывать трафик для маршрутизации. Отображаются как кнопки-бейджи — клик включает/выключает интерфейс.
+Define which network interfaces traffic is intercepted from for routing. Shown as clickable badges - click to toggle.
 
 :::info
-Если ни один исходный интерфейс не выбран — маршрутизация применяется ко всему трафику, включая трафик от самого роутера.
+If no source interface is selected, routing applies to all traffic, including traffic originated by the router itself.
 :::
 
-Если ранее выбранный интерфейс исчез из системы (например, VPN-подключение разорвалось), он отображается красным с пометкой «stale».
+If a previously chosen interface has disappeared from the system (for example, the VPN connection dropped), it is shown in red with a "stale" marker.
 
-### Выходной интерфейс
+### Output interface
 
-Сетевой интерфейс, через который будет отправлен маркированный трафик:
+The network interface that marked traffic is sent through:
 
-| Интерфейс | Описание |
+| Interface | Description |
 | --- | --- |
-| `wg0`, `wg1` | WireGuard-туннель |
-| `tun0`, `tun1` | OpenVPN-туннель |
-| `ppp0` | PPP-соединение |
+| `wg0`, `wg1` | WireGuard tunnel |
+| `tun0`, `tun1` | OpenVPN tunnel |
+| `ppp0` | PPP connection |
 
 :::warning
-Если выбранный выходной интерфейс перестал быть доступен, появится предупреждение. Маршрутизация не будет работать, пока интерфейс не появится снова.
+If the chosen output interface becomes unavailable, a warning appears. Routing will not work until the interface is back.
 :::
 
-### IP TTL (время жизни записи)
+### IP TTL (entry lifetime)
 
-Определяет, сколько секунд IP-адрес, полученный из DNS-ответа, хранится в IP-наборе маршрутизации. По истечении TTL запись удаляется автоматически.
+How long, in seconds, an IP obtained from a DNS response is kept in the routing IP set. When the TTL expires, the entry is removed automatically.
 
-Значение по умолчанию: **3600** секунд (1 час).
+Default: **3600** seconds (1 hour).
 
-IP-адреса, добавленные вручную в целях сета, также получают этот TTL и обновляются при каждой синхронизации конфигурации.
+IPs added manually in the set targets also use this TTL and are refreshed on every config sync.
 
 :::tip
-Для стабильных сервисов с постоянными IP можно увеличить TTL. Для CDN-сервисов, где IP меняются часто, лучше уменьшить.
+For stable services with constant IPs you can raise the TTL. For CDN services where IPs change frequently, lower it.
 :::
 
 ### Firewall backend
 
-b4 автоматически определяет доступный backend:
+b4 detects the available backend automatically:
 
-| Backend | Требования | Описание |
+| Backend | Requirements | Description |
 | --- | --- | --- |
-| **nftables** | бинарник `nft` | Создаёт таблицу `b4_route` с цепочками `prerouting`, `output`, `postrouting`. IP-наборы с поддержкой `interval` и `timeout`. |
-| **iptables + ipset** | бинарники `iptables`, `ipset` | Использует таблицы `mangle` и `nat`. Создаёт ipset типа `hash:net` для хранения IP. Также проверяет `iptables-legacy`. |
+| **nftables** | `nft` binary | Creates the `b4_route` table with `prerouting`, `output`, `postrouting` chains. IP sets support `interval` and `timeout`. |
+| **iptables + ipset** | `iptables`, `ipset` binaries | Uses the `mangle` and `nat` tables. Creates an ipset of type `hash:net` to store IPs. Also checks for `iptables-legacy`. |
 
 :::info
-Выбор backend происходит автоматически. На системах с nftables используется nftables, на старых системах — iptables. Ручная настройка не требуется.
+The backend is chosen automatically. Systems with nftables use nftables, older systems use iptables. No manual setup is required.
 :::
 
-### FWMark и таблица маршрутизации
+### FWMark and routing table
 
-Каждому выходному интерфейсу автоматически назначаются:
+Each output interface gets assigned automatically:
 
-- **fwmark** — метка пакета (диапазон `0x100`–`0x7EFF`)
-- **routing table** — номер таблицы маршрутизации (диапазон `100`–`2099`)
+- **fwmark** - packet mark (range `0x100` to `0x7EFF`)
+- **routing table** - routing table number (range `100` to `2099`)
 
-Значения вычисляются на основе имени интерфейса и остаются стабильными между перезагрузками. Если несколько сетов используют один и тот же выходной интерфейс — они разделяют `fwmark` и таблицу.
+Values are computed from the interface name and stay stable across reboots. When several sets use the same output interface, they share the `fwmark` and table.
 
 :::info
-Ручное указание `fwmark` и `table` доступно через конфигурационный файл. В этом случае автоматическое назначение не используется.
+Manual `fwmark` and `table` values can be set in the configuration file. In that case automatic assignment is not used.
 :::
 
-### Очистка
+### Cleanup
 
-При отключении маршрутизации или удалении сета b4 полностью удаляет все созданные правила:
+When routing is turned off or a set is removed, b4 fully removes every rule it created:
 
-- Удаляет `ip rule` и записи в таблице маршрутизации
-- Удаляет jump-правила из базовых цепочек
-- Очищает и удаляет созданные цепочки и IP-наборы
+- Removes the `ip rule` and entries in the routing table
+- Removes jump rules from the base chains
+- Clears and removes the chains and IP sets that were created
 
-При полной остановке b4 выполняется очистка обоих backend (nftables и iptables) для удаления возможных остаточных правил.
+When b4 fully stops, both backends (nftables and iptables) are cleaned to remove any leftover rules.
