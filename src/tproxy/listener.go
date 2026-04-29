@@ -16,6 +16,25 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func markedDialer(timeout time.Duration, bypassMark uint32) net.Dialer {
+	d := net.Dialer{Timeout: timeout}
+	if bypassMark == 0 {
+		return d
+	}
+	mark := bypassMark
+	d.Control = func(network, address string, c syscall.RawConn) error {
+		var sockErr error
+		err := c.Control(func(fd uintptr) {
+			sockErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, int(mark))
+		})
+		if err != nil {
+			return err
+		}
+		return sockErr
+	}
+	return d
+}
+
 type DomainResolver interface {
 	DomainFor(ip net.IP) string
 }
@@ -179,7 +198,13 @@ func (l *Listener) handle(client net.Conn) {
 		if !l.FailOpen {
 			return
 		}
-		direct, derr := net.DialTimeout("tcp", net.JoinHostPort(origIP.String(), fmt.Sprintf("%d", origPort)), 10*time.Second)
+		// Fail-open direct dial must also carry the bypass mark, otherwise
+		// the OUTPUT mark rule will catch it (daddr is in our set) and
+		// re-redirect it to ourselves — infinite loop.
+		failoverDialer := markedDialer(10*time.Second, l.Upstream.BypassMark)
+		failoverCtx, failoverCancel := context.WithTimeout(l.ctx, 10*time.Second)
+		direct, derr := failoverDialer.DialContext(failoverCtx, "tcp", net.JoinHostPort(origIP.String(), fmt.Sprintf("%d", origPort)))
+		failoverCancel()
 		if derr != nil {
 			log.Tracef("tproxy: fail-open direct dial failed: %v", derr)
 			return

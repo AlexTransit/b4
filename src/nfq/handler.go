@@ -228,7 +228,6 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 	}
 
-	// If IP matching didn't find a set, try TCP port-based set matching
 	if !matched && cfg.IsTCPPort(dport) {
 		if portMatched, portSet := matcher.MatchTCPPort(dport); portMatched {
 			matched = true
@@ -236,17 +235,6 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 	}
 
-	// Proxy-routing mode is itself the bypass mechanism — the upstream SOCKS5
-	// server handles unblocking. DPI strategies (fragmentation, desync, fake
-	// SYN, etc.) inject raw-socket packets that bypass our OUTPUT mark rule
-	// and complete the connection direct, which prevents the redirect path
-	// from ever seeing the SYN. Skip all DPI for proxy-mode matches.
-	if matched && set != nil && set.Routing.Enabled && set.Routing.Mode == config.RoutingModeProxy {
-		return accept(q, id)
-	}
-
-	// Packet duplication path: duplicate ALL outgoing TCP packets on configured ports
-	// without TLS/SNI parsing. Bypasses DPI evasion entirely.
 	if matched && cfg.IsTCPPort(dport) && set.TCP.Duplicate.Enabled && set.TCP.Duplicate.Count > 0 {
 		log.Tracef("TCP duplicate to %s:%d (%d copies, set: %s)", pkt.dstStr, dport, set.TCP.Duplicate.Count, set.Name)
 
@@ -425,6 +413,10 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 		m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, matched, pkt.srcMac, setName, config.TLSVersionString(tlsVersion))
 		m.RecordPacket(uint64(len(pkt.raw)))
+	}
+
+	if matched && set != nil && set.Routing.Enabled && set.Routing.Mode == config.RoutingModeProxy {
+		return accept(q, id)
 	}
 
 	if matched {
