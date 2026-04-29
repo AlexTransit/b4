@@ -5,6 +5,7 @@
 - FIXED: **Upstream SOCKS5 routing didn't actually proxy** — when a set was configured to route through a SOCKS5 server (local or remote), traffic was silently going direct instead of through the proxy. Connections from the same machine running B4 now reach the upstream proxy correctly.
 - FIXED: **Duplicate masquerade rule when routing is enabled with IPv6** — on `nftables` setups with both IPv4 and IPv6 enabled, the per-set NAT chain ended up with two byte-identical `masquerade` rules. The rule is now scoped per address family (`meta nfproto ipv4` / `ipv6`), matching the split already used for the mark rules.
 - IMPROVED: **Connections page works at any log level** — previously, raising the log level above `Info` made the Connections page stop updating. The UI now gets connection events through a separate channel, so you can keep the log level on `Warn` or `Error` to quiet down system logs without losing the live connections view. Opening the Connections page also instantly shows the last few hundred recent events instead of waiting for new traffic.
+- IMPROVED: **Error log keeps history across restarts** - the error log was wiped on every B4 start, so any trace of a crash was lost as soon as B4 auto-restarted.
 
 ## [1.50.0] - 2026-04-27
 

@@ -507,7 +507,9 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
               borderRadius: radius.md,
             }}
           >
-            <SetsIcon sx={{ fontSize: 48, color: colors.text.secondary, mb: 2 }} />
+            <SetsIcon
+              sx={{ fontSize: 48, color: colors.text.secondary, mb: 2 }}
+            />
             <Typography variant="h6" sx={{ mb: 1, color: colors.text.primary }}>
               {t("sets.manager.noSets")}
             </Typography>
@@ -555,15 +557,16 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
               {t("core.cancel")}
             </Button>
             <Box sx={{ flex: 1 }} />
-            <Button onClick={handleDeleteSet} variant="contained" color="error">
+            <Button onClick={handleDeleteSet} variant="contained">
               {t("sets.deleteDialog.deleteSet")}
             </Button>
           </>
         }
       >
-        <Typography>
+        <Typography sx={{ mt: 2 }}>
           {t("sets.deleteDialog.confirm")}{" "}
-          <strong>{sets.find((s) => s.id === deleteDialog.setId)?.name}</strong>?
+          <strong>{sets.find((s) => s.id === deleteDialog.setId)?.name}</strong>
+          {"?"}
         </Typography>
       </B4Dialog>
 
@@ -575,13 +578,11 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
         onClose={() => setBatchDeleteDialog(false)}
         actions={
           <>
-            <Button onClick={() => setBatchDeleteDialog(false)}>{t("core.cancel")}</Button>
+            <Button onClick={() => setBatchDeleteDialog(false)}>
+              {t("core.cancel")}
+            </Button>
             <Box sx={{ flex: 1 }} />
-            <Button
-              onClick={handleBatchDelete}
-              variant="contained"
-              color="error"
-            >
+            <Button onClick={handleBatchDelete} variant="contained">
               {t("core.delete")} ({selectedIds.size})
             </Button>
           </>

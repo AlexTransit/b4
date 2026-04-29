@@ -15,7 +15,6 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// Level is the minimum level that will be emitted.
 type Level int32
 
 const (
@@ -33,7 +32,6 @@ var (
 	origStderr int
 )
 
-// multi is a simple fan-out writer (stderr + optional syslog).
 type multi struct {
 	mu sync.Mutex
 	ws []io.Writer
@@ -57,7 +55,6 @@ var (
 	insta      bool
 )
 
-// Init sets the base writer, level, and instaflush behavior.
 func Init(stderr io.Writer, level Level, instaflush bool) {
 
 	mu.Lock()
@@ -71,7 +68,6 @@ func Init(stderr io.Writer, level Level, instaflush bool) {
 	rebuildLocked()
 }
 
-// AttachSyslog adds an extra sink (used by tests or by EnableSyslog).
 func AttachSyslog(w io.Writer) {
 	if w == nil {
 		return
@@ -82,7 +78,6 @@ func AttachSyslog(w io.Writer) {
 	rebuildLocked()
 }
 
-// EnableSyslog connects to the local syslog and attaches it as a sink.
 func EnableSyslog(tag string) error {
 	sw, err := syslog.New(syslog.LOG_INFO|syslog.LOG_DAEMON, tag)
 	if err != nil {
@@ -92,11 +87,8 @@ func EnableSyslog(tag string) error {
 	return nil
 }
 
-// SetLevel changes the active level.
 func SetLevel(l Level) { CurLevel.Store(int32(l)) }
 
-// SetInstaflush toggles line buffering. Switching to instaflush flushes any
-// pending buffered data immediately.
 func SetInstaflush(v bool) {
 	mu.Lock()
 	defer mu.Unlock()
@@ -110,7 +102,6 @@ func SetInstaflush(v bool) {
 	rebuildLocked()
 }
 
-// Flush forces a flush when buffering is enabled.
 func Flush() {
 	mu.Lock()
 	defer mu.Unlock()
@@ -131,17 +122,21 @@ func InitErrorFile(path string) error {
 		return fmt.Errorf("failed to create log directory: %w", err)
 	}
 
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
+	if st, err := os.Stat(path); err == nil && st.Size() > 1<<20 {
+		_ = os.Rename(path, path+".1")
+	}
+
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
 	errFile = f
 	errLogger = log.New(f, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 
-	// Save original stderr fd before redirecting
-	origStderr, _ = unix.Dup(int(os.Stderr.Fd()))
+	fmt.Fprintf(f, "=== b4 started pid=%d at %s ===\n",
+		os.Getpid(), time.Now().Format(time.RFC3339))
 
-	// Redirect stderr to error file (captures panics)
+	origStderr, _ = unix.Dup(int(os.Stderr.Fd()))
 	unix.Dup2(int(f.Fd()), int(os.Stderr.Fd()))
 
 	return nil
@@ -154,7 +149,6 @@ func OrigStderr() *os.File {
 	return os.NewFile(uintptr(origStderr), "stderr")
 }
 
-// ADD new function
 func CloseErrorFile() {
 	errMu.Lock()
 	defer errMu.Unlock()
@@ -165,8 +159,6 @@ func CloseErrorFile() {
 		errLogger = nil
 	}
 }
-
-// ---- printing ------------------------------------------------------------
 
 func Errorf(format string, a ...any) error {
 	msg := fmt.Sprintf("[ERROR] "+format, a...)
@@ -217,10 +209,7 @@ func out(format string, a ...any) {
 	logger.Printf(format, a...)
 }
 
-// ---- internals -----------------------------------------------------------
-
 func rebuildLocked() {
-	// build sink chain
 	var w io.Writer = base
 	if insta {
 		buf = nil
@@ -229,7 +218,6 @@ func rebuildLocked() {
 		return
 	}
 
-	// buffered mode
 	buf = bufio.NewWriterSize(w, 16*1024)
 	logger = log.New(buf, "", log.Ldate|log.Ltime|log.Lmicroseconds)
 	startFlusherLocked()
@@ -256,10 +244,7 @@ func stopFlusherLocked() {
 	}
 }
 
-// Helper for mapping from your config.Verbose, if you want it.
 func LevelFromVerbose(verbose int) Level {
-	// Common mapping used in main.go:
-	//   default -> Error, VerboseInfo -> Info, VerboseTrace -> Trace
 	switch verbose {
 	case 2:
 		return LevelTrace
@@ -270,7 +255,6 @@ func LevelFromVerbose(verbose int) Level {
 	}
 }
 
-// Optional convenience for non-formatted messages.
 func Info(a ...any)  { Infof("%s", fmt.Sprint(a...)) }
 func Trace(a ...any) { Tracef("%s", fmt.Sprint(a...)) }
 func Error(a ...any) { Errorf("%s", fmt.Sprint(a...)) }
