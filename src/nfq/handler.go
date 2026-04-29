@@ -236,6 +236,15 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 	}
 
+	// Proxy-routing mode is itself the bypass mechanism — the upstream SOCKS5
+	// server handles unblocking. DPI strategies (fragmentation, desync, fake
+	// SYN, etc.) inject raw-socket packets that bypass our OUTPUT mark rule
+	// and complete the connection direct, which prevents the redirect path
+	// from ever seeing the SYN. Skip all DPI for proxy-mode matches.
+	if matched && set != nil && set.Routing.Enabled && set.Routing.Mode == config.RoutingModeProxy {
+		return accept(q, id)
+	}
+
 	// Packet duplication path: duplicate ALL outgoing TCP packets on configured ports
 	// without TLS/SNI parsing. Bypasses DPI evasion entirely.
 	if matched && cfg.IsTCPPort(dport) && set.TCP.Duplicate.Enabled && set.TCP.Duplicate.Count > 0 {
@@ -248,7 +257,9 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		m.RecordConnection("TCP-DUP", dupHost, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(dupTLS))
 		m.RecordPacket(uint64(len(pkt.raw)))
 
-		log.LogConnection("TCP", "", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS), "tcp-dup")
+		if !cfg.Queue.IsDiscovery {
+			log.LogConnection("TCP", "", dupHost, pkt.srcStr, sport, set.Name, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(dupTLS), "tcp-dup")
+		}
 
 		if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
 			log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
@@ -384,7 +395,9 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 
 		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
-			log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
+			if !cfg.Queue.IsDiscovery {
+				log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
+			}
 			if pkt.ver == IPv4 {
 				w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
 			} else {
@@ -400,7 +413,9 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		}
 	}
 
-	log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "")
+	if !cfg.Queue.IsDiscovery {
+		log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "")
+	}
 
 	{
 		m := metrics.GetMetricsCollector()
@@ -439,7 +454,9 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 					if ibd.CacheBlockedIPs {
 						w.ipBlocker.AddBlocked(dstIPPort)
 					}
-					log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
+					if !cfg.Queue.IsDiscovery {
+						log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
+					}
 					m := metrics.GetMetricsCollector()
 					m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
 				}
@@ -598,7 +615,9 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		udpTLS = "1.3" // QUIC is always TLS 1.3
 	}
 
-	log.LogConnection("UDP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS, "")
+	if !cfg.Queue.IsDiscovery {
+		log.LogConnection("UDP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, udpTLS, "")
+	}
 
 	if isSTUN && set != nil && set.UDP.FilterSTUN {
 		return accept(q, id)

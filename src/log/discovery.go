@@ -3,23 +3,12 @@ package log
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 )
 
 var (
-	discoveryActive atomic.Bool
-
 	discoveryHub     *DiscoveryLogHub
 	discoveryHubOnce sync.Once
 )
-
-func IsDiscoveryActive() bool {
-	return discoveryActive.Load()
-}
-
-func SetDiscoveryActive(active bool) {
-	discoveryActive.Store(active)
-}
 
 type DiscoveryLogHub struct {
 	mu        sync.RWMutex

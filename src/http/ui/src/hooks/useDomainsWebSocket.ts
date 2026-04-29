@@ -13,7 +13,7 @@ export function useDomainsWebSocket({
   onError,
 }: UseDomainsWebSocketProps) {
   useEffect(() => {
-    const ws = new WebSocket(wsUrl("/api/ws/logs"));
+    const ws = new WebSocket(wsUrl("/api/ws/connections"));
 
     ws.onmessage = (ev) => {
       if (!paused) {
