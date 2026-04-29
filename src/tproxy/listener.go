@@ -183,12 +183,22 @@ func (l *Listener) handle(client net.Conn) {
 	origIP := tcpAddr.IP
 	origPort := tcpAddr.Port
 
-	targetHost := origIP.String()
-	if l.UseDomain && l.Resolver != nil {
-		if d := l.Resolver.DomainFor(origIP); d != "" {
-			targetHost = d
-		}
+	domain := ""
+	if l.Resolver != nil {
+		domain = l.Resolver.DomainFor(origIP)
 	}
+	targetHost := origIP.String()
+	if l.UseDomain && domain != "" {
+		targetHost = domain
+	}
+
+	src := ""
+	if r := client.RemoteAddr(); r != nil {
+		src = r.String()
+	}
+	log.LogConnectionStr("TCP", l.SetName, domain, src, "",
+		net.JoinHostPort(origIP.String(), fmt.Sprintf("%d", origPort)),
+		"", "", "proxy")
 
 	dialCtx, cancel := context.WithTimeout(l.ctx, 15*time.Second)
 	upstream, err := socks5.DialUpstream(dialCtx, l.Upstream, targetHost, origPort)

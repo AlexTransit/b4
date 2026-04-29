@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { wsUrl } from "@utils";
+import { ParsedLog, parseSniLogLine } from "@hooks/useDomainActions";
 
 const MAX_BUFFER_SIZE = 2000;
 const BATCH_INTERVAL_MS = 150; // Batch updates every 150ms
@@ -15,6 +16,7 @@ const BATCH_INTERVAL_MS = 150; // Batch updates every 150ms
 interface WebSocketContextType {
   logs: string[];
   domains: string[];
+  parsedDomains: ParsedLog[];
   pauseLogs: boolean;
   showAll: boolean;
   pauseDomains: boolean;
@@ -58,6 +60,35 @@ class RingBuffer {
   }
 }
 
+// Parsed ring buffer for connection lines - parsed once on ingestion so the
+// raw view doesn't reparse 1000 lines on every WS batch.
+class ParsedRingBuffer {
+  private buffer: ParsedLog[] = [];
+  private readonly maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  push(rawLines: string[]): void {
+    for (const line of rawLines) {
+      const p = parseSniLogLine(line);
+      if (p) this.buffer.push(p);
+    }
+    if (this.buffer.length > this.maxSize) {
+      this.buffer = this.buffer.slice(-this.maxSize);
+    }
+  }
+
+  getAll(): ParsedLog[] {
+    return [...this.buffer];
+  }
+
+  clear(): void {
+    this.buffer = [];
+  }
+}
+
 // Check if a line represents a targeted connection
 function isTargetedLine(line: string): boolean {
   const tokens = line.trim().split(",");
@@ -73,6 +104,7 @@ export const WebSocketProvider = ({
 }) => {
   const [logs, setLogs] = useState<string[]>([]);
   const [domains, setDomains] = useState<string[]>([]);
+  const [parsedDomains, setParsedDomains] = useState<ParsedLog[]>([]);
   const [pauseLogs, setPauseLogs] = useState(false);
   const [pauseDomains, setPauseDomains] = useState(false);
   const [showAll, setShowAll] = useState(() => {
@@ -90,6 +122,7 @@ export const WebSocketProvider = ({
   const pauseDomainsRef = useRef(pauseDomains);
   const logsBufferRef = useRef(new RingBuffer(MAX_BUFFER_SIZE));
   const domainsBufferRef = useRef(new RingBuffer(MAX_BUFFER_SIZE));
+  const parsedDomainsBufferRef = useRef(new ParsedRingBuffer(MAX_BUFFER_SIZE));
   const pendingLogLinesRef = useRef<string[]>([]);
   const pendingConnLinesRef = useRef<string[]>([]);
   const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,7 +155,9 @@ export const WebSocketProvider = ({
     // Connection events feed only the /connections page.
     if (pendingConns.length > 0 && !pauseDomainsRef.current) {
       domainsBufferRef.current.push(pendingConns);
+      parsedDomainsBufferRef.current.push(pendingConns);
       setDomains(domainsBufferRef.current.getAll());
+      setParsedDomains(parsedDomainsBufferRef.current.getAll());
 
       let targetedCount = 0;
       for (const line of pendingConns) {
@@ -210,7 +245,9 @@ export const WebSocketProvider = ({
 
   const clearDomains = useCallback(() => {
     domainsBufferRef.current.clear();
+    parsedDomainsBufferRef.current.clear();
     setDomains([]);
+    setParsedDomains([]);
     unseenCountRef.current = 0;
     setUnseenDomainsCount(0);
   }, []);
@@ -224,6 +261,7 @@ export const WebSocketProvider = ({
     () => ({
       logs,
       domains,
+      parsedDomains,
       pauseLogs,
       pauseDomains,
       unseenDomainsCount,
@@ -238,6 +276,7 @@ export const WebSocketProvider = ({
     [
       logs,
       domains,
+      parsedDomains,
       pauseLogs,
       pauseDomains,
       unseenDomainsCount,

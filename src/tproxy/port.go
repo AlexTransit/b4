@@ -6,7 +6,7 @@ const (
 	DefaultPortBase = 13000
 	PortRange       = 50000
 	MarkBase        = 0x10000
-	MarkRange       = 0xFE00
+	MarkRange       = 0x7E00
 )
 
 func MarkForSet(setID string, pinned uint32) uint32 {
