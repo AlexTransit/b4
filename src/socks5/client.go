@@ -25,6 +25,22 @@ type ClientConfig struct {
 	BypassMark uint32
 }
 
+func ApplyBypassMark(d *net.Dialer, mark uint32) {
+	if mark == 0 {
+		return
+	}
+	d.Control = func(network, address string, c syscall.RawConn) error {
+		var sockErr error
+		err := c.Control(func(fd uintptr) {
+			sockErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, int(mark))
+		})
+		if err != nil {
+			return err
+		}
+		return sockErr
+	}
+}
+
 func DialUpstream(ctx context.Context, cfg ClientConfig, targetHost string, targetPort int) (net.Conn, error) {
 	if cfg.Host == "" || cfg.Port < 1 || cfg.Port > 65535 {
 		return nil, fmt.Errorf("invalid upstream config")
@@ -39,19 +55,7 @@ func DialUpstream(ctx context.Context, cfg ClientConfig, targetHost string, targ
 	}
 
 	d := net.Dialer{Timeout: timeout}
-	if cfg.BypassMark != 0 {
-		mark := cfg.BypassMark
-		d.Control = func(network, address string, c syscall.RawConn) error {
-			var sockErr error
-			err := c.Control(func(fd uintptr) {
-				sockErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, int(mark))
-			})
-			if err != nil {
-				return err
-			}
-			return sockErr
-		}
-	}
+	ApplyBypassMark(&d, cfg.BypassMark)
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {

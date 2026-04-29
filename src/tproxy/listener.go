@@ -18,20 +18,7 @@ import (
 
 func markedDialer(timeout time.Duration, bypassMark uint32) net.Dialer {
 	d := net.Dialer{Timeout: timeout}
-	if bypassMark == 0 {
-		return d
-	}
-	mark := bypassMark
-	d.Control = func(network, address string, c syscall.RawConn) error {
-		var sockErr error
-		err := c.Control(func(fd uintptr) {
-			sockErr = unix.SetsockoptInt(int(fd), unix.SOL_SOCKET, unix.SO_MARK, int(mark))
-		})
-		if err != nil {
-			return err
-		}
-		return sockErr
-	}
+	socks5.ApplyBypassMark(&d, bypassMark)
 	return d
 }
 

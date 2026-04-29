@@ -11,8 +11,8 @@ interface MetricsCardsProps {
 export const MetricsCards = ({ metrics }: MetricsCardsProps) => {
   const { t } = useTranslation();
   const targetRate =
-    metrics.packets_processed > 0
-      ? ((metrics.targeted_connections / metrics.packets_processed) * 100).toFixed(1)
+    metrics.total_connections > 0
+      ? ((metrics.targeted_connections / metrics.total_connections) * 100).toFixed(1)
       : "0.0";
 
   const isIdle = metrics.rst_dropped === 0;

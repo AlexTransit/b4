@@ -55,7 +55,6 @@ func (h *ConnectionHub) Unsubscribe(ch chan string) {
 	for i, l := range h.listeners {
 		if l == ch {
 			h.listeners = append(h.listeners[:i], h.listeners[i+1:]...)
-			close(ch)
 			return
 		}
 	}

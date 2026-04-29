@@ -24,8 +24,8 @@ func HandleConnectionsWebSocket(w http.ResponseWriter, r *http.Request) {
 	ch, snapshot := hub.Subscribe()
 	defer hub.Unsubscribe(ch)
 
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 	for _, msg := range snapshot {
+		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 			return
 		}
@@ -46,10 +46,7 @@ func HandleConnectionsWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	for {
 		select {
-		case msg, ok := <-ch:
-			if !ok {
-				return
-			}
+		case msg := <-ch:
 			conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
 				return
