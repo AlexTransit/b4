@@ -152,7 +152,6 @@ export const WebSocketProvider = ({
       setLogs(logsBufferRef.current.getAll());
     }
 
-    // Connection events feed only the /connections page.
     if (pendingConns.length > 0 && !pauseDomainsRef.current) {
       domainsBufferRef.current.push(pendingConns);
       parsedDomainsBufferRef.current.push(pendingConns);
