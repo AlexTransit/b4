@@ -324,30 +324,40 @@ export function DashboardPage() {
 
       <ActiveSets sets={sets} />
 
-      <Grid container spacing={1.5} sx={{ mb: 1.5 }} alignItems="stretch">
-        <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
-          <Box sx={{ width: "100%" }}>
-            <DeviceActivity
-              deviceDomains={metrics.device_domains}
-              domainTLS={metrics.domain_tls}
-              sets={sets}
-              targetedDomains={targetedDomains}
-              onRefreshSets={refreshSets}
-            />
-          </Box>
-        </Grid>
-        <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
-          <Box sx={{ width: "100%" }}>
-            <UnmatchedDomains
-              topDomains={metrics.top_domains}
-              domainTLS={metrics.domain_tls}
-              sets={sets}
-              targetedDomains={targetedDomains}
-              onRefreshSets={refreshSets}
-            />
-          </Box>
-        </Grid>
-      </Grid>
+      {(() => {
+        const hasDevices = Object.keys(metrics.device_domains).length > 0;
+        return (
+          <Grid container spacing={1.5} sx={{ mb: 1.5 }} alignItems="stretch">
+            {hasDevices && (
+              <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
+                <Box sx={{ width: "100%" }}>
+                  <DeviceActivity
+                    deviceDomains={metrics.device_domains}
+                    domainTLS={metrics.domain_tls}
+                    sets={sets}
+                    targetedDomains={targetedDomains}
+                    onRefreshSets={refreshSets}
+                  />
+                </Box>
+              </Grid>
+            )}
+            <Grid
+              size={{ xs: 12, xl: hasDevices ? 6 : 12 }}
+              sx={{ display: "flex" }}
+            >
+              <Box sx={{ width: "100%" }}>
+                <UnmatchedDomains
+                  topDomains={metrics.top_domains}
+                  domainTLS={metrics.domain_tls}
+                  sets={sets}
+                  targetedDomains={targetedDomains}
+                  onRefreshSets={refreshSets}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+        );
+      })()}
 
       {metrics.connection_rate.length > 0 && (
         <Paper
