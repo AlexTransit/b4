@@ -200,6 +200,17 @@ export default function Version() {
           </Box>
         ) : (
           <Box
+            role="button"
+            tabIndex={0}
+            aria-haspopup="dialog"
+            onClick={() => setUpdateModalOpen(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                setUpdateModalOpen(true);
+              }
+            }}
+            title={t("update.clickToView")}
             sx={{
               display: "flex",
               alignItems: "center",
@@ -209,6 +220,11 @@ export default function Version() {
               fontFamily: fonts.mono,
               fontSize: 11,
               color: colors.text.secondary,
+              cursor: "pointer",
+              transition: "background-color 150ms ease",
+              "&:hover": {
+                backgroundColor: "rgba(255, 255, 255, 0.04)",
+              },
             }}
           >
             <Box

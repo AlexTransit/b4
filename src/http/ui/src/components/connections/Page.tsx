@@ -1,24 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { Box, Container, Fab, Paper, Tooltip, ToggleButton, ToggleButtonGroup } from "@mui/material";
-import { StartIcon, StopIcon, DashboardIcon, LogsIcon } from "@b4.icons";
-import { DomainsControlBar } from "./ControlBar";
+import { useState, useEffect, useCallback } from "react";
+import { Box, Container, Paper, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import { DashboardIcon, LogsIcon } from "@b4.icons";
 import { AddSniModal } from "./AddSniModal";
-import { DomainsTable, SortColumn } from "./Table";
 import { AggregatedView } from "./views/AggregatedView";
-import { SortDirection } from "@common/SortableTableCell";
+import { RawView } from "./views/RawView";
 import {
   useDomainActions,
-  useParsedLogs,
-  useEnrichedLogs,
-  useFilteredLogs,
-  useSortedLogs,
   clearAsnLookupCache,
 } from "@hooks/useDomainActions";
 import { useIpActions } from "@hooks/useIpActions";
 import {
   generateDomainVariants,
-  loadSortState,
-  saveSortState,
   generateIpVariants,
   asnStorage,
 } from "@utils";
@@ -29,8 +21,6 @@ import { B4Config, B4SetConfig } from "@models/config";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { devicesApi } from "@b4.devices";
 import { useTranslation } from "react-i18next";
-
-const MAX_DISPLAY_ROWS = 1000;
 
 interface RipeNetworkInfo {
   asns: string[];
@@ -65,6 +55,7 @@ export function ConnectionsPage() {
   const { t } = useTranslation();
   const {
     domains,
+    parsedDomains,
     pauseDomains,
     showAll,
     setShowAll,
@@ -80,15 +71,6 @@ export function ConnectionsPage() {
 
   const [filter, setFilter] = useState(() => {
     return localStorage.getItem("b4_connections_filter") || "";
-  });
-
-  const [sortColumn, setSortColumn] = useState<SortColumn | null>(() => {
-    const saved = loadSortState();
-    return saved.column as SortColumn | null;
-  });
-  const [sortDirection, setSortDirection] = useState<SortDirection>(() => {
-    const saved = loadSortState();
-    return saved.direction;
   });
 
   const { modalState, openModal, closeModal, selectVariant, addDomain } =
@@ -118,21 +100,6 @@ export function ConnectionsPage() {
   useEffect(() => {
     localStorage.setItem("b4_connections_view", view);
   }, [view]);
-
-  useEffect(() => {
-    saveSortState(sortColumn, sortDirection);
-  }, [sortColumn, sortDirection]);
-
-  // Limit displayed rows for performance
-  const recentDomains = useMemo(
-    () => domains.slice(-MAX_DISPLAY_ROWS),
-    [domains]
-  );
-
-  const parsedLogs = useParsedLogs(recentDomains, showAll);
-  const enrichedLogs = useEnrichedLogs(parsedLogs, deviceMap);
-  const filteredLogs = useFilteredLogs(enrichedLogs, filter);
-  const sortedData = useSortedLogs(filteredLogs, sortColumn, sortDirection);
 
   useEffect(() => {
     if (!devicesEnabled) {
@@ -190,31 +157,6 @@ export function ConnectionsPage() {
       controller.abort();
     };
   }, [fetchSets]);
-
-  const handleScrollStateChange = useCallback(() => {}, []);
-
-  const handleSort = useCallback((column: SortColumn) => {
-    setSortColumn((prevColumn) => {
-      if (prevColumn === column) {
-        setSortDirection((prevDir) => {
-          if (prevDir === "asc") return "desc";
-          if (prevDir === "desc") {
-            setSortColumn(null);
-            return null;
-          }
-          return "asc";
-        });
-        return prevColumn;
-      }
-      setSortDirection("asc");
-      return column;
-    });
-  }, []);
-
-  const handleClearSort = useCallback(() => {
-    setSortColumn(null);
-    setSortDirection(null);
-  }, []);
 
   const handleEnrichIp = useCallback(async (ip: string) => {
     const cleanIp = ip.split(":")[0].replaceAll(/[[\]]/g, "");
@@ -394,52 +336,23 @@ export function ConnectionsPage() {
             onDeleteAsn={handleDeleteAsn}
           />
         ) : (
-          <>
-            <DomainsControlBar
-              filter={filter}
-              onFilterChange={setFilter}
-              totalCount={enrichedLogs.length}
-              filteredCount={filteredLogs.length}
-              sortColumn={sortColumn}
-              showAll={showAll}
-              onShowAllChange={setShowAll}
-              onClearSort={handleClearSort}
-              onReset={clearDomains}
-            />
-            <Box sx={{ position: "relative", flex: 1, overflow: "hidden", display: "flex" }}>
-              <DomainsTable
-                data={sortedData}
-                sortColumn={sortColumn}
-                sortDirection={sortDirection}
-                onSort={handleSort}
-                onDomainClick={handleDomainClick}
-                onIpClick={handleIpClick}
-                onEnrichIp={handleEnrichIp}
-                onDeleteAsn={handleDeleteAsn}
-                enrichingIps={enrichingIps}
-                asnVersion={asnVersion}
-                onScrollStateChange={handleScrollStateChange}
-              />
-              <Tooltip title={pauseDomains ? t("connections.page.resumeStreaming") : t("connections.page.pauseStreaming")} placement="left">
-                <Fab
-                  size="small"
-                  onClick={() => setPauseDomains(!pauseDomains)}
-                  sx={{
-                    position: "absolute",
-                    bottom: 16,
-                    right: 16,
-                    bgcolor: pauseDomains ? colors.secondary : colors.border.strong,
-                    color: colors.background.default,
-                    "&:hover": {
-                      bgcolor: pauseDomains ? colors.secondary : colors.border.default,
-                    },
-                  }}
-                >
-                  {pauseDomains ? <StartIcon /> : <StopIcon />}
-                </Fab>
-              </Tooltip>
-            </Box>
-          </>
+          <RawView
+            entries={parsedDomains}
+            deviceMap={deviceMap}
+            paused={pauseDomains}
+            onTogglePause={() => setPauseDomains(!pauseDomains)}
+            showAll={showAll}
+            onShowAllChange={setShowAll}
+            onReset={clearDomains}
+            filter={filter}
+            onFilterChange={setFilter}
+            enrichingIps={enrichingIps}
+            asnVersion={asnVersion}
+            onAddDomain={handleDomainClick}
+            onAddIp={handleIpClick}
+            onEnrichIp={handleEnrichIp}
+            onDeleteAsn={handleDeleteAsn}
+          />
         )}
       </Paper>
 

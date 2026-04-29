@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { wsUrl } from "@utils";
+import { ParsedLog, parseSniLogLine } from "@hooks/useDomainActions";
 
 const MAX_BUFFER_SIZE = 2000;
 const BATCH_INTERVAL_MS = 150; // Batch updates every 150ms
@@ -15,6 +16,7 @@ const BATCH_INTERVAL_MS = 150; // Batch updates every 150ms
 interface WebSocketContextType {
   logs: string[];
   domains: string[];
+  parsedDomains: ParsedLog[];
   pauseLogs: boolean;
   showAll: boolean;
   pauseDomains: boolean;
@@ -58,6 +60,35 @@ class RingBuffer {
   }
 }
 
+// Parsed ring buffer for connection lines - parsed once on ingestion so the
+// raw view doesn't reparse 1000 lines on every WS batch.
+class ParsedRingBuffer {
+  private buffer: ParsedLog[] = [];
+  private readonly maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  push(rawLines: string[]): void {
+    for (const line of rawLines) {
+      const p = parseSniLogLine(line);
+      if (p) this.buffer.push(p);
+    }
+    if (this.buffer.length > this.maxSize) {
+      this.buffer = this.buffer.slice(-this.maxSize);
+    }
+  }
+
+  getAll(): ParsedLog[] {
+    return [...this.buffer];
+  }
+
+  clear(): void {
+    this.buffer = [];
+  }
+}
+
 // Check if a line represents a targeted connection
 function isTargetedLine(line: string): boolean {
   const tokens = line.trim().split(",");
@@ -73,6 +104,7 @@ export const WebSocketProvider = ({
 }) => {
   const [logs, setLogs] = useState<string[]>([]);
   const [domains, setDomains] = useState<string[]>([]);
+  const [parsedDomains, setParsedDomains] = useState<ParsedLog[]>([]);
   const [pauseLogs, setPauseLogs] = useState(false);
   const [pauseDomains, setPauseDomains] = useState(false);
   const [showAll, setShowAll] = useState(() => {
@@ -90,7 +122,9 @@ export const WebSocketProvider = ({
   const pauseDomainsRef = useRef(pauseDomains);
   const logsBufferRef = useRef(new RingBuffer(MAX_BUFFER_SIZE));
   const domainsBufferRef = useRef(new RingBuffer(MAX_BUFFER_SIZE));
-  const pendingLinesRef = useRef<string[]>([]);
+  const parsedDomainsBufferRef = useRef(new ParsedRingBuffer(MAX_BUFFER_SIZE));
+  const pendingLogLinesRef = useRef<string[]>([]);
+  const pendingConnLinesRef = useRef<string[]>([]);
   const batchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unseenCountRef = useRef(0);
 
@@ -105,30 +139,29 @@ export const WebSocketProvider = ({
 
   // Batch processing function
   const processBatch = useCallback(() => {
-    const pending = pendingLinesRef.current;
-    if (pending.length === 0) return;
+    const pendingLogs = pendingLogLinesRef.current;
+    const pendingConns = pendingConnLinesRef.current;
+    if (pendingLogs.length === 0 && pendingConns.length === 0) return;
 
-    pendingLinesRef.current = [];
+    pendingLogLinesRef.current = [];
+    pendingConnLinesRef.current = [];
 
-    // Count targeted connections for badge
-    let targetedCount = 0;
-    for (const line of pending) {
-      if (isTargetedLine(line)) {
-        targetedCount++;
-      }
-    }
-
-    // Update logs if not paused
-    if (!pauseLogsRef.current) {
-      logsBufferRef.current.push(pending);
+    // Diagnostic logs feed only the /logs page.
+    if (pendingLogs.length > 0 && !pauseLogsRef.current) {
+      logsBufferRef.current.push(pendingLogs);
       setLogs(logsBufferRef.current.getAll());
     }
 
-    // Update domains if not paused
-    if (!pauseDomainsRef.current) {
-      domainsBufferRef.current.push(pending);
+    if (pendingConns.length > 0 && !pauseDomainsRef.current) {
+      domainsBufferRef.current.push(pendingConns);
+      parsedDomainsBufferRef.current.push(pendingConns);
       setDomains(domainsBufferRef.current.getAll());
+      setParsedDomains(parsedDomainsBufferRef.current.getAll());
 
+      let targetedCount = 0;
+      for (const line of pendingConns) {
+        if (isTargetedLine(line)) targetedCount++;
+      }
       if (targetedCount > 0) {
         unseenCountRef.current += targetedCount;
         setUnseenDomainsCount(unseenCountRef.current);
@@ -144,41 +177,54 @@ export const WebSocketProvider = ({
     }, BATCH_INTERVAL_MS);
   }, [processBatch]);
 
-  // WebSocket connection
+  // WebSocket connections — diagnostic logs and connection events are now
+  // separate streams. The logs stream is level-gated; the connections stream
+  // is always-on (cheap fan-out, no listeners = no work).
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
     let isCleaningUp = false;
 
-    const connect = () => {
-      if (isCleaningUp) return;
+    const openStream = (
+      path: string,
+      sink: { current: string[] },
+      label: string,
+    ): { close: () => void } => {
+      let ws: WebSocket | null = null;
+      let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
-      const url = wsUrl("/api/ws/logs");
-      ws = new WebSocket(url);
-
-      ws.onopen = () => {
-        console.log("WebSocket connected");
+      const connect = () => {
+        if (isCleaningUp) return;
+        ws = new WebSocket(wsUrl(path));
+        ws.onopen = () => console.log(`${label} WebSocket connected`);
+        ws.onmessage = (ev) => {
+          sink.current.push(String(ev.data));
+          scheduleBatch();
+        };
+        ws.onerror = (error) =>
+          console.error(`${label} WebSocket error:`, error);
+        ws.onclose = () => {
+          if (!isCleaningUp) {
+            console.log(`${label} WebSocket disconnected, reconnecting in 3s...`);
+            reconnectTimeout = setTimeout(connect, 3000);
+          }
+        };
       };
 
-      ws.onmessage = (ev) => {
-        const line = String(ev.data);
-        pendingLinesRef.current.push(line);
-        scheduleBatch();
-      };
+      connect();
 
-      ws.onerror = (error) => {
-        console.error("WebSocket error:", error);
-      };
-
-      ws.onclose = () => {
-        if (!isCleaningUp) {
-          console.log("WebSocket disconnected, reconnecting in 3s...");
-          reconnectTimeout = setTimeout(connect, 3000);
-        }
+      return {
+        close: () => {
+          if (reconnectTimeout) clearTimeout(reconnectTimeout);
+          if (ws) ws.close();
+        },
       };
     };
 
-    connect();
+    const logsStream = openStream("/api/ws/logs", pendingLogLinesRef, "Logs");
+    const connStream = openStream(
+      "/api/ws/connections",
+      pendingConnLinesRef,
+      "Connections",
+    );
 
     return () => {
       isCleaningUp = true;
@@ -186,12 +232,8 @@ export const WebSocketProvider = ({
         clearTimeout(batchTimeoutRef.current);
         batchTimeoutRef.current = null;
       }
-      if (reconnectTimeout) {
-        clearTimeout(reconnectTimeout);
-      }
-      if (ws) {
-        ws.close();
-      }
+      logsStream.close();
+      connStream.close();
     };
   }, [scheduleBatch]);
 
@@ -202,7 +244,9 @@ export const WebSocketProvider = ({
 
   const clearDomains = useCallback(() => {
     domainsBufferRef.current.clear();
+    parsedDomainsBufferRef.current.clear();
     setDomains([]);
+    setParsedDomains([]);
     unseenCountRef.current = 0;
     setUnseenDomainsCount(0);
   }, []);
@@ -216,6 +260,7 @@ export const WebSocketProvider = ({
     () => ({
       logs,
       domains,
+      parsedDomains,
       pauseLogs,
       pauseDomains,
       unseenDomainsCount,
@@ -230,6 +275,7 @@ export const WebSocketProvider = ({
     [
       logs,
       domains,
+      parsedDomains,
       pauseLogs,
       pauseDomains,
       unseenDomainsCount,

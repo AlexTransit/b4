@@ -21,11 +21,14 @@ export const ActiveSets = ({ sets }: ActiveSetsProps) => {
   return (
     <Box
       sx={{
-        mb: 1.5,
+        width: "100%",
+        height: "100%",
         p: "14px",
         borderRadius: `${radiusPx.md}px`,
         bgcolor: colors.background.paper,
         border: `1px solid ${colors.border.default}`,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Typography

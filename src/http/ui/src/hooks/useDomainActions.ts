@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { SortDirection } from "@common/SortableTableCell";
 import { asnStorage } from "@utils";
 import { useSnackbar } from "@context/SnackbarProvider";
@@ -95,7 +95,7 @@ export function clearAsnLookupCache(): void {
 }
 
 // Parse a single log line with caching
-function parseSniLogLine(line: string): ParsedLog | null {
+export function parseSniLogLine(line: string): ParsedLog | null {
   const cached = parseCache.get(line);
   if (cached !== undefined) return cached;
 
@@ -205,70 +205,6 @@ export function useDomainActions() {
     selectVariant,
     addDomain,
   };
-}
-
-// Optimized hook to parse logs
-export function useParsedLogs(lines: string[], showAll: boolean): ParsedLog[] {
-  const prevLinesRef = useRef<string[]>([]);
-  const prevResultRef = useRef<ParsedLog[]>([]);
-  const prevShowAllRef = useRef<boolean>(showAll);
-
-  return useMemo(() => {
-    const prevLines = prevLinesRef.current;
-    const prevResult = prevResultRef.current;
-
-    if (prevShowAllRef.current !== showAll && prevLines === lines) {
-      prevShowAllRef.current = showAll;
-      const filtered = showAll
-        ? prevResult
-        : prevResult.filter((log) => log.domain !== "");
-      return filtered;
-    }
-
-    prevShowAllRef.current = showAll;
-
-    if (prevLines.length > 0 && lines.length > prevLines.length) {
-      let isAppend = true;
-      const checkLength = Math.min(prevLines.length, 100);
-      for (let i = 0; i < checkLength; i++) {
-        const prevIdx = prevLines.length - checkLength + i;
-        const currIdx =
-          lines.length - (lines.length - prevLines.length) - checkLength + i;
-        if (
-          currIdx >= 0 &&
-          prevIdx >= 0 &&
-          lines[currIdx] !== prevLines[prevIdx]
-        ) {
-          isAppend = false;
-          break;
-        }
-      }
-
-      if (isAppend) {
-        const newLines = lines.slice(prevLines.length);
-        const newParsed = newLines
-          .map(parseSniLogLine)
-          .filter((log): log is ParsedLog => log !== null);
-
-        const allParsed = [...prevResult, ...newParsed];
-        prevLinesRef.current = lines;
-        prevResultRef.current = allParsed;
-
-        return showAll
-          ? allParsed
-          : allParsed.filter((log) => log.domain !== "");
-      }
-    }
-
-    const parsed = lines
-      .map(parseSniLogLine)
-      .filter((log): log is ParsedLog => log !== null);
-
-    prevLinesRef.current = lines;
-    prevResultRef.current = parsed;
-
-    return showAll ? parsed : parsed.filter((log) => log.domain !== "");
-  }, [lines, showAll]);
 }
 
 // Enrich logs with device names

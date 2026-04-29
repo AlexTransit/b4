@@ -69,7 +69,7 @@ const navItems: NavItem[] = [
   { path: "/discovery", labelKey: "core.nav.discovery", icon: <DiscoveryIcon /> },
   { path: "/watchdog", labelKey: "core.nav.watchdog", icon: <WatchdogIcon /> },
   { path: "/detector", labelKey: "core.nav.detector", icon: <SecurityIcon /> },
-  { path: "/connections", labelKey: "core.nav.connections", icon: <ConnectionIcon /> },
+  { path: "/traffic", labelKey: "core.nav.connections", icon: <ConnectionIcon /> },
   { path: "/logs", labelKey: "core.nav.logs", icon: <LogsIcon /> },
   { path: "/settings", labelKey: "core.nav.settings", icon: <CoreIcon /> },
 ];
@@ -99,7 +99,7 @@ export default function App() {
     const path = location.pathname;
     if (path.startsWith("/dashboard")) return t("core.nav.dashboard");
     if (path.startsWith("/sets")) return t("core.nav.sets");
-    if (path.startsWith("/connections")) return t("core.nav.connections");
+    if (path.startsWith("/traffic")) return t("core.nav.connections");
     if (path.startsWith("/discovery")) return t("core.nav.discovery");
     if (path.startsWith("/watchdog")) return t("core.nav.watchdog");
     if (path.startsWith("/logs")) return t("core.nav.logs");
@@ -139,7 +139,7 @@ export default function App() {
             <List sx={{ py: 1 }}>
               {navItems.map((item) => {
                 let targetCount = 0;
-                if (item.path === "/connections" && unseenDomainsCount > 0) {
+                if (item.path === "/traffic" && unseenDomainsCount > 0) {
                   targetCount = unseenDomainsCount;
                 }
                 const badgeLabel =
@@ -150,7 +150,7 @@ export default function App() {
                     <ListItemButton
                       selected={isNavItemSelected(item.path)}
                       onClick={() => {
-                        if (item.path === "/connections") {
+                        if (item.path === "/traffic") {
                           resetDomainsBadge();
                         }
                         navigate(item.path)?.catch(() => {});
@@ -256,7 +256,8 @@ export default function App() {
               <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/sets/*" element={<SetsPage />} />
-              <Route path="/connections" element={<ConnectionsPage />} />
+              <Route path="/traffic" element={<ConnectionsPage />} />
+              <Route path="/connections" element={<Navigate to="/traffic" replace />} />
               <Route path="/discovery" element={<DiscoveryPage />} />
               <Route path="/watchdog" element={<WatchdogPage />} />
               <Route path="/detector" element={<DetectorPage />} />

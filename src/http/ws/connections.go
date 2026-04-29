@@ -8,19 +8,29 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func HandleDiscoveryWebSocket(w http.ResponseWriter, r *http.Request) {
+// HandleConnectionsWebSocket streams structured connection events from the
+// log.ConnectionHub. New subscribers immediately receive a ring-buffer
+// snapshot of recent events so the UI's connections page is populated even
+// if it opens during an idle period.
+func HandleConnectionsWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := Upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Errorf("Failed to upgrade discovery WebSocket: %v", err)
+		log.Errorf("Failed to upgrade connections WebSocket: %v", err)
 		return
 	}
 	defer conn.Close()
 
-	hub := log.GetDiscoveryHub()
-	ch := hub.Subscribe()
+	hub := log.GetConnectionHub()
+	ch, snapshot := hub.Subscribe()
 	defer hub.Unsubscribe(ch)
 
-	// Ping ticker
+	for _, msg := range snapshot {
+		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		if err := conn.WriteMessage(websocket.TextMessage, []byte(msg)); err != nil {
+			return
+		}
+	}
+
 	pingTicker := time.NewTicker(30 * time.Second)
 	defer pingTicker.Stop()
 

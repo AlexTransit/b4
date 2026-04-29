@@ -276,6 +276,11 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("mark value 0x%x is too high for auto-derived discovery marks", c.Queue.Mark)
 	}
 
+	const perSetReachableBits uint32 = 0x17FFF
+	if c.Queue.Mark != 0 && uint32(c.Queue.Mark)&^perSetReachableBits == 0 {
+		return fmt.Errorf("mark value 0x%x conflicts with per-set mark bits {0-14, 16}; bypass rule would catch TPROXY-redirected traffic. Use a value with at least one bit in {15, 17-31} (default 0x8000 has bit 15)", c.Queue.Mark)
+	}
+
 	c.System.Checker.DiscoveryFlowMark = c.DiscoveryFlowMark()
 	c.System.Checker.DiscoveryInjectedMark = c.DiscoveryInjectedMark()
 
