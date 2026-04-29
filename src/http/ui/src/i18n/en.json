@@ -52,7 +52,7 @@
       "sets": "Sets",
       "discovery": "Discovery",
       "detector": "DPI Detector",
-      "connections": "Connections",
+      "connections": "Traffic",
       "logs": "Logs",
       "settings": "Settings",
       "watchdog": "Watchdog"
