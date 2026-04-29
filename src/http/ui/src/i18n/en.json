@@ -461,9 +461,7 @@
     "connectionRate": "Connection Rate",
     "connectionRateLegend": "conn / s · last 60s",
     "metrics": {
-      "connections": "Connections",
-      "connPerSec": "conn/s",
-      "bypassed": "Bypassed",
+      "targeted": "Targeted",
       "ofTotal": "of total",
       "packets": "Packets",
       "pktPerSec": "pkt/s",

@@ -318,11 +318,23 @@ export function DashboardPage() {
     <Container maxWidth={false} sx={{ p: 2 }}>
       <HealthBanner metrics={metrics} connected={connected} />
 
-      <Box sx={{ mb: 1.5 }}>
-        <MetricsCards metrics={metrics} />
-      </Box>
-
-      <ActiveSets sets={sets} />
+      <Grid container spacing={1.5} sx={{ mb: 1.5 }} alignItems="stretch">
+        <Grid
+          size={{ xs: 12, lg: sets.length > 0 ? 6 : 12 }}
+          sx={{ display: "flex" }}
+        >
+          <Box sx={{ width: "100%" }}>
+            <MetricsCards metrics={metrics} />
+          </Box>
+        </Grid>
+        {sets.length > 0 && (
+          <Grid size={{ xs: 12, lg: 6 }} sx={{ display: "flex" }}>
+            <Box sx={{ width: "100%" }}>
+              <ActiveSets sets={sets} />
+            </Box>
+          </Grid>
+        )}
+      </Grid>
 
       {(() => {
         const hasDevices = Object.keys(metrics.device_domains).length > 0;

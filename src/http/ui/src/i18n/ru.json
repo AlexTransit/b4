@@ -457,9 +457,7 @@
     "connectionRate": "Скорость соединений",
     "connectionRateLegend": "соед / с · за 60с",
     "metrics": {
-      "connections": "Соединения",
-      "connPerSec": "соед/с",
-      "bypassed": "Обход DPI",
+      "targeted": "Затронуто",
       "ofTotal": "от общего",
       "packets": "Пакеты",
       "pktPerSec": "пак/с",
