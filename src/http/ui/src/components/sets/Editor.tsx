@@ -22,19 +22,15 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 
-import { B4Tab, B4Tabs, B4TextField } from "@b4.elements";
+import { B4Tab, B4Tabs, B4TextField, B4Select } from "@b4.elements";
 
 import { colors } from "@design";
-import {
-  B4Config,
-  B4SetConfig,
-  SystemConfig,
-} from "@models/config";
+import { B4Config, B4SetConfig, SystemConfig } from "@models/config";
 
 import { ImportExportSettings } from "./ImportExport";
 import { SetStats } from "./Manager";
 import { RoutingSettings } from "./Routing";
-import { TargetSettings } from "./Target";
+import { TargetSettings, wouldCreateEscalationCycle } from "./Target";
 import { TcpTabContainer } from "./tcp/TcpTabContainer";
 import { UdpSettings } from "./Udp";
 import { useTranslation } from "react-i18next";
@@ -201,6 +197,31 @@ export const SetEditorPage = ({
                   },
                 }}
               />
+              <Box sx={{ minWidth: 220 }}>
+                <B4Select
+                  label={t("sets.targets.escalateTo")}
+                  value={editedSet.escalate_to ?? ""}
+                  options={[
+                    { value: "", label: t("sets.targets.escalateNone") },
+                    ...(config.sets ?? [])
+                      .filter(
+                        (s) =>
+                          s.id &&
+                          s.id !== editedSet.id &&
+                          s.enabled &&
+                          !wouldCreateEscalationCycle(
+                            s,
+                            editedSet.id,
+                            config.sets ?? [],
+                          ),
+                      )
+                      .map((s) => ({ label: s.name || s.id, value: s.id })),
+                  ]}
+                  onChange={(e) =>
+                    handleChange("escalate_to", e.target.value as string)
+                  }
+                />
+              </Box>
               {isNew && (
                 <Typography
                   variant="caption"
@@ -249,11 +270,31 @@ export const SetEditorPage = ({
               setActiveTab(v);
             }}
           >
-            <B4Tab icon={<DomainIcon />} label={t("sets.editor.tabs.targets")} inline />
-            <B4Tab icon={<TcpIcon />} label={t("sets.editor.tabs.tcp")} inline />
-            <B4Tab icon={<UdpIcon />} label={t("sets.editor.tabs.udp")} inline />
-            <B4Tab icon={<AltRouteIcon />} label={t("sets.editor.tabs.routing")} inline />
-            <B4Tab icon={<ImportExportIcon />} label={t("sets.editor.tabs.importExport")} inline />
+            <B4Tab
+              icon={<DomainIcon />}
+              label={t("sets.editor.tabs.targets")}
+              inline
+            />
+            <B4Tab
+              icon={<TcpIcon />}
+              label={t("sets.editor.tabs.tcp")}
+              inline
+            />
+            <B4Tab
+              icon={<UdpIcon />}
+              label={t("sets.editor.tabs.udp")}
+              inline
+            />
+            <B4Tab
+              icon={<AltRouteIcon />}
+              label={t("sets.editor.tabs.routing")}
+              inline
+            />
+            <B4Tab
+              icon={<ImportExportIcon />}
+              label={t("sets.editor.tabs.importExport")}
+              inline
+            />
           </B4Tabs>
         </Box>
       </Paper>
@@ -266,7 +307,6 @@ export const SetEditorPage = ({
             config={editedSet}
             stats={stats}
             otherSetsTargets={otherSetsTargets}
-            allSets={config.sets}
             onChange={handleChange}
           />
         </TabPanel>
@@ -305,7 +345,9 @@ export const SetEditorPage = ({
       </Box>
 
       <Tooltip title={saveTooltip} placement="left">
-        <span style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1200 }}>
+        <span
+          style={{ position: "fixed", bottom: 24, right: 24, zIndex: 1200 }}
+        >
           <Fab
             size="medium"
             onClick={handleSave}

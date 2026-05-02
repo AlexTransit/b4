@@ -61,11 +61,10 @@ interface TargetSettingsProps {
   geo: GeoConfig;
   stats?: SetStats;
   otherSetsTargets?: OtherSetsTargets;
-  allSets?: B4SetConfig[];
   onChange: (field: string, value: string | string[]) => void;
 }
 
-const wouldCreateEscalationCycle = (
+export const wouldCreateEscalationCycle = (
   candidate: B4SetConfig,
   currentId: string,
   all: B4SetConfig[],
@@ -116,7 +115,6 @@ export const TargetSettings = ({
   geo,
   stats,
   otherSetsTargets,
-  allSets,
 }: TargetSettingsProps) => {
   const { t } = useTranslation();
   const [tabValue, setTabValue] = useState(0);
@@ -407,49 +405,6 @@ export const TargetSettings = ({
           description={t("sets.targets.sectionDescription")}
           icon={<DomainIcon />}
         >
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 2 }}>
-            <Box sx={{ maxWidth: 200, flex: "0 0 auto" }}>
-              <B4Select
-                label={t("sets.targets.tlsVersionFilter")}
-                value={config.targets.tls ?? ""}
-                options={[
-                  { value: "", label: t("sets.targets.tlsAny") },
-                  { value: "1.2", label: "TLS 1.2" },
-                  { value: "1.3", label: "TLS 1.3" },
-                ]}
-                helperText={t("sets.targets.tlsHelperText")}
-                onChange={(e) =>
-                  onChange("targets.tls", e.target.value as string)
-                }
-              />
-            </Box>
-            <Box sx={{ maxWidth: 280, flex: "0 0 auto" }}>
-              <B4Select
-                label={t("sets.targets.escalateTo")}
-                value={config.escalate_to ?? ""}
-                options={[
-                  { value: "", label: t("sets.targets.escalateNone") },
-                  ...(allSets ?? [])
-                    .filter(
-                      (s) =>
-                        s.id &&
-                        s.id !== config.id &&
-                        s.enabled &&
-                        !wouldCreateEscalationCycle(
-                          s,
-                          config.id,
-                          allSets ?? [],
-                        ),
-                    )
-                    .map((s) => ({ label: s.name || s.id, value: s.id })),
-                ]}
-                helperText={t("sets.targets.escalateHelper")}
-                onChange={(e) =>
-                  onChange("escalate_to", e.target.value as string)
-                }
-              />
-            </Box>
-          </Stack>
           <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 0 }}>
             <B4Tabs
               value={tabValue}
@@ -474,6 +429,22 @@ export const TargetSettings = ({
             <B4Alert severity="info" sx={{ m: 0 }}>
               {t("sets.targets.domainAlert")}
             </B4Alert>
+
+            <Box sx={{ mt: 2, maxWidth: 260 }}>
+              <B4Select
+                label={t("sets.targets.tlsVersionFilter")}
+                value={config.targets.tls ?? ""}
+                options={[
+                  { value: "", label: t("sets.targets.tlsAny") },
+                  { value: "1.2", label: "TLS 1.2" },
+                  { value: "1.3", label: "TLS 1.3" },
+                ]}
+                helperText={t("sets.targets.tlsHelperText")}
+                onChange={(e) =>
+                  onChange("targets.tls", e.target.value as string)
+                }
+              />
+            </Box>
 
             <Grid container spacing={2}>
               {/* Manual Bypass Domains */}
