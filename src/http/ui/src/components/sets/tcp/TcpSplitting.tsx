@@ -65,171 +65,168 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
   const poolOptions = fragmentationOptions.filter((o) => o.value !== "none");
 
   return (
-    <>
-      <B4FormHeader label={t("sets.tcp.splitting.header")} />
-      <Grid container spacing={3} sx={{ mt: 3 }}>
-        {/* Strategy Selection */}
-        <Grid size={{ xs: 12, md: 6 }}>
-          <B4Select
-            label={t("sets.tcp.splitting.method")}
-            value={strategy}
-            options={fragmentationOptions}
-            onChange={(e) => onChange("fragmentation.strategy", e.target.value)}
-          />
-        </Grid>
+    <Grid container spacing={3} sx={{ mt: 2 }}>
+      {/* Strategy Selection */}
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4Select
+          label={t("sets.tcp.splitting.method")}
+          value={strategy}
+          options={fragmentationOptions}
+          onChange={(e) => onChange("fragmentation.strategy", e.target.value)}
+        />
+      </Grid>
 
-        <Grid size={{ xs: 12, md: 6 }}>
-          <B4Switch
-            label={t("sets.tcp.splitting.reverseOrder")}
-            checked={config.fragmentation.reverse_order}
-            onChange={(checked: boolean) =>
-              onChange("fragmentation.reverse_order", checked)
-            }
-            description={t("sets.tcp.splitting.reverseOrderDesc")}
-          />
-        </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4Switch
+          label={t("sets.tcp.splitting.reverseOrder")}
+          checked={config.fragmentation.reverse_order}
+          onChange={(checked: boolean) =>
+            onChange("fragmentation.reverse_order", checked)
+          }
+          description={t("sets.tcp.splitting.reverseOrderDesc")}
+        />
+      </Grid>
 
-        <Grid size={{ xs: 12 }}>
-          <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-            {t("sets.tcp.splitting.strategyPool")}
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ mb: 1, display: "block" }}
-          >
-            {t("sets.tcp.splitting.strategyPoolDesc")}
-          </Typography>
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
-            {poolOptions.map((opt) => {
-              const active: boolean = pool.includes(opt.value);
-              return (
-                <Chip
-                  key={opt.value}
-                  label={opt.label}
-                  size="small"
-                  onClick={() => togglePoolStrategy(opt.value)}
-                  sx={{
+      <Grid size={{ xs: 12 }}>
+        <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+          {t("sets.tcp.splitting.strategyPool")}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ mb: 1, display: "block" }}
+        >
+          {t("sets.tcp.splitting.strategyPoolDesc")}
+        </Typography>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+          {poolOptions.map((opt) => {
+            const active: boolean = pool.includes(opt.value);
+            return (
+              <Chip
+                key={opt.value}
+                label={opt.label}
+                size="small"
+                onClick={() => togglePoolStrategy(opt.value)}
+                sx={{
+                  bgcolor: active
+                    ? colors.accent.primary
+                    : colors.background.dark,
+                  color: active ? colors.secondary : colors.text.secondary,
+                  fontWeight: active ? 600 : 400,
+                  cursor: "pointer",
+                  border: active
+                    ? `1px solid ${colors.secondary}`
+                    : `1px solid ${colors.border.default}`,
+                  "&:hover": {
                     bgcolor: active
                       ? colors.accent.primary
-                      : colors.background.dark,
-                    color: active ? colors.secondary : colors.text.secondary,
-                    fontWeight: active ? 600 : 400,
-                    cursor: "pointer",
-                    border: active
-                      ? `1px solid ${colors.secondary}`
-                      : `1px solid ${colors.border.default}`,
-                    "&:hover": {
-                      bgcolor: active
-                        ? colors.accent.primary
-                        : colors.background.paper,
-                    },
-                  }}
-                />
-              );
+                      : colors.background.paper,
+                  },
+                }}
+              />
+            );
+          })}
+        </Box>
+        {hasPool && (
+          <B4Hint sx={{ mt: 1 }}>
+            {t("sets.tcp.splitting.strategyPoolActive", {
+              count: pool.length,
             })}
-          </Box>
-          {hasPool && (
-            <B4Hint sx={{ mt: 1 }}>
-              {t("sets.tcp.splitting.strategyPoolActive", {
-                count: pool.length,
-              })}
-            </B4Hint>
-          )}
-        </Grid>
-
-        {isTcpOrIp && <TcpIpSettings config={config} onChange={onChange} />}
-
-        {strategy === "combo" && (
-          <ComboSettings config={config} onChange={onChange} />
-        )}
-
-        {strategy === "disorder" && (
-          <DisorderSettings config={config} onChange={onChange} />
-        )}
-        {strategy === "extsplit" && <ExtSplitSettings />}
-
-        {strategy === "firstbyte" && <FirstByteSettings config={config} />}
-
-        {isOob && (
-          <>
-            <B4FormHeader label={t("sets.tcp.splitting.oobHeader")} />
-
-            <B4Hint>{t("sets.tcp.splitting.oobAlert")}</B4Hint>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <B4RangeSlider
-                label={t("sets.tcp.splitting.oobPosition")}
-                value={[
-                  config.fragmentation.oob_position || 1,
-                  config.fragmentation.oob_position_max ||
-                    config.fragmentation.oob_position ||
-                    1,
-                ]}
-                onChange={(value: [number, number]) => {
-                  onChange("fragmentation.oob_position", value[0]);
-                  onChange("fragmentation.oob_position_max", value[1]);
-                }}
-                min={1}
-                max={50}
-                step={1}
-                helperText={t("sets.tcp.splitting.oobPositionHelper")}
-              />
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <Box>
-                <Typography variant="body2" gutterBottom>
-                  {t("sets.tcp.splitting.oobByte")}{" "}
-                  <code>
-                    {String.fromCodePoint(config.fragmentation.oob_char || 120)}
-                  </code>{" "}
-                  (0x
-                  {(config.fragmentation.oob_char || 120)
-                    .toString(16)
-                    .padStart(2, "0")}
-                  )
-                </Typography>
-              </Box>
-            </Grid>
-          </>
-        )}
-
-        {/* TLS Record Settings */}
-        {isTls && (
-          <>
-            <B4FormHeader label={t("sets.tcp.splitting.tlsRecHeader")} />
-
-            <B4Hint>{t("sets.tcp.splitting.tlsRecAlert")}</B4Hint>
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <B4RangeSlider
-                label={t("sets.tcp.splitting.tlsRecPosition")}
-                value={[
-                  config.fragmentation.tlsrec_pos || 1,
-                  config.fragmentation.tlsrec_pos_max ||
-                    config.fragmentation.tlsrec_pos ||
-                    1,
-                ]}
-                onChange={(value: [number, number]) => {
-                  onChange("fragmentation.tlsrec_pos", value[0]);
-                  onChange("fragmentation.tlsrec_pos_max", value[1]);
-                }}
-                min={1}
-                max={100}
-                step={1}
-                helperText={t("sets.tcp.splitting.tlsRecPositionHelper")}
-              />
-            </Grid>
-          </>
-        )}
-
-        {!isActive && (
-          <B4Alert severity="warning">
-            {t("sets.tcp.splitting.disabledWarning")}
-          </B4Alert>
+          </B4Hint>
         )}
       </Grid>
-    </>
+
+      {isTcpOrIp && <TcpIpSettings config={config} onChange={onChange} />}
+
+      {strategy === "combo" && (
+        <ComboSettings config={config} onChange={onChange} />
+      )}
+
+      {strategy === "disorder" && (
+        <DisorderSettings config={config} onChange={onChange} />
+      )}
+      {strategy === "extsplit" && <ExtSplitSettings />}
+
+      {strategy === "firstbyte" && <FirstByteSettings config={config} />}
+
+      {isOob && (
+        <>
+          <B4FormHeader label={t("sets.tcp.splitting.oobHeader")} />
+
+          <B4Hint>{t("sets.tcp.splitting.oobAlert")}</B4Hint>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <B4RangeSlider
+              label={t("sets.tcp.splitting.oobPosition")}
+              value={[
+                config.fragmentation.oob_position || 1,
+                config.fragmentation.oob_position_max ||
+                  config.fragmentation.oob_position ||
+                  1,
+              ]}
+              onChange={(value: [number, number]) => {
+                onChange("fragmentation.oob_position", value[0]);
+                onChange("fragmentation.oob_position_max", value[1]);
+              }}
+              min={1}
+              max={50}
+              step={1}
+              helperText={t("sets.tcp.splitting.oobPositionHelper")}
+            />
+          </Grid>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <Box>
+              <Typography variant="body2" gutterBottom>
+                {t("sets.tcp.splitting.oobByte")}{" "}
+                <code>
+                  {String.fromCodePoint(config.fragmentation.oob_char || 120)}
+                </code>{" "}
+                (0x
+                {(config.fragmentation.oob_char || 120)
+                  .toString(16)
+                  .padStart(2, "0")}
+                )
+              </Typography>
+            </Box>
+          </Grid>
+        </>
+      )}
+
+      {/* TLS Record Settings */}
+      {isTls && (
+        <>
+          <B4FormHeader label={t("sets.tcp.splitting.tlsRecHeader")} />
+
+          <B4Hint>{t("sets.tcp.splitting.tlsRecAlert")}</B4Hint>
+
+          <Grid size={{ xs: 12, md: 6 }}>
+            <B4RangeSlider
+              label={t("sets.tcp.splitting.tlsRecPosition")}
+              value={[
+                config.fragmentation.tlsrec_pos || 1,
+                config.fragmentation.tlsrec_pos_max ||
+                  config.fragmentation.tlsrec_pos ||
+                  1,
+              ]}
+              onChange={(value: [number, number]) => {
+                onChange("fragmentation.tlsrec_pos", value[0]);
+                onChange("fragmentation.tlsrec_pos_max", value[1]);
+              }}
+              min={1}
+              max={100}
+              step={1}
+              helperText={t("sets.tcp.splitting.tlsRecPositionHelper")}
+            />
+          </Grid>
+        </>
+      )}
+
+      {!isActive && (
+        <B4Alert severity="warning">
+          {t("sets.tcp.splitting.disabledWarning")}
+        </B4Alert>
+      )}
+    </Grid>
   );
 };

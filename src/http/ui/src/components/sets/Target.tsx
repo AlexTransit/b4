@@ -20,7 +20,6 @@ import {
   Paper,
   CircularProgress,
   Chip,
-  Fade,
 } from "@mui/material";
 import {
   DomainIcon,
@@ -41,6 +40,7 @@ import {
   B4ModalAlertStrip,
   B4Tabs,
   B4Tab,
+  B4TabPanel,
   B4ChipList,
   B4PlusButton,
   B4Badge,
@@ -90,28 +90,7 @@ interface CategoryPreview {
   preview: string[];
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
 
-function TabPanel({ children, value, index }: Readonly<TabPanelProps>) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tcp-tabpanel-${index}`}
-      aria-labelledby={`tcp-tab-${index}`}
-    >
-      {value === index && (
-        <Fade in>
-          <Box>{children}</Box>
-        </Fade>
-      )}
-    </div>
-  );
-}
 export const TargetSettings = ({
   config,
   onChange,
@@ -451,7 +430,7 @@ export const TargetSettings = ({
           </Box>
 
           {/* DPI Bypass Tab */}
-          <TabPanel value={tabValue} index={0}>
+          <B4TabPanel value={tabValue} index={0} idPrefix="target-tab">
             <B4Hint>{t("sets.targets.domainAlert")}</B4Hint>
 
             <Box sx={{ my: 3, maxWidth: 260 }}>
@@ -646,10 +625,10 @@ export const TargetSettings = ({
                 </Grid>
               )}
             </Grid>
-          </TabPanel>
+          </B4TabPanel>
 
           {/* Bypass IPs Tab */}
-          <TabPanel value={tabValue} index={1}>
+          <B4TabPanel value={tabValue} index={1} idPrefix="target-tab">
             <B4Hint>{t("sets.targets.ipAlert")}</B4Hint>
 
             <Grid container spacing={2}>
@@ -821,10 +800,10 @@ export const TargetSettings = ({
                 </Grid>
               )}
             </Grid>
-          </TabPanel>
+          </B4TabPanel>
 
           {/* Source Devices Tab */}
-          <TabPanel value={tabValue} index={2}>
+          <B4TabPanel value={tabValue} index={2} idPrefix="target-tab">
             <B4Alert severity="info">{t("sets.targets.deviceAlert")}</B4Alert>
 
             {devicesAvailable ? (
@@ -1037,7 +1016,7 @@ export const TargetSettings = ({
                 </B4Alert>
               </Box>
             )}
-          </TabPanel>
+          </B4TabPanel>
         </B4Section>
       </Stack>
 

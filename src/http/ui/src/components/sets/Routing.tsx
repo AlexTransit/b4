@@ -1,35 +1,11 @@
-import { useState, type ReactNode } from "react";
-import { Box, Fade } from "@mui/material";
-import { B4Section, B4Tab, B4Tabs } from "@b4.elements";
+import { useState } from "react";
+import { B4Section, B4Tab, B4TabPanel, B4Tabs } from "@b4.elements";
 import { DnsIcon } from "@b4.icons";
 import { B4SetConfig } from "@models/config";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 import { useTranslation } from "react-i18next";
 import { DnsRedirect } from "./routing/DnsRedirect";
 import { TrafficRouting } from "./routing/TrafficRouting";
-
-interface TabPanelProps {
-  children?: ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel({ children, value, index }: Readonly<TabPanelProps>) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tcp-tabpanel-${index}`}
-      aria-labelledby={`tcp-tab-${index}`}
-    >
-      {value === index && (
-        <Fade in>
-          <Box>{children}</Box>
-        </Fade>
-      )}
-    </div>
-  );
-}
 
 enum ROUTING_TABS {
   DNS = 0,
@@ -75,17 +51,17 @@ export const RoutingSettings = ({
         />
       </B4Tabs>
 
-      <TabPanel value={activeTab} index={ROUTING_TABS.DNS}>
+      <B4TabPanel value={activeTab} index={ROUTING_TABS.DNS} idPrefix="routing-tab">
         <DnsRedirect config={set} ipv6={ipv6} onChange={onChange} />
-      </TabPanel>
+      </B4TabPanel>
 
-      <TabPanel value={activeTab} index={ROUTING_TABS.ROUTING}>
+      <B4TabPanel value={activeTab} index={ROUTING_TABS.ROUTING} idPrefix="routing-tab">
         <TrafficRouting
           config={set}
           availableIfaces={availableIfaces}
           onChange={onChange}
         />
-      </TabPanel>
+      </B4TabPanel>
     </B4Section>
   );
 };

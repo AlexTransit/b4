@@ -1,5 +1,7 @@
-import { Tabs, TabsProps, Tab, TabProps, Stack, Box } from "@mui/material";
+import { Tabs, TabsProps, Tab, TabProps, Stack, Box, Fade } from "@mui/material";
 import { colors } from "@design";
+import type { ReactNode } from "react";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 export const B4Tabs = ({ sx, ...props }: TabsProps) => (
   <Tabs
@@ -67,4 +69,33 @@ export const B4Tab = ({
     }
     {...props}
   />
+);
+
+export interface B4TabPanelProps {
+  children?: ReactNode;
+  index: number;
+  value: number;
+  idPrefix?: string;
+  sx?: SxProps<Theme>;
+}
+
+export const B4TabPanel = ({
+  children,
+  value,
+  index,
+  idPrefix = "b4-tab",
+  sx,
+}: Readonly<B4TabPanelProps>) => (
+  <div
+    role="tabpanel"
+    hidden={value !== index}
+    id={`${idPrefix}panel-${index}`}
+    aria-labelledby={`${idPrefix}-${index}`}
+  >
+    {value === index && (
+      <Fade in>
+        <Box sx={sx}>{children}</Box>
+      </Fade>
+    )}
+  </div>
 );

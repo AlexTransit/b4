@@ -3,13 +3,12 @@ import {
   Button,
   CircularProgress,
   Fab,
-  Fade,
   Paper,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import {
@@ -23,7 +22,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 import KeyboardDoubleArrowUpIcon from "@mui/icons-material/KeyboardDoubleArrowUp";
 
-import { B4Tab, B4Tabs, B4TextField } from "@b4.elements";
+import { B4Tab, B4TabPanel, B4Tabs, B4TextField } from "@b4.elements";
 
 import { colors } from "@design";
 import { B4Config, B4SetConfig, SystemConfig } from "@models/config";
@@ -36,35 +35,6 @@ import { TargetSettings } from "./Target";
 import { TcpTabContainer } from "./tcp/TcpTabContainer";
 import { UdpSettings } from "./Udp";
 import { useTranslation } from "react-i18next";
-
-interface TabPanelProps {
-  children?: ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel({
-  children,
-  value,
-  index,
-  ...other
-}: Readonly<TabPanelProps>) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`set-tabpanel-${index}`}
-      aria-labelledby={`set-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Fade in>
-          <Box sx={{ pt: 3 }}>{children}</Box>
-        </Fade>
-      )}
-    </div>
-  );
-}
 
 export interface SetEditorPageProps {
   settings: SystemConfig;
@@ -284,7 +254,7 @@ export const SetEditorPage = ({
 
       {/* Tab Content */}
       <Box sx={{ flex: 1, overflow: "auto", pb: 2 }}>
-        <TabPanel value={activeTab} index={TABS.TARGETS}>
+        <B4TabPanel value={activeTab} index={TABS.TARGETS} idPrefix="set-tab" sx={{ pt: 3 }}>
           <TargetSettings
             geo={settings.geo}
             config={editedSet}
@@ -292,47 +262,47 @@ export const SetEditorPage = ({
             otherSetsTargets={otherSetsTargets}
             onChange={handleChange}
           />
-        </TabPanel>
+        </B4TabPanel>
 
-        <TabPanel value={activeTab} index={TABS.TCP}>
+        <B4TabPanel value={activeTab} index={TABS.TCP} idPrefix="set-tab" sx={{ pt: 3 }}>
           <TcpTabContainer
             config={editedSet}
             queue={config.queue}
             onChange={handleChange}
           />
-        </TabPanel>
+        </B4TabPanel>
 
-        <TabPanel value={activeTab} index={TABS.UDP}>
+        <B4TabPanel value={activeTab} index={TABS.UDP} idPrefix="set-tab" sx={{ pt: 3 }}>
           <UdpSettings
             config={editedSet}
             queue={config.queue}
             onChange={handleChange}
           />
-        </TabPanel>
+        </B4TabPanel>
 
-        <TabPanel value={activeTab} index={TABS.ROUTING}>
+        <B4TabPanel value={activeTab} index={TABS.ROUTING} idPrefix="set-tab" sx={{ pt: 3 }}>
           <RoutingSettings
             set={editedSet}
             ipv6={config.queue.ipv6}
             availableIfaces={config.available_ifaces ?? []}
             onChange={handleChange}
           />
-        </TabPanel>
+        </B4TabPanel>
 
-        <TabPanel value={activeTab} index={TABS.ESCALATION}>
+        <B4TabPanel value={activeTab} index={TABS.ESCALATION} idPrefix="set-tab" sx={{ pt: 3 }}>
           <EscalationSettings
             config={editedSet}
             allSets={config.sets ?? []}
             onChange={handleChange}
           />
-        </TabPanel>
+        </B4TabPanel>
 
-        <TabPanel value={activeTab} index={TABS.IMPORT_EXPORT}>
+        <B4TabPanel value={activeTab} index={TABS.IMPORT_EXPORT} idPrefix="set-tab" sx={{ pt: 3 }}>
           <ImportExportSettings
             config={editedSet}
             onImport={handleApplyImport}
           />
-        </TabPanel>
+        </B4TabPanel>
       </Box>
 
       <Tooltip title={saveTooltip} placement="left">
