@@ -269,7 +269,7 @@ export const ImportExportSettings = ({
           <Button
             variant="outlined"
             startIcon={<CopyIcon />}
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
           >
             {t("sets.importExport.copyJson")}
           </Button>
