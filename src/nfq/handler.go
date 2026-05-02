@@ -379,13 +379,12 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if matched && isClientHello && host != "" && cfg.IsTCPPort(dport) {
-		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
-		if escId, _, ok := w.ipBlocker.GetEscalation(dstIPPort); ok {
+		if escId, _, ok := w.destState.GetEscalation(host); ok {
 			if escSet := cfg.GetSetById(escId); escSet != nil && escSet.Enabled {
-				log.Tracef("escalation hit for %s: %s -> %s", dstIPPort, set.Name, escSet.Name)
+				log.Tracef("escalation hit for %s: %s -> %s", host, set.Name, escSet.Name)
 				set = escSet
 			} else {
-				w.ipBlocker.ClearEscalation(dstIPPort)
+				w.destState.ClearEscalation(host)
 			}
 		}
 	}
@@ -394,7 +393,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		ibd := &set.TCP.IPBlockDetect
 		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 
-		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
+		if ibd.CacheBlockedIPs && w.destState.IsBlocked(dstIPPort) {
 			if !cfg.Queue.IsDiscovery {
 				log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
 			}
@@ -433,13 +432,13 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	if matched {
 		ibdOn := set.TCP.IPBlockDetect.Enabled
-		canEscalate := set.EscalateTo != ""
+		canEscalate := set.Escalate.To != ""
 		if isClientHello && (ibdOn || canEscalate) && host != "" && cfg.IsTCPPort(dport) {
 			ibd := &set.TCP.IPBlockDetect
 			dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 			ibConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 
-			count, firstSeen := w.ipBlocker.RecordClientHello(ibConnKey, host)
+			count, firstSeen := w.destState.RecordClientHello(ibConnKey, host)
 			threshold := ibd.RetransmitThreshold
 			if threshold <= 0 {
 				threshold = 3
@@ -451,8 +450,10 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 			if count >= threshold || (count > 1 && time.Since(firstSeen) > timeout) {
 				if canEscalate {
-					if next := cfg.GetSetById(set.EscalateTo); next != nil && next.Enabled {
-						if w.ipBlocker.SetEscalation(dstIPPort, next.Id) {
+					if next := cfg.GetSetById(set.Escalate.To); next != nil && next.Enabled {
+						ttl := time.Duration(set.Escalate.TtlSec) * time.Second
+						if w.destState.SetEscalation(host, next.Id, ttl) {
+							metrics.GetMetricsCollector().RecordEscalation()
 							if !cfg.Queue.IsDiscovery {
 								log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-escalate->"+next.Name)
 							}
@@ -461,18 +462,19 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 							}
 							return 0
 						}
+						log.Warnf("escalation hop cap reached for %s (chain stopped at %s)", host, set.Name)
 					}
 				}
 				if ibdOn {
-					if !w.ipBlocker.HasRSTSent(ibConnKey) {
-						w.ipBlocker.MarkRSTSent(ibConnKey)
+					if !w.destState.HasRSTSent(ibConnKey) {
+						w.destState.MarkRSTSent(ibConnKey)
 						if pkt.ver == IPv4 {
 							w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
 						} else {
 							w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
 						}
 						if ibd.CacheBlockedIPs {
-							w.ipBlocker.AddBlocked(dstIPPort)
+							w.destState.AddBlocked(dstIPPort)
 						}
 						if !cfg.Queue.IsDiscovery {
 							log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
@@ -488,7 +490,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			}
 		}
 
-		if set.TCP.Incoming.Mode != config.ConfigOff || set.TCP.RSTProtection.Enabled || set.EscalateTo != "" {
+		if set.TCP.Incoming.Mode != config.ConfigOff || set.TCP.RSTProtection.Enabled || set.Escalate.To != "" {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 			w.connTracker.RegisterOutgoing(connKey, set)
 		}
@@ -637,14 +639,13 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if shouldHandle && set != nil && host != "" {
-		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
-		if escId, _, ok := w.ipBlocker.GetEscalation(dstIPPort); ok {
+		if escId, _, ok := w.destState.GetEscalation(host); ok {
 			if escSet := cfg.GetSetById(escId); escSet != nil && escSet.Enabled {
-				log.Tracef("UDP escalation hit for %s: %s -> %s", dstIPPort, set.Name, escSet.Name)
+				log.Tracef("UDP escalation hit for %s: %s -> %s", host, set.Name, escSet.Name)
 				set = escSet
 				sniTarget = escSet.Name
 			} else {
-				w.ipBlocker.ClearEscalation(dstIPPort)
+				w.destState.ClearEscalation(host)
 			}
 		}
 	}

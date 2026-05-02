@@ -76,4 +76,6 @@ export {
   Power as ProxyIcon,
   Difference as DuplicateIcon,
   Visibility as WatchdogIcon,
+  CallMade as EscalateOutIcon,
+  CallReceived as EscalateInIcon,
 } from "@mui/icons-material";

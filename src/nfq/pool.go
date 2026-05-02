@@ -8,6 +8,7 @@ import (
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/dhcp"
 	"github.com/daniellavrushin/b4/log"
+	"github.com/daniellavrushin/b4/metrics"
 	"github.com/daniellavrushin/b4/sni"
 )
 
@@ -44,7 +45,7 @@ func NewPool(cfg *config.Config) *Pool {
 		w.ipToMac.Store(make(map[string]string))
 		w.tlsCache = state.tlsCache
 		w.connTracker = state.connState
-		w.ipBlocker = state.ipBlocker
+		w.destState = state.destState
 		ws = append(ws, w)
 	}
 
@@ -67,14 +68,18 @@ func NewPool(cfg *config.Config) *Pool {
 	log.Infof("DHCP: initial load %d IP->MAC mappings", len(initialMappings))
 
 	go func() {
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
+		cleanupTicker := time.NewTicker(30 * time.Second)
+		defer cleanupTicker.Stop()
+		escalationTicker := time.NewTicker(2 * time.Second)
+		defer escalationTicker.Stop()
 		for {
 			select {
-			case <-ticker.C:
+			case <-cleanupTicker.C:
 				pool.state.connState.Cleanup()
 				pool.state.tlsCache.Cleanup()
-				pool.state.ipBlocker.Cleanup(300 * time.Second)
+				pool.state.destState.Cleanup(300 * time.Second)
+			case <-escalationTicker.C:
+				metrics.GetMetricsCollector().UpdateEscalations(pool.GetEscalations())
 			case <-pool.stopCleanup:
 				return
 			}
@@ -176,8 +181,8 @@ func (p *Pool) UpdateConfig(newCfg *config.Config) error {
 		w.matcher.Store(matcher)
 	}
 
-	if p.state != nil && p.state.ipBlocker != nil {
-		p.state.ipBlocker.ResetEscalations()
+	if p.state != nil && p.state.destState != nil {
+		p.state.destState.ResetEscalations()
 	}
 
 	if p.Dhcp != nil {
@@ -188,7 +193,44 @@ func (p *Pool) UpdateConfig(newCfg *config.Config) error {
 }
 
 func (p *Pool) GetIPBlockCache() IPBlockCache {
-	return p.state.ipBlocker
+	return p.state.destState
+}
+
+func (p *Pool) GetEscalations() []metrics.EscalationEntry {
+	if p.state == nil || p.state.destState == nil {
+		return nil
+	}
+	cfg := p.GetFirstWorkerConfig()
+	snaps := p.state.destState.ListEscalations()
+	out := make([]metrics.EscalationEntry, 0, len(snaps))
+	for _, s := range snaps {
+		toName := s.SetId
+		if cfg != nil {
+			if set := cfg.GetSetById(s.SetId); set != nil && set.Name != "" {
+				toName = set.Name
+			}
+		}
+		out = append(out, metrics.EscalationEntry{
+			Host:      s.Host,
+			ToSet:     toName,
+			Hops:      s.Hops,
+			SetAt:     s.SetAt,
+			ExpiresAt: s.ExpiresAt,
+		})
+	}
+	return out
+}
+
+func (p *Pool) ClearEscalations() {
+	if p.state != nil && p.state.destState != nil {
+		p.state.destState.ResetEscalations()
+	}
+}
+
+func (p *Pool) ClearEscalation(host string) {
+	if p.state != nil && p.state.destState != nil {
+		p.state.destState.ClearEscalation(host)
+	}
 }
 
 func (p *Pool) GetMatcher() *sni.SuffixSet {

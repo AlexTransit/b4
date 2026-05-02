@@ -21,16 +21,18 @@ import {
 } from "@b4.icons";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
+import KeyboardDoubleArrowUpIcon from "@mui/icons-material/KeyboardDoubleArrowUp";
 
-import { B4Tab, B4Tabs, B4TextField, B4Select, B4Alert } from "@b4.elements";
+import { B4Tab, B4Tabs, B4TextField } from "@b4.elements";
 
 import { colors } from "@design";
 import { B4Config, B4SetConfig, SystemConfig } from "@models/config";
 
+import { EscalationSettings } from "./Escalation";
 import { ImportExportSettings } from "./ImportExport";
 import { SetStats } from "./Manager";
 import { RoutingSettings } from "./Routing";
-import { TargetSettings, wouldCreateEscalationCycle } from "./Target";
+import { TargetSettings } from "./Target";
 import { TcpTabContainer } from "./tcp/TcpTabContainer";
 import { UdpSettings } from "./Udp";
 import { useTranslation } from "react-i18next";
@@ -90,6 +92,7 @@ export const SetEditorPage = ({
     TCP,
     UDP,
     ROUTING,
+    ESCALATION,
     IMPORT_EXPORT,
   }
 
@@ -149,10 +152,6 @@ export const SetEditorPage = ({
 
   if (!editedSet) return null;
 
-  const escalateOn = !!editedSet.escalate_to;
-  const rstOn = editedSet.tcp.rst_protection?.enabled === true;
-  const showEscalateWarn = escalateOn && !rstOn;
-
   let saveTooltip: string;
   if (saving) saveTooltip = t("core.saving");
   else if (isNew) saveTooltip = t("sets.editor.createSet");
@@ -201,29 +200,6 @@ export const SetEditorPage = ({
                   },
                 }}
               />
-              <Box sx={{ minWidth: 220 }}>
-                <B4Select
-                  label={t("sets.targets.escalateTo")}
-                  value={editedSet.escalate_to ?? ""}
-                  options={[
-                    { value: "", label: t("sets.targets.escalateNone") },
-                    ...(config.sets ?? [])
-                      .filter(
-                        (s) =>
-                          s.id &&
-                          s.id !== editedSet.id &&
-                          s.enabled &&
-                          !wouldCreateEscalationCycle(
-                            s,
-                            editedSet.id,
-                            config.sets ?? [],
-                          ),
-                      )
-                      .map((s) => ({ label: s.name || s.id, value: s.id })),
-                  ]}
-                  onChange={(e) => handleChange("escalate_to", e.target.value)}
-                />
-              </Box>
               {isNew && (
                 <Typography
                   variant="caption"
@@ -265,14 +241,6 @@ export const SetEditorPage = ({
             </Stack>
           </Stack>
 
-          {showEscalateWarn && (
-            <Box sx={{ mb: 2 }}>
-              <B4Alert severity="warning" noWrapper>
-                {t("sets.editor.escalateNeedsRstProtection")}
-              </B4Alert>
-            </Box>
-          )}
-
           {/* Tabs */}
           <B4Tabs
             value={activeTab}
@@ -298,6 +266,11 @@ export const SetEditorPage = ({
             <B4Tab
               icon={<AltRouteIcon />}
               label={t("sets.editor.tabs.routing")}
+              inline
+            />
+            <B4Tab
+              icon={<KeyboardDoubleArrowUpIcon />}
+              label={t("sets.editor.tabs.escalation")}
               inline
             />
             <B4Tab
@@ -342,6 +315,14 @@ export const SetEditorPage = ({
             set={editedSet}
             ipv6={config.queue.ipv6}
             availableIfaces={config.available_ifaces ?? []}
+            onChange={handleChange}
+          />
+        </TabPanel>
+
+        <TabPanel value={activeTab} index={TABS.ESCALATION}>
+          <EscalationSettings
+            config={editedSet}
+            allSets={config.sets ?? []}
             onChange={handleChange}
           />
         </TabPanel>

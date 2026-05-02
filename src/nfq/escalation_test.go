@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-func newIPBlocker() *ipBlockTracker {
-	return &ipBlockTracker{
+func newDestState() *destStateTracker {
+	return &destStateTracker{
 		conns:       make(map[string]*ipBlockEntry),
 		blocked:     make(map[string]time.Time),
 		escalations: make(map[string]*escalationEntry),
@@ -15,84 +15,84 @@ func newIPBlocker() *ipBlockTracker {
 }
 
 func TestEscalation_GetMissReturnsFalse(t *testing.T) {
-	b := newIPBlocker()
-	if id, hops, ok := b.GetEscalation("1.2.3.4:443"); ok || id != "" || hops != 0 {
+	b := newDestState()
+	if id, hops, ok := b.GetEscalation("youtube.com"); ok || id != "" || hops != 0 {
 		t.Fatalf("expected miss, got id=%q hops=%d ok=%v", id, hops, ok)
 	}
 }
 
 func TestEscalation_SetThenGet(t *testing.T) {
-	b := newIPBlocker()
-	if !b.SetEscalation("1.2.3.4:443", "set-b") {
+	b := newDestState()
+	if !b.SetEscalation("youtube.com", "set-b", 0) {
 		t.Fatal("SetEscalation should succeed on first hop")
 	}
-	id, hops, ok := b.GetEscalation("1.2.3.4:443")
+	id, hops, ok := b.GetEscalation("youtube.com")
 	if !ok || id != "set-b" || hops != 1 {
 		t.Fatalf("expected set-b hop=1, got id=%q hops=%d ok=%v", id, hops, ok)
 	}
 }
 
 func TestEscalation_ChainIncrementsHops(t *testing.T) {
-	b := newIPBlocker()
-	b.SetEscalation("1.2.3.4:443", "set-b")
-	b.SetEscalation("1.2.3.4:443", "set-c")
-	id, hops, ok := b.GetEscalation("1.2.3.4:443")
+	b := newDestState()
+	b.SetEscalation("youtube.com", "set-b", 0)
+	b.SetEscalation("youtube.com", "set-c", 0)
+	id, hops, ok := b.GetEscalation("youtube.com")
 	if !ok || id != "set-c" || hops != 2 {
 		t.Fatalf("expected set-c hop=2, got id=%q hops=%d ok=%v", id, hops, ok)
 	}
 }
 
 func TestEscalation_StopsAtMaxHops(t *testing.T) {
-	b := newIPBlocker()
+	b := newDestState()
 	for i := 0; i < MaxEscalationHops; i++ {
-		if !b.SetEscalation("1.2.3.4:443", "set-x") {
+		if !b.SetEscalation("youtube.com", "set-x", 0) {
 			t.Fatalf("hop %d should still be allowed", i)
 		}
 	}
-	if b.SetEscalation("1.2.3.4:443", "set-y") {
+	if b.SetEscalation("youtube.com", "set-y", 0) {
 		t.Fatal("escalation past MaxEscalationHops must be rejected")
 	}
 }
 
 func TestEscalation_Clear(t *testing.T) {
-	b := newIPBlocker()
-	b.SetEscalation("1.2.3.4:443", "set-b")
-	b.ClearEscalation("1.2.3.4:443")
-	if _, _, ok := b.GetEscalation("1.2.3.4:443"); ok {
+	b := newDestState()
+	b.SetEscalation("youtube.com", "set-b", 0)
+	b.ClearEscalation("youtube.com")
+	if _, _, ok := b.GetEscalation("youtube.com"); ok {
 		t.Fatal("ClearEscalation should drop the entry")
 	}
 }
 
 func TestEscalation_Reset(t *testing.T) {
-	b := newIPBlocker()
-	b.SetEscalation("1.2.3.4:443", "set-b")
-	b.SetEscalation("5.6.7.8:443", "set-c")
+	b := newDestState()
+	b.SetEscalation("youtube.com", "set-b", 0)
+	b.SetEscalation("discord.com", "set-c", 0)
 	b.ResetEscalations()
-	if _, _, ok := b.GetEscalation("1.2.3.4:443"); ok {
+	if _, _, ok := b.GetEscalation("youtube.com"); ok {
 		t.Fatal("ResetEscalations should drop all entries")
 	}
-	if _, _, ok := b.GetEscalation("5.6.7.8:443"); ok {
+	if _, _, ok := b.GetEscalation("discord.com"); ok {
 		t.Fatal("ResetEscalations should drop all entries")
 	}
 }
 
 func TestEscalation_ExpiresAfterTTL(t *testing.T) {
-	b := newIPBlocker()
-	b.SetEscalation("1.2.3.4:443", "set-b")
+	b := newDestState()
+	b.SetEscalation("youtube.com", "set-b", 0)
 	// Manually backdate the entry past the TTL.
 	b.mu.Lock()
-	b.escalations["1.2.3.4:443"].setAt = time.Now().Add(-EscalationTTL - time.Minute)
+	b.escalations["youtube.com"].setAt = time.Now().Add(-EscalationTTL - time.Minute)
 	b.mu.Unlock()
 
-	if _, _, ok := b.GetEscalation("1.2.3.4:443"); ok {
+	if _, _, ok := b.GetEscalation("youtube.com"); ok {
 		t.Fatal("expired escalation must not be returned")
 	}
 }
 
 func TestEscalation_CleanupRemovesExpired(t *testing.T) {
-	b := newIPBlocker()
-	b.SetEscalation("a:1", "x")
-	b.SetEscalation("b:2", "y")
+	b := newDestState()
+	b.SetEscalation("a:1", "x", 0)
+	b.SetEscalation("b:2", "y", 0)
 	b.mu.Lock()
 	b.escalations["a:1"].setAt = time.Now().Add(-EscalationTTL - time.Minute)
 	b.mu.Unlock()
@@ -112,32 +112,32 @@ func TestEscalation_CleanupRemovesExpired(t *testing.T) {
 }
 
 func TestEscalation_DoesNotInterfereWithBlockedCache(t *testing.T) {
-	b := newIPBlocker()
+	b := newDestState()
 	b.AddBlocked("9.9.9.9:443")
-	b.SetEscalation("1.2.3.4:443", "set-b")
+	b.SetEscalation("youtube.com", "set-b", 0)
 
 	if !b.IsBlocked("9.9.9.9:443") {
 		t.Fatal("blocked IP should still be reported as blocked")
 	}
-	if b.IsBlocked("1.2.3.4:443") {
-		t.Fatal("escalated IP must not be reported as blocked")
+	if b.IsBlocked("youtube.com") {
+		t.Fatal("escalated host must not be reported as blocked")
 	}
 }
 
 func TestRSTKill_BelowThresholdReturnsFalse(t *testing.T) {
-	b := newIPBlocker()
+	b := newDestState()
 	for i := 0; i < RSTKillThreshold-1; i++ {
-		if b.RecordRSTKill("1.2.3.4:443") {
+		if b.RecordRSTKill("youtube.com", 0, 0) {
 			t.Fatalf("hit %d should not trip threshold (= %d)", i+1, RSTKillThreshold)
 		}
 	}
 }
 
 func TestRSTKill_TripsAtThreshold(t *testing.T) {
-	b := newIPBlocker()
+	b := newDestState()
 	var tripped bool
 	for i := 0; i < RSTKillThreshold; i++ {
-		tripped = b.RecordRSTKill("1.2.3.4:443")
+		tripped = b.RecordRSTKill("youtube.com", 0, 0)
 	}
 	if !tripped {
 		t.Fatalf("threshold (%d) should have tripped", RSTKillThreshold)
@@ -145,28 +145,28 @@ func TestRSTKill_TripsAtThreshold(t *testing.T) {
 }
 
 func TestRSTKill_ResetsAfterTrip(t *testing.T) {
-	b := newIPBlocker()
+	b := newDestState()
 	for i := 0; i < RSTKillThreshold; i++ {
-		b.RecordRSTKill("1.2.3.4:443")
+		b.RecordRSTKill("youtube.com", 0, 0)
 	}
-	if b.RecordRSTKill("1.2.3.4:443") {
+	if b.RecordRSTKill("youtube.com", 0, 0) {
 		t.Fatal("immediate next kill after trip must NOT re-fire (would spam escalations)")
 	}
 }
 
 func TestRSTKill_WindowExpiry(t *testing.T) {
-	b := newIPBlocker()
-	b.RecordRSTKill("1.2.3.4:443")
+	b := newDestState()
+	b.RecordRSTKill("youtube.com", 0, 0)
 	// Backdate the entry past the rolling window.
 	b.mu.Lock()
-	b.rstKills["1.2.3.4:443"].firstAt = time.Now().Add(-RSTKillWindow - time.Second)
+	b.rstKills["youtube.com"].firstAt = time.Now().Add(-RSTKillWindow - time.Second)
 	b.mu.Unlock()
 	// Next kill is treated as a fresh start, not as count=2.
-	if b.RecordRSTKill("1.2.3.4:443") {
+	if b.RecordRSTKill("youtube.com", 0, 0) {
 		t.Fatal("kill after window expiry must restart counting, not trip")
 	}
 	b.mu.RLock()
-	count := b.rstKills["1.2.3.4:443"].count
+	count := b.rstKills["youtube.com"].count
 	b.mu.RUnlock()
 	if count != 1 {
 		t.Fatalf("expected counter reset to 1 after window expiry, got %d", count)
@@ -174,21 +174,21 @@ func TestRSTKill_WindowExpiry(t *testing.T) {
 }
 
 func TestRSTKill_DistinctDestinationsTrackedSeparately(t *testing.T) {
-	b := newIPBlocker()
+	b := newDestState()
 	for i := 0; i < RSTKillThreshold-1; i++ {
-		b.RecordRSTKill("1.2.3.4:443")
+		b.RecordRSTKill("youtube.com", 0, 0)
 	}
-	if b.RecordRSTKill("5.6.7.8:443") {
+	if b.RecordRSTKill("discord.com", 0, 0) {
 		t.Fatal("first kill on a different destination must not trip")
 	}
 }
 
 func TestRSTKill_ResetEscalationsClearsKills(t *testing.T) {
-	b := newIPBlocker()
-	b.RecordRSTKill("1.2.3.4:443")
+	b := newDestState()
+	b.RecordRSTKill("youtube.com", 0, 0)
 	b.ResetEscalations()
 	b.mu.RLock()
-	_, has := b.rstKills["1.2.3.4:443"]
+	_, has := b.rstKills["youtube.com"]
 	b.mu.RUnlock()
 	if has {
 		t.Fatal("ResetEscalations should also drop RST-kill state")

@@ -11,6 +11,7 @@ import { HealthBanner } from "./HealthBanner";
 import { MetricsCards } from "./MetricsCards";
 import { ActiveSets } from "./ActiveSets";
 import { DeviceActivity } from "./DeviceActivity";
+import { Escalations } from "./Escalations";
 import { UnmatchedDomains } from "./UnmatchedDomains";
 import { SimpleLineChart } from "./SimpleLineChart";
 import { colors, fonts } from "@design";
@@ -70,6 +71,17 @@ export interface Metrics {
   domain_tls: Record<string, string>;
   current_cps: number;
   current_pps: number;
+  escalations: EscalationEntry[];
+  total_escalations: number;
+}
+
+export interface EscalationEntry {
+  host: string;
+  from_set?: string;
+  to_set: string;
+  hops: number;
+  set_at: string;
+  expires_at: string;
 }
 
 const safeNumber = (val: number, defaultValue: number = 0): number => {
@@ -118,6 +130,8 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
       domain_tls: {},
       current_cps: 0,
       current_pps: 0,
+      escalations: [],
+      total_escalations: 0,
     };
   }
 
@@ -208,7 +222,7 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
             protocol:
               conn?.protocol === "TCP" || conn?.protocol === "UDP"
                 ? conn.protocol
-                : ("TCP" as "TCP" | "UDP"),
+                : "TCP",
             domain: String(conn?.domain ?? ""),
             source: String(conn?.source ?? ""),
             destination: String(conn?.destination ?? ""),
@@ -252,7 +266,21 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
         : {},
     current_cps: safeNumber(data.current_cps),
     current_pps: safeNumber(data.current_pps),
+    escalations: normalizeEscalations(data.escalations),
+    total_escalations: safeNumber(data.total_escalations),
   };
+};
+
+const normalizeEscalations = (raw: unknown): EscalationEntry[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((e: Partial<EscalationEntry>) => ({
+    host: String(e?.host ?? ""),
+    from_set: e?.from_set ? String(e.from_set) : undefined,
+    to_set: String(e?.to_set ?? ""),
+    hops: safeNumber(e?.hops ?? 0),
+    set_at: String(e?.set_at ?? ""),
+    expires_at: String(e?.expires_at ?? ""),
+  }));
 };
 
 export function DashboardPage() {
@@ -371,6 +399,15 @@ export function DashboardPage() {
         );
       })()}
 
+      {metrics.escalations.length == 0 && (
+        <Box sx={{ mb: 1.5 }}>
+          <Escalations
+            escalations={metrics.escalations}
+            total={metrics.total_escalations}
+          />
+        </Box>
+      )}
+
       {metrics.connection_rate.length > 0 && (
         <Paper
           sx={{
@@ -413,9 +450,7 @@ export function DashboardPage() {
                 component="span"
                 sx={{ width: 8, height: 2, bgcolor: colors.secondary }}
               />
-              <Box component="span">
-                {t("dashboard.connectionRateLegend")}
-              </Box>
+              <Box component="span">{t("dashboard.connectionRateLegend")}</Box>
             </Box>
           </Box>
           <SimpleLineChart

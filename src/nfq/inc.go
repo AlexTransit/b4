@@ -39,7 +39,7 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 		}
 
 		rstProtOn := incomingSet.TCP.RSTProtection.Enabled
-		canEscalate := incomingSet.EscalateTo != ""
+		canEscalate := incomingSet.Escalate.To != ""
 		if isRst && (rstProtOn || canEscalate) {
 			tolerance := incomingSet.TCP.RSTProtection.TTLTolerance
 			if tolerance <= 0 {
@@ -47,12 +47,18 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			}
 			drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, hasOpts, hasACK, tolerance)
 			if drop {
-				if canEscalate && w.ipBlocker != nil {
-					serverIPPort := fmt.Sprintf("%s:%d", srcStr, sport)
-					if w.ipBlocker.RecordRSTKill(serverIPPort) {
-						if next := w.getConfig().GetSetById(incomingSet.EscalateTo); next != nil && next.Enabled {
-							if w.ipBlocker.SetEscalation(serverIPPort, next.Id) {
-								log.Warnf("RST-kill escalation for %s: %s -> %s (%s)", serverIPPort, incomingSet.Name, next.Name, reason)
+				if canEscalate && w.destState != nil {
+					outKey := fmt.Sprintf(connKeyFormat, dstStr, dport, srcStr, sport)
+					host, _, _ := w.tlsCache.Lookup(outKey)
+					window := time.Duration(incomingSet.Escalate.RstWindowSec) * time.Second
+					ttl := time.Duration(incomingSet.Escalate.TtlSec) * time.Second
+					if host != "" && w.destState.RecordRSTKill(host, incomingSet.Escalate.RstThreshold, window) {
+						if next := w.getConfig().GetSetById(incomingSet.Escalate.To); next != nil && next.Enabled {
+							if w.destState.SetEscalation(host, next.Id, ttl) {
+								metrics.GetMetricsCollector().RecordEscalation()
+								log.Warnf("RST-kill escalation for %s: %s -> %s (%s)", host, incomingSet.Name, next.Name, reason)
+							} else {
+								log.Warnf("escalation hop cap reached for %s (chain stopped at %s)", host, incomingSet.Name)
 							}
 						}
 					}

@@ -940,41 +940,41 @@ func (c *Config) sanitizeEscalation() {
 	}
 
 	for _, s := range c.Sets {
-		if s.EscalateTo == "" {
+		if s.Escalate.To == "" {
 			continue
 		}
-		if s.EscalateTo == s.Id {
-			log.Warnf("Set %q: escalate_to references self, clearing", s.Name)
-			s.EscalateTo = ""
+		if s.Escalate.To == s.Id {
+			log.Warnf("Set %q: escalate.to references self, clearing", s.Name)
+			s.Escalate.To = ""
 			continue
 		}
-		target, ok := byID[s.EscalateTo]
+		target, ok := byID[s.Escalate.To]
 		if !ok {
-			log.Warnf("Set %q: escalate_to %q not found, clearing", s.Name, s.EscalateTo)
-			s.EscalateTo = ""
+			log.Warnf("Set %q: escalate.to %q not found, clearing", s.Name, s.Escalate.To)
+			s.Escalate.To = ""
 			continue
 		}
 		if !target.Enabled {
-			log.Warnf("Set %q: escalate_to %q is disabled, clearing", s.Name, target.Name)
-			s.EscalateTo = ""
+			log.Warnf("Set %q: escalate.to %q is disabled, clearing", s.Name, target.Name)
+			s.Escalate.To = ""
 			continue
 		}
 	}
 
 	for _, s := range c.Sets {
-		if s.EscalateTo == "" {
+		if s.Escalate.To == "" {
 			continue
 		}
 		seen := map[string]bool{s.Id: true}
 		cur := s
-		for cur.EscalateTo != "" {
-			if seen[cur.EscalateTo] {
-				log.Warnf("Set %q: escalate_to chain has a cycle at %q, breaking", s.Name, cur.Name)
-				cur.EscalateTo = ""
+		for cur.Escalate.To != "" {
+			if seen[cur.Escalate.To] {
+				log.Warnf("Set %q: escalate.to chain has a cycle at %q, breaking", s.Name, cur.Name)
+				cur.Escalate.To = ""
 				break
 			}
-			seen[cur.EscalateTo] = true
-			cur = byID[cur.EscalateTo]
+			seen[cur.Escalate.To] = true
+			cur = byID[cur.Escalate.To]
 			if cur == nil {
 				break
 			}

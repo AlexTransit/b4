@@ -276,7 +276,14 @@ type SetConfig struct {
 	TCPPortRanges []PortRange         `json:"-"`
 	UDPPortRanges []PortRange         `json:"-"`
 	Routing       RoutingConfig       `json:"routing"`
-	EscalateTo    string              `json:"escalate_to"` // ID of next set to use after this set is detected as blocked for a destination
+	Escalate      EscalateConfig      `json:"escalate"`
+}
+
+type EscalateConfig struct {
+	To           string `json:"to"`              // ID of next set to use after this set is detected as blocked for a destination
+	RstThreshold int    `json:"rst_threshold"`   // 0 -> 3
+	RstWindowSec int    `json:"rst_window_sec"`  // 0 -> 30
+	TtlSec       int    `json:"ttl_sec"`         // 0 -> 3600
 }
 
 type GeoDatConfig struct {

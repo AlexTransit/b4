@@ -74,11 +74,11 @@ export const wouldCreateEscalationCycle = (
   const byId = new Map(all.map((s) => [s.id, s]));
   const seen = new Set<string>();
   let cur: B4SetConfig | undefined = candidate;
-  while (cur?.escalate_to) {
-    if (cur.escalate_to === currentId) return true;
-    if (seen.has(cur.escalate_to)) return false;
-    seen.add(cur.escalate_to);
-    cur = byId.get(cur.escalate_to);
+  while (cur?.escalate?.to) {
+    if (cur.escalate.to === currentId) return true;
+    if (seen.has(cur.escalate.to)) return false;
+    seen.add(cur.escalate.to);
+    cur = byId.get(cur.escalate.to);
   }
   return false;
 };

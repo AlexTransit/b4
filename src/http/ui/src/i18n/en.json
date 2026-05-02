@@ -510,6 +510,13 @@
     },
     "unmatchedDomains": {
       "title": "Domains Not In Any Set"
+    },
+    "escalations": {
+      "title": "Active Escalations",
+      "totalCount": "{{count}} total",
+      "viaSet": "switched to",
+      "hops": "escalation hops",
+      "expiresIn": "time until retry"
     }
   },
   "sets": {
@@ -562,7 +569,9 @@
       "tcpBytesLimit": "TCP bytes limit",
       "sniFakingOn": "SNI Faking ON",
       "sniFakingOff": "SNI Faking OFF",
-      "dnsOff": "DNS OFF"
+      "dnsOff": "DNS OFF",
+      "escalatesTo": "escalates to",
+      "escalatedFrom": "fallback for"
     },
     "targets": {
       "sectionTitle": "Domain Filtering Configuration",
@@ -572,7 +581,7 @@
       "tlsHelperText": "Match only specific TLS version",
       "escalateTo": "Escalate to set",
       "escalateNone": "None",
-      "escalateHelper": "If this set's bypass keeps failing for a destination (no response after a few retries), switch that destination to the chosen set on the next connection. The choice is remembered for one hour, then b4 retries this set.",
+      "escalateHelper": "If this set keeps failing for a site, b4 will use the chosen set for that site instead. After a while, b4 tries this set again.",
       "tabs": {
         "domains": "Bypass Domains",
         "ips": "Bypass IPs",
@@ -1117,14 +1126,27 @@
       "namePlaceholder": "Set name...",
       "newSet": "New Set",
       "createSet": "Create Set",
-      "escalateNeedsRstProtection": "Escalation switches to the chosen set on the next connection after a destination is detected as RST-blocked. With RST Injection Protection off, those RSTs still pass through and reset connections in flight. Enable it in the TCP tab so detected RSTs are dropped before reaching the client.",
+      "escalateNeedsRstProtection": "Tip: also enable RST Injection Protection in the TCP tab. It helps keep the current page working while b4 detects the block.",
       "tabs": {
         "targets": "Targets",
         "tcp": "TCP",
         "udp": "UDP",
         "routing": "DNS & Routing",
+        "escalation": "Escalation",
         "importExport": "Import/Export"
       }
+    },
+    "escalation": {
+      "sectionTitle": "Strategy Escalation",
+      "sectionDescription": "If this set keeps failing to open a website, b4 will use another set for that website next time.",
+      "target": "Switch to",
+      "tuning": "Tuning",
+      "rstThreshold": "Failures before switching",
+      "rstThresholdHelper": "How many blocked connections to the same site before b4 switches to the backup set.",
+      "rstWindowSec": "Failure counting window",
+      "rstWindowHelper": "Failures only count if they happen within this time. Older ones are forgotten.",
+      "ttlMin": "Remember switch for",
+      "ttlHelper": "After switching, the site stays on the backup set for this long. Then b4 tries this set again."
     }
   },
   "discovery": {

@@ -55,6 +55,9 @@ func (a *API) resetMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metrics.GetMetricsCollector().ResetStats()
+	if globalPool != nil {
+		globalPool.ClearEscalations()
+	}
 
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(map[string]interface{}{

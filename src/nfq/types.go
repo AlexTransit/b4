@@ -48,5 +48,5 @@ type Worker struct {
 	ipToMac          atomic.Value
 	tlsCache         *tlsInfoCache
 	connTracker      *connStateTracker
-	ipBlocker        *ipBlockTracker
+	destState        *destStateTracker
 }
