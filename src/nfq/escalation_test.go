@@ -76,6 +76,24 @@ func TestEscalation_Reset(t *testing.T) {
 	}
 }
 
+func TestEscalation_SetAfterExpiryRestartsChain(t *testing.T) {
+	b := newDestState()
+	b.SetEscalation("youtube.com", "set-b", 0)
+	b.SetEscalation("youtube.com", "set-c", 0)
+	// chain is at hops=2; backdate it past the default TTL
+	b.mu.Lock()
+	b.escalations["youtube.com"].setAt = time.Now().Add(-EscalationTTL - time.Minute)
+	b.mu.Unlock()
+
+	if !b.SetEscalation("youtube.com", "set-d", 0) {
+		t.Fatal("SetEscalation must succeed when prev entry is past its TTL")
+	}
+	id, hops, ok := b.GetEscalation("youtube.com")
+	if !ok || id != "set-d" || hops != 1 {
+		t.Fatalf("expected chain restart at hops=1, got id=%q hops=%d ok=%v", id, hops, ok)
+	}
+}
+
 func TestEscalation_ExpiresAfterTTL(t *testing.T) {
 	b := newDestState()
 	b.SetEscalation("youtube.com", "set-b", 0)

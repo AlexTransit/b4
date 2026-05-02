@@ -251,13 +251,25 @@ func (t *destStateTracker) SetEscalation(host, setId string, ttl time.Duration) 
 	defer t.mu.Unlock()
 	if len(t.escalations) >= maxEscalationCacheEntries {
 		now := time.Now()
+		var oldestKey string
+		var oldestTime time.Time
 		for k, v := range t.escalations {
 			if now.Sub(v.setAt) > v.ttl {
 				delete(t.escalations, k)
+			} else if oldestTime.IsZero() || v.setAt.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.setAt
 			}
+		}
+		if len(t.escalations) >= maxEscalationCacheEntries && oldestKey != "" {
+			delete(t.escalations, oldestKey)
 		}
 	}
 	prev := t.escalations[host]
+	if prev != nil && time.Since(prev.setAt) > prev.ttl {
+		delete(t.escalations, host)
+		prev = nil
+	}
 	hops := 1
 	if prev != nil {
 		hops = prev.hops + 1
@@ -327,10 +339,18 @@ func (t *destStateTracker) RecordRSTKill(host string, threshold int, window time
 
 	if len(t.rstKills) >= maxRSTKillEntries {
 		now := time.Now()
+		var oldestKey string
+		var oldestTime time.Time
 		for k, v := range t.rstKills {
 			if now.Sub(v.firstAt) > v.window {
 				delete(t.rstKills, k)
+			} else if oldestTime.IsZero() || v.firstAt.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.firstAt
 			}
+		}
+		if len(t.rstKills) >= maxRSTKillEntries && oldestKey != "" {
+			delete(t.rstKills, oldestKey)
 		}
 	}
 

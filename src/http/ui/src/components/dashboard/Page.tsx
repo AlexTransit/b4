@@ -399,7 +399,7 @@ export function DashboardPage() {
         );
       })()}
 
-      {metrics.escalations.length == 0 && (
+      {metrics.escalations.length > 0 && (
         <Box sx={{ mb: 1.5 }}>
           <Escalations
             escalations={metrics.escalations}

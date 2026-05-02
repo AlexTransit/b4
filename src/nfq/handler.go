@@ -383,6 +383,12 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			if escSet := cfg.GetSetById(escId); escSet != nil && escSet.Enabled {
 				log.Tracef("escalation hit for %s: %s -> %s", host, set.Name, escSet.Name)
 				set = escSet
+				if sniTarget != "" {
+					sniTarget = set.Name
+				}
+				if ipTarget != "" {
+					ipTarget = set.Name
+				}
 			} else {
 				w.destState.ClearEscalation(host)
 			}
@@ -643,7 +649,12 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			if escSet := cfg.GetSetById(escId); escSet != nil && escSet.Enabled {
 				log.Tracef("UDP escalation hit for %s: %s -> %s", host, set.Name, escSet.Name)
 				set = escSet
-				sniTarget = escSet.Name
+				if sniTarget != "" {
+					sniTarget = set.Name
+				}
+				if ipTarget != "" {
+					ipTarget = set.Name
+				}
 			} else {
 				w.destState.ClearEscalation(host)
 			}

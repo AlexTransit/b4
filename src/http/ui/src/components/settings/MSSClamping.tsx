@@ -5,7 +5,6 @@ import {
   B4Section,
   B4Slider,
   B4Switch,
-  B4Alert,
   B4Hint,
 } from "@b4.elements";
 import { B4Config } from "@models/config";
