@@ -222,31 +222,43 @@ export const SetEditorPage = ({
               icon={<DomainIcon />}
               label={t("sets.editor.tabs.targets")}
               inline
+              index={TABS.TARGETS}
+              idPrefix="set-tab"
             />
             <B4Tab
               icon={<TcpIcon />}
               label={t("sets.editor.tabs.tcp")}
               inline
+              index={TABS.TCP}
+              idPrefix="set-tab"
             />
             <B4Tab
               icon={<UdpIcon />}
               label={t("sets.editor.tabs.udp")}
               inline
+              index={TABS.UDP}
+              idPrefix="set-tab"
             />
             <B4Tab
               icon={<AltRouteIcon />}
               label={t("sets.editor.tabs.routing")}
               inline
+              index={TABS.ROUTING}
+              idPrefix="set-tab"
             />
             <B4Tab
               icon={<KeyboardDoubleArrowUpIcon />}
               label={t("sets.editor.tabs.escalation")}
               inline
+              index={TABS.ESCALATION}
+              idPrefix="set-tab"
             />
             <B4Tab
               icon={<ImportExportIcon />}
               label={t("sets.editor.tabs.importExport")}
               inline
+              index={TABS.IMPORT_EXPORT}
+              idPrefix="set-tab"
             />
           </B4Tabs>
         </Box>

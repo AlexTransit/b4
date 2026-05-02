@@ -79,7 +79,7 @@ export const EscalationSettings = ({
               <Grid size={{ xs: 12, md: 6 }}>
                 <B4Slider
                   label={t("sets.escalation.rstThreshold")}
-                  value={config.escalate?.rst_threshold ?? 3}
+                  value={config.escalate?.rst_threshold || 3}
                   onChange={(value: number) =>
                     onChange("escalate.rst_threshold", value)
                   }
@@ -92,7 +92,7 @@ export const EscalationSettings = ({
               <Grid size={{ xs: 12, md: 6 }}>
                 <B4Slider
                   label={t("sets.escalation.rstWindowSec")}
-                  value={config.escalate?.rst_window_sec ?? 30}
+                  value={config.escalate?.rst_window_sec || 30}
                   onChange={(value: number) =>
                     onChange("escalate.rst_window_sec", value)
                   }
@@ -106,7 +106,7 @@ export const EscalationSettings = ({
               <Grid size={{ xs: 12, md: 6 }}>
                 <B4Slider
                   label={t("sets.escalation.ttlMin")}
-                  value={Math.round((config.escalate?.ttl_sec ?? 3600) / 60)}
+                  value={Math.round((config.escalate?.ttl_sec || 3600) / 60)}
                   onChange={(value: number) =>
                     onChange("escalate.ttl_sec", value * 60)
                   }

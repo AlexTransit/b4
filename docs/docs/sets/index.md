@@ -134,4 +134,4 @@ The **Import/Export** tab shows the JSON configuration of a set. You can:
 - Copy the JSON to move it to another device
 - Paste JSON to import a configuration
 
-Source devices (MAC addresses) are not exported - they must be configured again on the target device.
+Source devices (MAC addresses) and the [Escalation](./escalation) settings are not exported - they reference local state (devices and other sets) that does not transfer between devices. Configure them again on the target.

@@ -77,7 +77,6 @@ export interface Metrics {
 
 export interface EscalationEntry {
   host: string;
-  from_set?: string;
   to_set: string;
   hops: number;
   set_at: string;
@@ -275,7 +274,6 @@ const normalizeEscalations = (raw: unknown): EscalationEntry[] => {
   if (!Array.isArray(raw)) return [];
   return raw.map((e: Partial<EscalationEntry>) => ({
     host: String(e?.host ?? ""),
-    from_set: e?.from_set ? String(e.from_set) : undefined,
     to_set: String(e?.to_set ?? ""),
     hops: safeNumber(e?.hops ?? 0),
     set_at: String(e?.set_at ?? ""),

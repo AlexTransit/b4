@@ -38,6 +38,8 @@ interface B4TabProps extends Omit<TabProps, "label" | "icon"> {
   label: string;
   inline?: boolean;
   hasChanges?: boolean;
+  index?: number;
+  idPrefix?: string;
 }
 
 export const B4Tab = ({
@@ -45,31 +47,43 @@ export const B4Tab = ({
   label,
   inline,
   hasChanges,
+  index,
+  idPrefix = "b4-tab",
   ...props
-}: B4TabProps) => (
-  <Tab
-    icon={icon}
-    iconPosition={inline ? "start" : undefined}
-    label={
-      hasChanges ? (
-        <Stack direction="row" spacing={1} alignItems="center">
-          <span>{label}</span>
-          <Box
-            sx={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              bgcolor: colors.secondary,
-            }}
-          />
-        </Stack>
-      ) : (
-        label
-      )
-    }
-    {...props}
-  />
-);
+}: B4TabProps) => {
+  const ariaProps =
+    index === undefined
+      ? {}
+      : {
+          id: `${idPrefix}-${index}`,
+          "aria-controls": `${idPrefix}panel-${index}`,
+        };
+  return (
+    <Tab
+      icon={icon}
+      iconPosition={inline ? "start" : undefined}
+      label={
+        hasChanges ? (
+          <Stack direction="row" spacing={1} alignItems="center">
+            <span>{label}</span>
+            <Box
+              sx={{
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                bgcolor: colors.secondary,
+              }}
+            />
+          </Stack>
+        ) : (
+          label
+        )
+      }
+      {...ariaProps}
+      {...props}
+    />
+  );
+};
 
 export interface B4TabPanelProps {
   children?: ReactNode;

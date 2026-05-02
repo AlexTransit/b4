@@ -96,6 +96,8 @@ function buildExportJson(config: B4SetConfig): Record<string, unknown> {
     delete result.targets.source_devices;
   }
 
+  delete result.escalate;
+
   return result;
 }
 
@@ -193,7 +195,7 @@ export const ImportExportSettings = ({
       const defaults = createDefaultSet(0);
       const fullConfig = mergeWithDefaults(
         configFields,
-        defaults as unknown as Record<string, unknown>,
+        defaults,
       ) as Record<string, unknown>;
 
       const parsed = migrateSetConfig(fullConfig);

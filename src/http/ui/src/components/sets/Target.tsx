@@ -90,7 +90,6 @@ interface CategoryPreview {
   preview: string[];
 }
 
-
 export const TargetSettings = ({
   config,
   onChange,
@@ -804,7 +803,7 @@ export const TargetSettings = ({
 
           {/* Source Devices Tab */}
           <B4TabPanel value={tabValue} index={2} idPrefix="target-tab">
-            <B4Alert severity="info">{t("sets.targets.deviceAlert")}</B4Alert>
+            <B4Hint>{t("sets.targets.deviceAlert")}</B4Hint>
 
             {devicesAvailable ? (
               <Grid container spacing={2}>

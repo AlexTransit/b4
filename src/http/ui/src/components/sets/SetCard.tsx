@@ -636,7 +636,13 @@ const EscalationChip = ({
   onClick,
 }: EscalationChipProps) => (
   <Tooltip title={`${prefix}: ${link.name}`}>
-    <Box
+    <B4Badge
+      icon={icon as React.ReactElement}
+      label={link.name}
+      size="small"
+      color="secondary"
+      variant={variant}
+      clickable
       onMouseEnter={() => onHover?.(link.id)}
       onMouseLeave={() => onHover?.(null)}
       onFocus={() => onHover?.(link.id)}
@@ -645,24 +651,15 @@ const EscalationChip = ({
         e.stopPropagation();
         onClick?.(link.id);
       }}
-      sx={{ display: "inline-flex", maxWidth: "100%" }}
-    >
-      <B4Badge
-        icon={icon as React.ReactElement}
-        label={link.name}
-        size="small"
-        color="secondary"
-        variant={variant}
-        clickable
-        sx={{
-          cursor: "pointer",
-          "& .MuiChip-label": {
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: 110,
-          },
-        }}
-      />
-    </Box>
+      sx={{
+        maxWidth: "100%",
+        cursor: "pointer",
+        "& .MuiChip-label": {
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: 110,
+        },
+      }}
+    />
   </Tooltip>
 );

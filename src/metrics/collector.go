@@ -85,7 +85,6 @@ type SystemEvent struct {
 
 type EscalationEntry struct {
 	Host      string    `json:"host"`
-	FromSet   string    `json:"from_set"`
 	ToSet     string    `json:"to_set"`
 	Hops      int       `json:"hops"`
 	SetAt     time.Time `json:"set_at"`
