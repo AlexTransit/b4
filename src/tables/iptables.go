@@ -438,9 +438,8 @@ func (manager *IPTablesManager) buildManifest() (Manifest, error) {
 			dupSetFamily = "inet6"
 		}
 		if len(dupIPs) > 0 && !hasBinary("ipset") {
-			log.Warnf("ipset binary not found; skipping duplicate-IPs rules for %s (install with: opkg install ipset)", dupSetName)
-		}
-		if len(dupIPs) > 0 && hasBinary("ipset") {
+			log.Warnf("ipset binary not found; skipping duplicate-IPs rules for %s (install ipset via your system package manager)", dupSetName)
+		} else if len(dupIPs) > 0 {
 			ipsets = append(ipsets, IPSet{Name: dupSetName, Family: dupSetFamily, Entries: dupIPs})
 			if manager.hasMultiportSupport(ipt) {
 				for _, chunk := range chunkPorts(tcpPorts, 15) {

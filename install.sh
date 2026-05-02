@@ -1003,7 +1003,7 @@ _generic_linux_check_recommended() {
         fi
     fi
 
-    if command_exists iptables && ! command_exists nft && ! command_exists ipset; then
+    if command_exists iptables && ! _nft_functional && ! command_exists ipset; then
         rec_missing="${rec_missing} ipset"
     fi
 
