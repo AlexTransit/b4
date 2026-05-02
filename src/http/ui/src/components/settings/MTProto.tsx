@@ -72,19 +72,39 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
 
   const handleCopy = async () => {
     if (!shareLink) return;
+    let ok = false;
     try {
-      await navigator.clipboard.writeText(shareLink);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+        ok = true;
+      }
+    } catch {
+      /* fall through to legacy path */
+    }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = shareLink;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        /* legacy copy failed too */
+      }
+      ta.remove();
+    }
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch {
-      /* clipboard unavailable */
     }
   };
 
   const handleNativeShare = async () => {
     if (!shareLink || !canShare) return;
     try {
-      await navigator.share({ title: "MTProto Proxy", url: shareLink });
+      await navigator.share({ title: t("settings.MTProto.title"), url: shareLink });
     } catch {
       /* user cancelled */
     }
