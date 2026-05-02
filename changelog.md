@@ -1,6 +1,6 @@
 # B4 - Bye Bye Big Bro
 
-## [1.50.2] - 2026-05-02
+## [1.60.0] - 2026-05-02
 
 - ADDED: **Per-set strategy escalation** - in the set's Targets tab there is a new "Escalate to" dropdown. Pick another set, and if the current set's bypass keeps failing for a destination, b4 switches that destination to the chosen set on the next connection (remembered for one hour, then retried). Lets you chain several strategies instead of giving up after the first one fails. Failure is detected both by stuck handshakes (no response after a few retries) and by RST injection (a few suspicious RSTs to the same destination within 30 seconds), so escalation also triggers on networks where the firewall kills connections with forged RSTs after seeing the SNI.
 - ADDED: **Share MTProto proxy connection** - new "Share connection link" button in Settings > MTProto Proxy. Opens a dialog with a `tg://` connection link, a QR code (scan with your phone camera to add the proxy to Telegram), and Copy / Open in Telegram / Share buttons.
