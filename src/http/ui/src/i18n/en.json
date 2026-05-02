@@ -426,6 +426,7 @@
       "hexSubtitle": "Copy for use in Faking → Custom Payload",
       "copyClose": "Copy & Close",
       "hexCopied": "Hex data copied to clipboard",
+      "hexCopyFailed": "Failed to copy hex data",
       "viewHex": "View/Copy hex",
       "downloadBin": "Download .bin",
       "uploadedSuccess": "Uploaded payload for {{domain}}"

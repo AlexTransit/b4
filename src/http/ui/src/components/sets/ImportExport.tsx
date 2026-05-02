@@ -12,6 +12,7 @@ import { useTranslation, Trans } from "react-i18next";
 
 import { B4SetConfig } from "@models/config";
 import { createDefaultSet } from "@models/defaults";
+import { copyText } from "@utils";
 
 type Obj = Record<string, unknown>;
 
@@ -230,31 +231,10 @@ export const ImportExportSettings = ({
     importJson(jsonValue);
   };
 
-  const handleCopy = () => {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(jsonValue).then(
-        () => showSuccess(t("sets.importExport.copiedToClipboard")),
-        () => fallbackCopy(jsonValue),
-      );
-    } else {
-      fallbackCopy(jsonValue);
-    }
-  };
-
-  const fallbackCopy = (text: string) => {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand("copy");
-      showSuccess(t("sets.importExport.copiedToClipboard"));
-    } catch {
-      showError(t("sets.importExport.copyFailed"));
-    }
-    textarea.remove();
+  const handleCopy = async () => {
+    const ok = await copyText(jsonValue);
+    if (ok) showSuccess(t("sets.importExport.copiedToClipboard"));
+    else showError(t("sets.importExport.copyFailed"));
   };
 
   return (
@@ -289,7 +269,7 @@ export const ImportExportSettings = ({
           <Button
             variant="outlined"
             startIcon={<CopyIcon />}
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
           >
             {t("sets.importExport.copyJson")}
           </Button>

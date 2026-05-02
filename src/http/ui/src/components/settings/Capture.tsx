@@ -24,6 +24,7 @@ import { useSnackbar } from "@context/SnackbarProvider";
 import { B4Dialog, B4TextField, B4Section, B4Alert } from "@b4.elements";
 import { useCaptures, Capture } from "@b4.capture";
 import { colors, radius } from "@design";
+import { copyText } from "@utils";
 
 export const CaptureSettings = () => {
   const { t } = useTranslation();
@@ -119,15 +120,16 @@ export const CaptureSettings = () => {
       showSuccess(
         t("settings.Capture.uploadedSuccess", { domain: uploadForm.domain }),
       );
-      setUploadForm({ domain: "", file: null });
+      setUploadForm({ domain: "", protocol: "tls", file: null });
     } catch {
       showError(t("settings.Capture.uploadFailed"));
     }
   };
 
-  const copyHex = (hexData: string) => {
-    void navigator.clipboard.writeText(hexData);
-    showSuccess(t("settings.Capture.hexCopied"));
+  const copyHex = async (hexData: string) => {
+    const ok = await copyText(hexData);
+    if (ok) showSuccess(t("settings.Capture.hexCopied"));
+    else showError(t("settings.Capture.hexCopyFailed"));
   };
 
   return (
@@ -220,7 +222,7 @@ export const CaptureSettings = () => {
                 onChange={(e: { target: { value: string } }) =>
                   setProbeForm({ domain: e.target.value.toLowerCase() })
                 }
-                onKeyPress={(e: { key: string }) => {
+                onKeyDown={(e: { key: string }) => {
                   if (e.key === "Enter" && !loading && probeForm.domain) {
                     void generateCapture();
                   }
@@ -334,7 +336,7 @@ export const CaptureSettings = () => {
             variant="contained"
             onClick={() => {
               if (hexDialog.capture?.hex_data) {
-                copyHex(hexDialog.capture.hex_data);
+                void copyHex(hexDialog.capture.hex_data);
               }
               setHexDialog({ open: false, capture: null });
             }}

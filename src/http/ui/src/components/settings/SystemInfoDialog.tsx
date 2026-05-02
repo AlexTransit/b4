@@ -12,6 +12,7 @@ import { InfoIcon, CheckIcon, ErrorIcon, WarningIcon, CopyIcon } from "@b4.icons
 import { colors, spacing } from "@design";
 import { B4Dialog } from "@common/B4Dialog";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { copyText } from "@utils";
 
 interface SystemInfoDialogProps {
   open: boolean;
@@ -112,12 +113,11 @@ export const SystemInfoDialog = ({ open, onClose }: SystemInfoDialogProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const copyJson = () => {
+  const copyJson = async () => {
     if (!data) return;
-    navigator.clipboard.writeText(JSON.stringify(data, null, 2)).then(
-      () => showSuccess(t("settings.SystemInfo.copied")),
-      () => setError(t("settings.SystemInfo.copyFailed")),
-    );
+    const ok = await copyText(JSON.stringify(data, null, 2));
+    if (ok) showSuccess(t("settings.SystemInfo.copied"));
+    else setError(t("settings.SystemInfo.copyFailed"));
   };
 
   useEffect(() => {
@@ -266,7 +266,7 @@ export const SystemInfoDialog = ({ open, onClose }: SystemInfoDialogProps) => {
             <Button
               size="small"
               startIcon={<CopyIcon />}
-              onClick={copyJson}
+              onClick={() => void copyJson()}
             >
               {t("settings.SystemInfo.copyJson")}
             </Button>

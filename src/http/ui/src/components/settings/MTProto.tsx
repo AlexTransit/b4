@@ -28,6 +28,7 @@ import {
   B4Alert,
   B4Dialog,
 } from "@b4.elements";
+import { copyText } from "@utils";
 import { B4Config } from "@models/config";
 
 interface MTProtoSettingsProps {
@@ -72,30 +73,7 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
 
   const handleCopy = async () => {
     if (!shareLink) return;
-    let ok = false;
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareLink);
-        ok = true;
-      }
-    } catch {
-      /* fall through to legacy path */
-    }
-    if (!ok) {
-      const ta = document.createElement("textarea");
-      ta.value = shareLink;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      try {
-        ok = document.execCommand("copy");
-      } catch {
-        /* legacy copy failed too */
-      }
-      ta.remove();
-    }
-    if (ok) {
+    if (await copyText(shareLink)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     }

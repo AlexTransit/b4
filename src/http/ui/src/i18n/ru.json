@@ -422,6 +422,7 @@
       "hexSubtitle": "Скопируйте для использования в Faking → Custom Payload",
       "copyClose": "Копировать и закрыть",
       "hexCopied": "Hex данные скопированы в буфер обмена",
+      "hexCopyFailed": "Не удалось скопировать hex данные",
       "viewHex": "Просмотр/Копирование hex",
       "downloadBin": "Скачать .bin",
       "uploadedSuccess": "Загружен пэйлоад для {{domain}}"
