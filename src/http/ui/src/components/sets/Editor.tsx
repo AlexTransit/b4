@@ -22,7 +22,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AltRouteIcon from "@mui/icons-material/AltRoute";
 
-import { B4Tab, B4Tabs, B4TextField, B4Select } from "@b4.elements";
+import { B4Tab, B4Tabs, B4TextField, B4Select, B4Alert } from "@b4.elements";
 
 import { colors } from "@design";
 import { B4Config, B4SetConfig, SystemConfig } from "@models/config";
@@ -149,6 +149,10 @@ export const SetEditorPage = ({
 
   if (!editedSet) return null;
 
+  const escalateOn = !!editedSet.escalate_to;
+  const rstOn = editedSet.tcp.rst_protection?.enabled === true;
+  const showEscalateWarn = escalateOn && !rstOn;
+
   let saveTooltip: string;
   if (saving) saveTooltip = t("core.saving");
   else if (isNew) saveTooltip = t("sets.editor.createSet");
@@ -217,9 +221,7 @@ export const SetEditorPage = ({
                       )
                       .map((s) => ({ label: s.name || s.id, value: s.id })),
                   ]}
-                  onChange={(e) =>
-                    handleChange("escalate_to", e.target.value as string)
-                  }
+                  onChange={(e) => handleChange("escalate_to", e.target.value)}
                 />
               </Box>
               {isNew && (
@@ -262,6 +264,14 @@ export const SetEditorPage = ({
               </Button>
             </Stack>
           </Stack>
+
+          {showEscalateWarn && (
+            <Box sx={{ mb: 2 }}>
+              <B4Alert severity="warning" noWrapper>
+                {t("sets.editor.escalateNeedsRstProtection")}
+              </B4Alert>
+            </Box>
+          )}
 
           {/* Tabs */}
           <B4Tabs

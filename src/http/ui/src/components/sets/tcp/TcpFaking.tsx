@@ -4,6 +4,7 @@ import {
   B4Alert,
   B4ChipList,
   B4FormHeader,
+  B4Hint,
   B4PlusButton,
   B4Select,
   B4Slider,
@@ -147,7 +148,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
   };
 
   const mutation = config.faking.sni_mutation || {
-    mode: "off" as MutationMode,
+    mode: "off",
     grease_count: 3,
     padding_size: 2048,
     fake_ext_count: 5,
@@ -264,9 +265,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               label={t("sets.faking.fakeSni.strategy")}
               value={config.faking.strategy}
               options={FAKE_STRATEGIES}
-              onChange={(e) =>
-                onChange("faking.strategy", e.target.value as string)
-              }
+              onChange={(e) => onChange("faking.strategy", e.target.value)}
               helperText={t("sets.faking.fakeSni.strategyHelper")}
               disabled={!config.faking.sni}
             />
@@ -323,14 +322,17 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                     label={t("sets.faking.fakeSni.generatedPayload")}
                     value={config.faking.payload_file}
                     options={[
-                      { value: "", label: t("sets.faking.fakeSni.selectPayload") },
+                      {
+                        value: "",
+                        label: t("sets.faking.fakeSni.selectPayload"),
+                      },
                       ...captures.map((c) => ({
                         value: c.filepath,
                         label: `${c.domain} (${c.size} bytes)`,
                       })),
                     ]}
                     onChange={(e) =>
-                      onChange("faking.payload_file", e.target.value as string)
+                      onChange("faking.payload_file", e.target.value)
                     }
                     helperText={
                       captures.length === 0
@@ -343,8 +345,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               )}
               <Grid size={{ xs: captures.length > 0 ? 6 : 12 }}>
                 <B4Alert>
-                  {captures.length === 0 &&
-                    t("sets.faking.fakeSni.noPayloads")}
+                  {captures.length === 0 && t("sets.faking.fakeSni.noPayloads")}
 
                   <Link to="/settings/payloads">
                     {" "}
@@ -366,7 +367,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               disabled={!config.faking.sni}
             />
           </Grid>
-          {(config.faking.strategy === "pastseq" || config.faking.strategy === "randseq") && (
+          {(config.faking.strategy === "pastseq" ||
+            config.faking.strategy === "randseq") && (
             <Grid size={{ xs: 12, md: 4 }}>
               <B4TextField
                 label={t("sets.faking.fakeSni.seqOffset")}
@@ -460,9 +462,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
         status={synFakeStatus}
         enabled={config.tcp.syn_fake || config.faking.tcp_md5}
       >
-        <B4Alert noWrapper>
-          {t("sets.faking.synFake.alert")}
-        </B4Alert>
+        <B4Hint>{t("sets.faking.synFake.alert")}</B4Hint>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
             <B4Switch
@@ -521,18 +521,14 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
         status={desyncStatus}
         enabled={isDesyncEnabled}
       >
-        <B4Alert noWrapper>
-          {t("sets.faking.desync.alert")}
-        </B4Alert>
+        <B4Hint>{t("sets.faking.desync.alert")}</B4Hint>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <B4Select
               label={t("sets.faking.desync.mode")}
               value={config.tcp.desync.mode}
               options={desyncModeOptions}
-              onChange={(e) =>
-                onChange("tcp.desync.mode", e.target.value as string)
-              }
+              onChange={(e) => onChange("tcp.desync.mode", e.target.value)}
               helperText={desyncModeDescriptions[config.tcp.desync.mode]}
             />
           </Grid>
@@ -589,18 +585,14 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
         status={windowStatus}
         enabled={config.tcp.win.mode !== "off"}
       >
-        <B4Alert noWrapper>
-          {t("sets.faking.window.alert")}
-        </B4Alert>
+        <B4Hint>{t("sets.faking.window.alert")}</B4Hint>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 6 }}>
             <B4Select
               label={t("sets.faking.window.mode")}
               value={config.tcp.win.mode}
               options={windowModeOptions}
-              onChange={(e) =>
-                onChange("tcp.win.mode", e.target.value as string)
-              }
+              onChange={(e) => onChange("tcp.win.mode", e.target.value)}
               helperText={windowModeDescriptions[config.tcp.win.mode]}
             />
           </Grid>
@@ -667,18 +659,14 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
         status={incomingStatus}
         enabled={(config.tcp.incoming?.mode || "off") !== "off"}
       >
-        <B4Alert noWrapper>
-          {t("sets.faking.incoming.alert")}
-        </B4Alert>
+        <B4Hint>{t("sets.faking.incoming.alert")}</B4Hint>
         <Grid container spacing={3}>
           <Grid size={{ xs: 12, md: 4 }}>
             <B4Select
               label={t("sets.faking.incoming.mode")}
               value={config.tcp.incoming?.mode || "off"}
               options={incomingModeOptions}
-              onChange={(e) =>
-                onChange("tcp.incoming.mode", e.target.value as string)
-              }
+              onChange={(e) => onChange("tcp.incoming.mode", e.target.value)}
               helperText={
                 incomingModeDescriptions[config.tcp.incoming?.mode || "off"]
               }
@@ -691,7 +679,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               value={config.tcp.incoming?.strategy || "badsum"}
               options={incomingStrategyOptions}
               onChange={(e) =>
-                onChange("tcp.incoming.strategy", e.target.value as string)
+                onChange("tcp.incoming.strategy", e.target.value)
               }
               disabled={config.tcp.incoming?.mode === "off"}
               helperText={
@@ -793,7 +781,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               value={mutation.mode}
               options={MUTATION_MODES}
               onChange={(e) =>
-                onChange("faking.sni_mutation.mode", e.target.value as string)
+                onChange("faking.sni_mutation.mode", e.target.value)
               }
               helperText={mutationModeDescriptions[mutation.mode]}
             />
@@ -803,7 +791,9 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
             <>
               {showGreaseSettings && (
                 <>
-                  <B4FormHeader label={t("sets.faking.mutation.greaseHeader")} />
+                  <B4FormHeader
+                    label={t("sets.faking.mutation.greaseHeader")}
+                  />
                   <Grid size={{ xs: 12 }}>
                     <B4Slider
                       label={t("sets.faking.mutation.greaseCount")}
@@ -822,7 +812,9 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
 
               {showPaddingSettings && (
                 <>
-                  <B4FormHeader label={t("sets.faking.mutation.paddingHeader")} />
+                  <B4FormHeader
+                    label={t("sets.faking.mutation.paddingHeader")}
+                  />
                   <Grid size={{ xs: 12 }}>
                     <B4Slider
                       label={t("sets.faking.mutation.paddingSize")}
@@ -842,7 +834,9 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
 
               {showFakeExtSettings && (
                 <>
-                  <B4FormHeader label={t("sets.faking.mutation.fakeExtHeader")} />
+                  <B4FormHeader
+                    label={t("sets.faking.mutation.fakeExtHeader")}
+                  />
                   <Grid size={{ xs: 12 }}>
                     <B4Slider
                       label={t("sets.faking.mutation.fakeExtCount")}
@@ -861,7 +855,9 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
 
               {showFakeSniSettings && (
                 <>
-                  <B4FormHeader label={t("sets.faking.mutation.fakeSniHeader")} />
+                  <B4FormHeader
+                    label={t("sets.faking.mutation.fakeSniHeader")}
+                  />
                   <Grid size={{ xs: 12, md: 6 }}>
                     <Box
                       sx={{ display: "flex", gap: 1, alignItems: "flex-start" }}
@@ -876,7 +872,9 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                             handleAddFakeSni();
                           }
                         }}
-                        placeholder={t("sets.faking.mutation.fakeSniPlaceholder")}
+                        placeholder={t(
+                          "sets.faking.mutation.fakeSniPlaceholder",
+                        )}
                         helperText={t("sets.faking.mutation.fakeSniHelper")}
                       />
                       <B4PlusButton

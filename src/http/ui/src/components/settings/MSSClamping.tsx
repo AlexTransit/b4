@@ -6,6 +6,7 @@ import {
   B4Slider,
   B4Switch,
   B4Alert,
+  B4Hint,
 } from "@b4.elements";
 import { B4Config } from "@models/config";
 
@@ -30,6 +31,7 @@ export const MSSClampingSettings = ({
       description={t("settings.MSSClamping.description")}
       icon={<FragIcon />}
     >
+      <B4Hint>{t("settings.MSSClamping.info")}</B4Hint>
       <B4FormGroup label={t("settings.MSSClamping.settings")} columns={2}>
         <B4Switch
           label={t("settings.MSSClamping.enable")}
@@ -53,9 +55,6 @@ export const MSSClampingSettings = ({
           />
         )}
       </B4FormGroup>
-      <B4Alert>
-        {t("settings.MSSClamping.info")}
-      </B4Alert>
     </B4Section>
   );
 };

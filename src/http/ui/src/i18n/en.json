@@ -1117,6 +1117,7 @@
       "namePlaceholder": "Set name...",
       "newSet": "New Set",
       "createSet": "Create Set",
+      "escalateNeedsRstProtection": "Escalation switches to the chosen set on the next connection after a destination is detected as RST-blocked. With RST Injection Protection off, those RSTs still pass through and reset connections in flight. Enable it in the TCP tab so detected RSTs are dropped before reaching the client.",
       "tabs": {
         "targets": "Targets",
         "tcp": "TCP",

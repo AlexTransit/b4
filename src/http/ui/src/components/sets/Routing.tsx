@@ -19,12 +19,12 @@ function TabPanel({ children, value, index }: Readonly<TabPanelProps>) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`routing-tabpanel-${index}`}
-      aria-labelledby={`routing-tab-${index}`}
+      id={`tcp-tabpanel-${index}`}
+      aria-labelledby={`tcp-tab-${index}`}
     >
       {value === index && (
         <Fade in>
-          <Box sx={{ pt: 2 }}>{children}</Box>
+          <Box>{children}</Box>
         </Fade>
       )}
     </div>

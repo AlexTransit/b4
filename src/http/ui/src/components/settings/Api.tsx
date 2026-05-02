@@ -14,9 +14,7 @@ export const ApiSettings = ({ config, onChange }: ApiSettingsProps) => {
 
   return (
     <Stack spacing={3}>
-      <B4Alert icon={<ApiIcon />}>
-        {t("settings.Api.alert")}
-      </B4Alert>
+      <B4Alert icon={<ApiIcon />}>{t("settings.Api.alert")}</B4Alert>
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Section

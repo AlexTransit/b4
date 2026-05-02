@@ -7,6 +7,7 @@ import {
   B4Switch,
   B4Select,
   B4FormHeader,
+  B4Hint,
 } from "@b4.elements";
 import { colors } from "@design";
 import { useTranslation } from "react-i18next";
@@ -31,15 +32,16 @@ export const DisorderSettings = ({
 
   const shuffleModeOptions: { label: string; value: DisorderShuffleMode }[] = [
     { label: t("sets.tcp.splitting.disorder.shuffleFull"), value: "full" },
-    { label: t("sets.tcp.splitting.disorder.shuffleReverse"), value: "reverse" },
+    {
+      label: t("sets.tcp.splitting.disorder.shuffleReverse"),
+      value: "reverse",
+    },
   ];
 
   return (
     <>
       <B4FormHeader label={t("sets.tcp.splitting.disorder.header")} />
-      <B4Alert sx={{ m: 0 }}>
-        {t("sets.tcp.splitting.disorder.alert")}
-      </B4Alert>
+      <B4Hint>{t("sets.tcp.splitting.disorder.alert")}</B4Hint>
 
       {/* SNI Split Toggle */}
       <Grid size={{ xs: 12, md: 6 }}>
@@ -59,10 +61,7 @@ export const DisorderSettings = ({
           value={disorder.shuffle_mode}
           options={shuffleModeOptions}
           onChange={(e) =>
-            onChange(
-              "fragmentation.disorder.shuffle_mode",
-              e.target.value as string,
-            )
+            onChange("fragmentation.disorder.shuffle_mode", e.target.value)
           }
           helperText={t("sets.tcp.splitting.disorder.shuffleHelper")}
         />
@@ -136,10 +135,8 @@ export const DisorderSettings = ({
         </Box>
       </Grid>
 
-      <B4FormHeader label={t("sets.tcp.splitting.disorder.timingHeader")} sx={{ mb: 0 }} />
-      <B4Alert sx={{ m: 0 }}>
-        {t("sets.tcp.splitting.disorder.timingAlert")}
-      </B4Alert>
+      <B4FormHeader label={t("sets.tcp.splitting.disorder.timingHeader")} />
+      <B4Hint>{t("sets.tcp.splitting.disorder.timingAlert")}</B4Hint>
 
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Slider
@@ -178,9 +175,7 @@ export const DisorderSettings = ({
       <B4FormHeader label={t("sets.tcp.splitting.disorder.fakePerSegHeader")} />
 
       <Grid size={{ xs: 12 }}>
-        <B4Alert severity="info">
-          {t("sets.tcp.splitting.disorder.fakePerSegAlert")}
-        </B4Alert>
+        <B4Hint>{t("sets.tcp.splitting.disorder.fakePerSegAlert")}</B4Hint>
       </Grid>
 
       <Grid size={{ xs: 12, md: 6 }}>
@@ -200,11 +195,16 @@ export const DisorderSettings = ({
             label={t("sets.tcp.splitting.disorder.fakesPerSeg")}
             value={[
               disorder.fake_per_seg_count || 1,
-              disorder.fake_per_seg_count_max || disorder.fake_per_seg_count || 1,
+              disorder.fake_per_seg_count_max ||
+                disorder.fake_per_seg_count ||
+                1,
             ]}
             onChange={(value: [number, number]) => {
               onChange("fragmentation.disorder.fake_per_seg_count", value[0]);
-              onChange("fragmentation.disorder.fake_per_seg_count_max", value[1]);
+              onChange(
+                "fragmentation.disorder.fake_per_seg_count_max",
+                value[1],
+              );
             }}
             min={1}
             max={11}
@@ -216,7 +216,9 @@ export const DisorderSettings = ({
 
       <SeqOverlapPatternFields
         pattern={seqPattern}
-        onChange={(value) => onChange("fragmentation.seq_overlap_pattern", value)}
+        onChange={(value) =>
+          onChange("fragmentation.seq_overlap_pattern", value)
+        }
       />
     </>
   );

@@ -9,6 +9,7 @@ export * from "@common/B4Section";
 export * from "@common/B4TooltipButton";
 export * from "@common/B4Badge";
 export * from "@components/common/B4Alert";
+export * from "@components/common/B4Hint";
 export * from "@components/common/B4FormHeader";
 export * from "@components/common/B4Tabs";
 export * from "@components/common/B4ChipList";

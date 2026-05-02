@@ -33,7 +33,7 @@ function TabPanel({ children, value, index }: Readonly<TabPanelProps>) {
     >
       {value === index && (
         <Fade in>
-          <Box sx={{ pt: 2 }}>{children}</Box>
+          <Box>{children}</Box>
         </Fade>
       )}
     </div>
@@ -67,7 +67,11 @@ export const TcpTabContainer = ({
         }}
       >
         <B4Tab icon={<CoreIcon />} label={t("sets.tcp.tabs.general")} inline />
-        <B4Tab icon={<FragIcon />} label={t("sets.tcp.tabs.splitting")} inline />
+        <B4Tab
+          icon={<FragIcon />}
+          label={t("sets.tcp.tabs.splitting")}
+          inline
+        />
         <B4Tab icon={<FakingIcon />} label={t("sets.tcp.tabs.faking")} inline />
       </B4Tabs>
 
