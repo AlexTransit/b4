@@ -14,10 +14,10 @@ platform_generic_linux_match() {
     # Don't match if this looks like a router firmware
     [ -f /etc/openwrt_release ] && return 1
     [ -f /etc/merlinwrt_release ] && return 1
-    [ -d /jffs ] && [ -d /opt/etc/init.d ] && return 1  # Merlin with Entware
-    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1   # Padavan
-    [ -d /var/run/ndm ] && return 1                      # Keenetic NDMS
-    command_exists ndmc && return 1                       # Keenetic NDMS
+    [ -d /jffs ] && [ -d /opt/etc/init.d ] && return 1 # Merlin with Entware
+    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1  # Padavan
+    [ -d /var/run/ndm ] && return 1                    # Keenetic NDMS
+    command_exists ndmc && return 1                    # Keenetic NDMS
     command_exists nvram && nvram get firmver 2>/dev/null | grep -qi "merlin" && return 1
     [ -f /proc/device-tree/model ] && grep -qi "keenetic" /proc/device-tree/model 2>/dev/null && return 1
 
@@ -133,6 +133,11 @@ _generic_linux_check_recommended() {
         else
             rec_missing="${rec_missing} iptables"
         fi
+    fi
+
+    # ipset only needed when the iptables backend is in use
+    if command_exists iptables && ! command_exists nft && ! command_exists ipset; then
+        rec_missing="${rec_missing} ipset"
     fi
 
     if [ -n "$rec_missing" ]; then
