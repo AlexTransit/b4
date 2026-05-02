@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 
@@ -41,8 +42,8 @@ func (a *API) getIpInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cleanIP := ip
-	if idx := strings.Index(cleanIP, ":"); idx != -1 {
-		cleanIP = cleanIP[:idx]
+	if host, _, err := net.SplitHostPort(cleanIP); err == nil {
+		cleanIP = host
 	}
 	cleanIP = strings.Trim(cleanIP, "[]")
 
@@ -126,8 +127,8 @@ func (a *API) getRipestatNetworkInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cleanIP := ip
-	if idx := strings.Index(cleanIP, ":"); idx != -1 {
-		cleanIP = cleanIP[:idx]
+	if host, _, err := net.SplitHostPort(cleanIP); err == nil {
+		cleanIP = host
 	}
 	cleanIP = strings.Trim(cleanIP, "[]")
 

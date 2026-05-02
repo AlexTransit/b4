@@ -2,6 +2,8 @@ package log
 
 import (
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -81,8 +83,8 @@ func (h *ConnectionHub) Broadcast(msg string) {
 }
 
 func LogConnection(protocol, sniSet, domain, srcIP string, srcPort uint16, ipSet, dstIP string, dstPort uint16, srcMac, tlsVersion, metadata string) {
-	source := fmt.Sprintf("%s:%d", srcIP, srcPort)
-	destination := fmt.Sprintf("%s:%d", dstIP, dstPort)
+	source := net.JoinHostPort(srcIP, strconv.Itoa(int(srcPort)))
+	destination := net.JoinHostPort(dstIP, strconv.Itoa(int(dstPort)))
 	emitConnection(protocol, sniSet, domain, source, ipSet, destination, srcMac, tlsVersion, metadata)
 }
 
@@ -148,5 +150,5 @@ func emitConnection(protocol, sniSet, domain, source, ipSet, destination, srcMac
 }
 
 func FormatHostPort(ip string, port uint16) string {
-	return fmt.Sprintf("%s:%d", ip, port)
+	return net.JoinHostPort(ip, strconv.Itoa(int(port)))
 }

@@ -11,6 +11,7 @@ import { B4Dialog } from "@common/B4Dialog";
 import { B4Badge } from "@common/B4Badge";
 import { B4Alert } from "@b4.elements";
 import { useTranslation } from "react-i18next";
+import { stripPort } from "@utils";
 
 interface IpInfo {
   ip: string;
@@ -51,7 +52,7 @@ export const IpInfoModal = ({
       setLoading(true);
       setError(null);
       try {
-        const cleanIp = ip.split(":")[0].replace(/[[\]]/g, "");
+        const cleanIp = stripPort(ip);
         const response = await fetch(
           `/api/integration/ipinfo?ip=${encodeURIComponent(cleanIp)}`
         );

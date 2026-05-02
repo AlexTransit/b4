@@ -17,7 +17,7 @@ import { SortableTableCell, SortDirection } from "@common/SortableTableCell";
 import { ProtocolChip } from "@common/ProtocolChip";
 import { colors } from "@design";
 import { B4Badge } from "@common/B4Badge";
-import { asnStorage } from "@utils";
+import { asnStorage, stripPort } from "@utils";
 import { ParsedLog } from "@b4.connections";
 import { useTranslation } from "react-i18next";
 
@@ -69,9 +69,7 @@ const TableRowMemo = memo<{
       return asnStorage.findAsnForIp(log.destination);
     }, [log.destination]);
 
-    const isEnriching = enrichingIps.has(
-      log.destination.split(":")[0].replaceAll(/[[\]]/g, ""),
-    );
+    const isEnriching = enrichingIps.has(stripPort(log.destination));
 
     return (
       <TableRow
