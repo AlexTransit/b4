@@ -27,12 +27,13 @@ Available actions:
 
 ## Set editor
 
-The editor has 5 tabs:
+The editor has 6 tabs:
 
 - [Targets](./targets) - domains, IPs, GeoSite/GeoIP categories, devices
 - [TCP](./tcp/) - fragmentation, faking, desync, and other TCP strategies
 - [UDP](./udp) - UDP traffic handling, QUIC, STUN
 - [Routing](./routing) - DNS redirect and traffic routing through interfaces
+- [Escalation](./escalation) - automatic fallback to a backup set when this one keeps failing
 - **Import/Export** - JSON representation of the set configuration for moving between devices
 
 ![20260418234644](../../static/img/index/20260418234644.png)
