@@ -2796,14 +2796,29 @@ action_update() {
     fi
 
     existing_bin=""
-    for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin; do
-        [ -z "$dir" ] && continue
-        if [ -f "${dir}/${BINARY_NAME}" ]; then
-            existing_bin="${dir}/${BINARY_NAME}"
-            B4_BIN_DIR="$dir"
-            break
+
+    if [ -n "$B4_EXISTING_BIN" ] && [ -f "$B4_EXISTING_BIN" ]; then
+        existing_bin="$B4_EXISTING_BIN"
+        B4_BIN_DIR=$(dirname "$B4_EXISTING_BIN")
+    fi
+    if [ -z "$existing_bin" ]; then
+        for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /jffs/b4 /tmp/b4 /ssd/b4; do
+            [ -z "$dir" ] && continue
+            if [ -f "${dir}/${BINARY_NAME}" ]; then
+                existing_bin="${dir}/${BINARY_NAME}"
+                B4_BIN_DIR="$dir"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$existing_bin" ]; then
+        _path_bin=$(command -v "$BINARY_NAME" 2>/dev/null || true)
+        if [ -n "$_path_bin" ] && [ -f "$_path_bin" ]; then
+            existing_bin="$_path_bin"
+            B4_BIN_DIR=$(dirname "$_path_bin")
         fi
-    done
+    fi
 
     if [ -z "$existing_bin" ]; then
         log_err "B4 is not installed. Use install mode instead."
@@ -2849,7 +2864,10 @@ action_update() {
     archive_path="${TEMP_DIR}/${file_name}"
 
     log_info "Downloading ${latest_ver}..."
-    fetch_file "$download_url" "$archive_path" || { log_err "Download failed"; exit 1; }
+    fetch_file "$download_url" "$archive_path" || {
+        log_err "Download failed"
+        exit 1
+    }
 
     sha_url="${download_url}.sha256"
     _cs_ret=0
@@ -2862,7 +2880,10 @@ action_update() {
     fi
 
     cd "$TEMP_DIR"
-    tar -xzf "$archive_path" || { log_err "Extraction failed"; exit 1; }
+    tar -xzf "$archive_path" || {
+        log_err "Extraction failed"
+        exit 1
+    }
 
     if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         log_info "Stopping service..."
@@ -2876,9 +2897,12 @@ action_update() {
     cp "$existing_bin" "${existing_bin}.backup.${ts}"
 
     rm -f "$existing_bin"
-    mv "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" 2>/dev/null || \
-        cp "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" || \
-        { log_err "Failed to replace binary"; exit 1; }
+    mv "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" 2>/dev/null ||
+        cp "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" ||
+        {
+            log_err "Failed to replace binary"
+            exit 1
+        }
     chmod +x "$existing_bin"
 
     if "$existing_bin" --version >/dev/null 2>&1; then
