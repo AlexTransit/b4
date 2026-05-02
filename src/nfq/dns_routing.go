@@ -18,6 +18,9 @@ func registerEscalatedRoute(cfg *config.Config, escSet *config.SetConfig, dst ne
 	if cfg == nil || escSet == nil || dst == nil || !escSet.Routing.Enabled || RoutingHandleDNSFunc == nil {
 		return
 	}
+	if cfg.Queue.IsDiscovery {
+		return
+	}
 	log.Tracef("registerEscalatedRoute: adding %s to %s ipset (mode=%s)", dst, escSet.Name, escSet.Routing.Mode)
 	RoutingHandleDNSFunc(cfg, escSet, []net.IP{dst})
 }
