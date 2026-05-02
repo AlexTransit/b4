@@ -53,10 +53,12 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 					window := time.Duration(incomingSet.Escalate.RstWindowSec) * time.Second
 					ttl := time.Duration(incomingSet.Escalate.TtlSec) * time.Second
 					if host != "" && w.destState.RecordRSTKill(host, incomingSet.Escalate.RstThreshold, window) {
-						if next := w.getConfig().GetSetById(incomingSet.Escalate.To); next != nil && next.Enabled {
+						cfg := w.getConfig()
+						if next := cfg.GetSetById(incomingSet.Escalate.To); next != nil && next.Enabled {
 							if w.destState.SetEscalation(host, next.Id, ttl) {
 								metrics.GetMetricsCollector().RecordEscalation()
 								log.Warnf("RST-kill escalation for %s: %s -> %s (%s)", host, incomingSet.Name, next.Name, reason)
+								registerEscalatedRoute(cfg, next, src)
 							} else {
 								log.Warnf("escalation hop cap reached for %s (chain stopped at %s)", host, incomingSet.Name)
 							}

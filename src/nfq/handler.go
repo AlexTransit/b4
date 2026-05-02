@@ -460,6 +460,7 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 						ttl := time.Duration(set.Escalate.TtlSec) * time.Second
 						if w.destState.SetEscalation(host, next.Id, ttl) {
 							metrics.GetMetricsCollector().RecordEscalation()
+							registerEscalatedRoute(cfg, next, pkt.dst)
 							if !cfg.Queue.IsDiscovery {
 								log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-escalate->"+next.Name)
 							}
