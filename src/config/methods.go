@@ -944,18 +944,18 @@ func (c *Config) sanitizeEscalation() {
 			continue
 		}
 		if s.Escalate.To == s.Id {
-			log.Warnf("Set %q: escalate.to references self, clearing", s.Name)
+			log.Warnf("Set %q (id=%s): escalate.to references self, clearing", s.Name, s.Id)
 			s.Escalate.To = ""
 			continue
 		}
 		target, ok := byID[s.Escalate.To]
 		if !ok {
-			log.Warnf("Set %q: escalate.to %q not found, clearing", s.Name, s.Escalate.To)
+			log.Warnf("Set %q (id=%s): escalate.to %q not found, clearing", s.Name, s.Id, s.Escalate.To)
 			s.Escalate.To = ""
 			continue
 		}
 		if !target.Enabled {
-			log.Warnf("Set %q: escalate.to %q is disabled, clearing", s.Name, target.Name)
+			log.Warnf("Set %q (id=%s): escalate.to %q (id=%s) is disabled, clearing", s.Name, s.Id, target.Name, target.Id)
 			s.Escalate.To = ""
 			continue
 		}
@@ -969,7 +969,7 @@ func (c *Config) sanitizeEscalation() {
 		cur := s
 		for cur.Escalate.To != "" {
 			if seen[cur.Escalate.To] {
-				log.Warnf("Set %q: escalate.to chain has a cycle at %q, breaking", s.Name, cur.Name)
+				log.Warnf("Set %q (id=%s): escalate.to chain has a cycle at %q (id=%s), breaking", s.Name, s.Id, cur.Name, cur.Id)
 				cur.Escalate.To = ""
 				break
 			}
