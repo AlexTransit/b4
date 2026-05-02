@@ -1,6 +1,24 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Box } from "@mui/material";
+import {
+  Button,
+  Box,
+  IconButton,
+  InputAdornment,
+  Tooltip,
+  Typography,
+  Chip,
+  Collapse,
+  Stack,
+} from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import CheckIcon from "@mui/icons-material/Check";
+import IosShareIcon from "@mui/icons-material/IosShare";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { QRCodeSVG } from "qrcode.react";
 import { ConnectionIcon } from "@b4.icons";
 import {
   B4FormGroup,
@@ -8,6 +26,7 @@ import {
   B4Switch,
   B4TextField,
   B4Alert,
+  B4Dialog,
 } from "@b4.elements";
 import { B4Config } from "@models/config";
 
@@ -28,6 +47,68 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
     | { ok: false; error: string }
     | null
   >(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareHost, setShareHost] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [showDcs, setShowDcs] = useState(false);
+
+  const port = config.system.mtproto?.port ?? 3128;
+  const secret = config.system.mtproto?.secret || "";
+  const shareLink = useMemo(() => {
+    const host = (shareHost || "").trim();
+    if (!host || !secret) return "";
+    return `tg://proxy?server=${encodeURIComponent(host)}&port=${port}&secret=${encodeURIComponent(secret)}`;
+  }, [shareHost, port, secret]);
+  const canShare =
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+
+  const openShare = () => {
+    const bind = config.system.mtproto?.bind_address || "";
+    const isAnyAddr = !bind || bind === "0.0.0.0" || bind === "::";
+    setShareHost(isAnyAddr ? globalThis.location.hostname : bind);
+    setCopied(false);
+    setShareOpen(true);
+  };
+
+  const handleCopy = async () => {
+    if (!shareLink) return;
+    let ok = false;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareLink);
+        ok = true;
+      }
+    } catch {
+      /* fall through to legacy path */
+    }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = shareLink;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        /* legacy copy failed too */
+      }
+      ta.remove();
+    }
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
+
+  const handleNativeShare = async () => {
+    if (!shareLink || !canShare) return;
+    try {
+      await navigator.share({ title: t("settings.MTProto.title"), url: shareLink });
+    } catch {
+      /* user cancelled */
+    }
+  };
 
   const handleRefreshDCs = async () => {
     setRefreshing(true);
@@ -42,6 +123,7 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
       };
       if (data.success && typeof data.count === "number" && data.dcs) {
         setRefreshResult({ ok: true, count: data.count, dcs: data.dcs });
+        setShowDcs(true);
       } else {
         setRefreshResult({ ok: false, error: data.error || "unknown error" });
       }
@@ -70,6 +152,20 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
     }
   };
 
+  let dcAlertSeverity: "success" | "error" | "info" = "info";
+  let dcAlertText: string = t("settings.MTProto.refreshDCsHint");
+  if (refreshResult?.ok) {
+    dcAlertSeverity = "success";
+    dcAlertText = t("settings.MTProto.refreshDCsOk", {
+      count: refreshResult.count,
+    });
+  } else if (refreshResult && !refreshResult.ok) {
+    dcAlertSeverity = "error";
+    dcAlertText = t("settings.MTProto.refreshDCsErr", {
+      error: refreshResult.error,
+    });
+  }
+
   return (
     <B4Section
       title={t("settings.MTProto.title")}
@@ -85,6 +181,9 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           }
           description={t("settings.MTProto.enableDesc")}
         />
+        {config.system.mtproto?.enabled && (
+          <B4Alert severity="info">{t("settings.MTProto.restartNote")}</B4Alert>
+        )}
         <B4TextField
           label={t("settings.MTProto.bindAddress")}
           value={config.system.mtproto?.bind_address || "0.0.0.0"}
@@ -120,13 +219,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           disabled={!config.system.mtproto?.enabled}
           helperText={t("settings.MTProto.dcRelayHelp")}
         />
-        {config.system.mtproto?.enabled && config.system.mtproto?.dc_relay && (
-          <B4Alert severity="info">
-            <span
-              dangerouslySetInnerHTML={{ __html: t("settings.MTProto.relaySetup") }}
-            />
-          </B4Alert>
-        )}
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <B4TextField
             label={t("settings.MTProto.secret")}
@@ -135,54 +227,250 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
             disabled={!config.system.mtproto?.enabled}
             helperText={t("settings.MTProto.secretHelp")}
             autoComplete="off"
+            slotProps={{
+              input: {
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <Chip
+                      size="small"
+                      icon={
+                        <AutorenewIcon
+                          sx={{
+                            animation: generating
+                              ? "spin 1s linear infinite"
+                              : "none",
+                            "@keyframes spin": {
+                              from: { transform: "rotate(0deg)" },
+                              to: { transform: "rotate(360deg)" },
+                            },
+                          }}
+                        />
+                      }
+                      label={
+                        generating
+                          ? t("settings.MTProto.generating")
+                          : t("settings.MTProto.generateSecret")
+                      }
+                      onClick={() => void handleGenerateSecret()}
+                      disabled={!config.system.mtproto?.enabled || generating}
+                      sx={{ cursor: "pointer" }}
+                    />
+                  </InputAdornment>
+                ),
+              },
+            }}
           />
           <Button
-            variant="outlined"
+            variant="contained"
             size="small"
-            onClick={() => void handleGenerateSecret()}
-            disabled={!config.system.mtproto?.enabled || generating}
+            startIcon={<IosShareIcon />}
+            onClick={openShare}
+            disabled={!config.system.mtproto?.enabled || !secret}
+            sx={{ alignSelf: "flex-start" }}
           >
-            {t("settings.MTProto.generateSecret")}
+            {t("settings.MTProto.shareLink")}
           </Button>
         </Box>
-        {config.system.mtproto?.enabled && (
-          <B4Alert severity="info">{t("settings.MTProto.restartNote")}</B4Alert>
-        )}
+
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={() => void handleRefreshDCs()}
-            disabled={refreshing}
+          <B4Alert
+            severity={dcAlertSeverity}
+            action={
+              <Stack direction="row" alignItems="center" gap={0.5}>
+                {refreshResult?.ok && (
+                  <Tooltip
+                    title={
+                      showDcs
+                        ? t("settings.MTProto.hideDCs")
+                        : t("settings.MTProto.showDCs")
+                    }
+                  >
+                    <IconButton
+                      size="small"
+                      color="inherit"
+                      onClick={() => setShowDcs((v) => !v)}
+                      sx={{
+                        transition: "transform 0.2s",
+                        transform: showDcs ? "rotate(180deg)" : "rotate(0deg)",
+                      }}
+                    >
+                      <ExpandMoreIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                <Button
+                  color="inherit"
+                  size="small"
+                  startIcon={
+                    <RefreshIcon
+                      sx={{
+                        animation: refreshing
+                          ? "spin 1s linear infinite"
+                          : "none",
+                        "@keyframes spin": {
+                          from: { transform: "rotate(0deg)" },
+                          to: { transform: "rotate(360deg)" },
+                        },
+                      }}
+                    />
+                  }
+                  onClick={() => void handleRefreshDCs()}
+                  disabled={refreshing}
+                >
+                  {refreshing
+                    ? t("settings.MTProto.refreshingDCs")
+                    : t("settings.MTProto.refreshDCs")}
+                </Button>
+              </Stack>
+            }
           >
-            {refreshing
-              ? t("settings.MTProto.refreshingDCs")
-              : t("settings.MTProto.refreshDCs")}
-          </Button>
-          {refreshResult?.ok && (
-            <B4Alert severity="success">
-              {t("settings.MTProto.refreshDCsOk", { count: refreshResult.count })}
-              <Box
-                component="ul"
-                sx={{ m: 0, pl: 2, fontFamily: "monospace", fontSize: "0.8rem" }}
-              >
-                {Object.entries(refreshResult.dcs)
-                  .sort((a, b) => Number(a[0]) - Number(b[0]))
-                  .map(([id, addr]) => (
-                    <li key={id}>
-                      DC{id} → {addr}
-                    </li>
-                  ))}
-              </Box>
-            </B4Alert>
-          )}
-          {refreshResult && !refreshResult.ok && (
-            <B4Alert severity="error">
-              {t("settings.MTProto.refreshDCsErr", { error: refreshResult.error })}
-            </B4Alert>
-          )}
+            {dcAlertText}
+            {refreshResult?.ok && (
+              <Collapse in={showDcs} unmountOnExit>
+                <Box
+                  component="ul"
+                  sx={{
+                    m: 0,
+                    mt: 1,
+                    pl: 2,
+                    fontFamily: "monospace",
+                    fontSize: "0.8rem",
+                  }}
+                >
+                  {Object.entries(refreshResult.dcs)
+                    .sort((a, b) => Number(a[0]) - Number(b[0]))
+                    .map(([id, addr]) => (
+                      <li key={id}>
+                        DC{id} → {addr}
+                      </li>
+                    ))}
+                </Box>
+              </Collapse>
+            )}
+          </B4Alert>
         </Box>
+        {config.system.mtproto?.enabled && config.system.mtproto?.dc_relay && (
+          <B4Alert severity="info">
+            <span
+              dangerouslySetInnerHTML={{
+                __html: t("settings.MTProto.relaySetup"),
+              }}
+            />
+          </B4Alert>
+        )}
       </B4FormGroup>
+      <B4Dialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        fullWidth
+        maxWidth="sm"
+        title={t("settings.MTProto.shareDialogTitle")}
+        icon={<IosShareIcon />}
+        actions={
+          <>
+            <Button onClick={() => setShareOpen(false)}>
+              {t("core.close")}
+            </Button>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              component="a"
+              variant="outlined"
+              href={shareLink || "#"}
+              target="_blank"
+              rel="noreferrer"
+              startIcon={<OpenInNewIcon />}
+              disabled={!shareLink}
+            >
+              {t("settings.MTProto.shareOpen")}
+            </Button>
+            {canShare && (
+              <Button
+                variant="contained"
+                startIcon={<IosShareIcon />}
+                onClick={() => void handleNativeShare()}
+                disabled={!shareLink}
+              >
+                {t("settings.MTProto.shareNative")}
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
+              onClick={() => void handleCopy()}
+              disabled={!shareLink}
+            >
+              {copied ? t("core.copied") : t("core.copy")}
+            </Button>
+          </>
+        }
+      >
+        <B4TextField
+          sx={{ mt: 3 }}
+          label={t("settings.MTProto.shareHost")}
+          value={shareHost}
+          onChange={(e) => setShareHost(e.target.value)}
+          helperText={t("settings.MTProto.shareHostHelp")}
+          autoFocus
+        />
+        <B4TextField
+          label={t("settings.MTProto.shareLinkLabel")}
+          value={shareLink}
+          slotProps={{
+            input: {
+              readOnly: true,
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Tooltip title={copied ? t("core.copied") : t("core.copy")}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={() => void handleCopy()}
+                        disabled={!shareLink}
+                      >
+                        {copied ? (
+                          <CheckIcon fontSize="small" color="success" />
+                        ) : (
+                          <ContentCopyIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </InputAdornment>
+              ),
+            },
+          }}
+          helperText={t("settings.MTProto.shareLinkHelp")}
+        />
+        {shareLink && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1,
+              alignSelf: "center",
+            }}
+          >
+            <Box sx={{ px: 1, pt: 1, bgcolor: "#fff", borderRadius: 2 }}>
+              <QRCodeSVG
+                value={shareLink}
+                size={220}
+                level="H"
+                marginSize={0}
+                imageSettings={{
+                  src: "/favicon.svg",
+                  height: 32,
+                  width: 32,
+                  excavate: true,
+                }}
+              />
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              {t("settings.MTProto.shareQrHelp")}
+            </Typography>
+          </Box>
+        )}
+      </B4Dialog>
     </B4Section>
   );
 };
