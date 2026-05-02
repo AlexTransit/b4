@@ -7,11 +7,23 @@ import (
 	"time"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/log"
 )
 
 // RoutingHandleDNSFunc is called when DNS-resolved IPs are available for routing.
 // Set from main.go to break the tables ↔ nfq import cycle.
 var RoutingHandleDNSFunc func(cfg *config.Config, set *config.SetConfig, ips []net.IP)
+
+func registerEscalatedRoute(cfg *config.Config, escSet *config.SetConfig, dst net.IP) {
+	if cfg == nil || escSet == nil || dst == nil || !escSet.Routing.Enabled || RoutingHandleDNSFunc == nil {
+		return
+	}
+	if cfg.Queue.IsDiscovery {
+		return
+	}
+	log.Tracef("registerEscalatedRoute: adding %s to %s ipset (mode=%s)", dst, escSet.Name, escSet.Routing.Mode)
+	RoutingHandleDNSFunc(cfg, escSet, []net.IP{dst})
+}
 
 type pendingDNSRoute struct {
 	setID   string
