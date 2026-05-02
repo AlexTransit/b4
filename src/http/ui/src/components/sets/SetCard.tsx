@@ -502,15 +502,23 @@ export const SetCard = ({
         </CardContent>
       </CardActionArea>
 
-      {(escalatesTo || (escalatedFrom?.length ?? 0) > 0) && (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          px: 2,
+          pb: 1.5,
+          minHeight: 30,
+        }}
+      >
         <Box
           sx={{
             display: "flex",
             flexWrap: "wrap",
             gap: 0.5,
-            px: 2,
-            pb: 2,
-            pr: 5,
+            flex: 1,
+            minWidth: 0,
           }}
         >
           {escalatesTo && (
@@ -534,32 +542,29 @@ export const SetCard = ({
             />
           ))}
         </Box>
-      )}
 
-      {/* Order indicator */}
-      <Box
-        sx={{
-          position: "absolute",
-          bottom: 8,
-          right: 8,
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          bgcolor: colors.accent.primary,
-          border: `1px solid ${colors.border.default}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          fontWeight={600}
-          sx={{ fontSize: "0.65rem" }}
+        <Box
+          sx={{
+            flexShrink: 0,
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            bgcolor: colors.accent.primary,
+            border: `1px solid ${colors.border.default}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          {index + 1}
-        </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={600}
+            sx={{ fontSize: "0.65rem" }}
+          >
+            {index + 1}
+          </Typography>
+        </Box>
       </Box>
     </Card>
   );
