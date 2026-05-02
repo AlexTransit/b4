@@ -1,11 +1,11 @@
 import { Grid, Box, Typography } from "@mui/material";
 import {
-  B4Alert,
   B4Select,
   B4FormHeader,
   B4TextField,
   B4PlusButton,
   B4ChipList,
+  B4Hint,
 } from "@b4.elements";
 import { colors } from "@design";
 import { useEffect, useRef, useState } from "react";
@@ -33,7 +33,11 @@ export const SeqOverlapPatternFields = ({
   const patternKey = normalizedPattern.join(",");
 
   const SEQ_OVERLAP_PRESETS = [
-    { label: t("sets.tcp.splitting.disorder.presetNone"), value: "none", pattern: [] },
+    {
+      label: t("sets.tcp.splitting.disorder.presetNone"),
+      value: "none",
+      pattern: [],
+    },
     {
       label: t("sets.tcp.splitting.disorder.presetTls12"),
       value: "tls12",
@@ -54,8 +58,16 @@ export const SeqOverlapPatternFields = ({
       value: "http_get",
       pattern: ["0x47", "0x45", "0x54", "0x20", "0x2F"],
     },
-    { label: t("sets.tcp.splitting.disorder.presetZeros"), value: "zeros", pattern: ["0x00"] },
-    { label: t("sets.tcp.splitting.disorder.presetCustom"), value: "custom", pattern: [] },
+    {
+      label: t("sets.tcp.splitting.disorder.presetZeros"),
+      value: "zeros",
+      pattern: ["0x00"],
+    },
+    {
+      label: t("sets.tcp.splitting.disorder.presetCustom"),
+      value: "custom",
+      pattern: [],
+    },
   ];
 
   const getCurrentPreset = () => {
@@ -130,10 +142,6 @@ export const SeqOverlapPatternFields = ({
     <>
       <B4FormHeader label={t("sets.tcp.splitting.disorder.seqOverlapHeader")} />
 
-      <B4Alert sx={{ m: 0 }}>
-        {t("sets.tcp.splitting.disorder.seqOverlapAlert")}
-      </B4Alert>
-
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Select
           label={t("sets.tcp.splitting.disorder.overlapPattern")}
@@ -145,6 +153,9 @@ export const SeqOverlapPatternFields = ({
           onChange={(e) => handlePresetChange(e.target.value as string)}
           helperText={t("sets.tcp.splitting.disorder.overlapPatternHelper")}
         />
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4Hint>{t("sets.tcp.splitting.disorder.seqOverlapAlert")}</B4Hint>
       </Grid>
       {normalizedPattern.length > 0 && (
         <Grid size={{ xs: 6 }}>
@@ -215,7 +226,9 @@ export const SeqOverlapPatternFields = ({
                 value={newByte}
                 onChange={(e) => setNewByte(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                placeholder={t("sets.tcp.splitting.disorder.addBytePlaceholder")}
+                placeholder={t(
+                  "sets.tcp.splitting.disorder.addBytePlaceholder",
+                )}
                 size="small"
               />
               <B4PlusButton

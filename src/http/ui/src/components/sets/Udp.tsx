@@ -59,13 +59,21 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
   ];
 
   const UDP_FAKING_STRATEGIES = [
-    { value: "none", label: t("sets.udp.strategyNone"), description: t("sets.udp.strategyNoneDesc") },
+    {
+      value: "none",
+      label: t("sets.udp.strategyNone"),
+      description: t("sets.udp.strategyNoneDesc"),
+    },
     {
       value: "ttl",
       label: t("sets.udp.strategyTtl"),
       description: t("sets.udp.strategyTtlDesc"),
     },
-    { value: "checksum", label: t("sets.udp.strategyChecksum"), description: t("sets.udp.strategyChecksumDesc") },
+    {
+      value: "checksum",
+      label: t("sets.udp.strategyChecksum"),
+      description: t("sets.udp.strategyChecksumDesc"),
+    },
   ];
 
   const isQuicEnabled = config.udp.filter_quic !== "disabled";
@@ -100,9 +108,7 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
             label={t("sets.udp.quicFilter")}
             value={config.udp.filter_quic}
             options={UDP_QUIC_FILTERS}
-            onChange={(e) =>
-              onChange("udp.filter_quic", e.target.value as string)
-            }
+            onChange={(e) => onChange("udp.filter_quic", e.target.value)}
             helperText={
               UDP_QUIC_FILTERS.find((o) => o.value === config.udp.filter_quic)
                 ?.description
@@ -155,7 +161,7 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 label={t("sets.udp.actionMode")}
                 value={config.udp.mode}
                 options={UDP_MODES}
-                onChange={(e) => onChange("udp.mode", e.target.value as string)}
+                onChange={(e) => onChange("udp.mode", e.target.value)}
                 helperText={
                   UDP_MODES.find((o) => o.value === config.udp.mode)
                     ?.description
@@ -172,7 +178,9 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 min={1}
                 max={queue.udp_conn_bytes_limit}
                 step={1}
-                helperText={t("sets.udp.connPacketsMax", { max: queue.udp_conn_bytes_limit })}
+                helperText={t("sets.udp.connPacketsMax", {
+                  max: queue.udp_conn_bytes_limit,
+                })}
               />
             </Grid>
 
@@ -184,7 +192,9 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                   reject: "sets.udp.rejectModeInfo",
                   drop: "sets.udp.dropModeInfo",
                 };
-                return <Trans i18nKey={infoKeys[config.udp.mode] || infoKeys.drop} />;
+                return (
+                  <Trans i18nKey={infoKeys[config.udp.mode] || infoKeys.drop} />
+                );
               })()}
             </B4Alert>
           </>
@@ -201,11 +211,11 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 value={config.udp.faking_strategy}
                 options={UDP_FAKING_STRATEGIES}
                 onChange={(e) =>
-                  onChange("udp.faking_strategy", e.target.value as string)
+                  onChange("udp.faking_strategy", e.target.value)
                 }
                 helperText={
                   UDP_FAKING_STRATEGIES.find(
-                    (o) => o.value === config.udp.faking_strategy
+                    (o) => o.value === config.udp.faking_strategy,
                   )?.description
                 }
               />
@@ -238,7 +248,10 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
             <Grid size={{ xs: 12, md: 6 }}>
               <B4RangeSlider
                 label={t("sets.udp.seg2delay")}
-                value={[config.udp.seg2delay, config.udp.seg2delay_max || config.udp.seg2delay]}
+                value={[
+                  config.udp.seg2delay,
+                  config.udp.seg2delay_max || config.udp.seg2delay,
+                ]}
                 onChange={(value: [number, number]) => {
                   onChange("udp.seg2delay", value[0]);
                   onChange("udp.seg2delay_max", value[1]);

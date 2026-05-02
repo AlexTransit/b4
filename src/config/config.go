@@ -169,6 +169,13 @@ var DefaultSetConfig = SetConfig{
 		GeoIpCategories:   []string{},
 		SourceDevices:     []string{},
 	},
+
+	Escalate: EscalateConfig{
+		To:           "",
+		RstThreshold: 3,
+		RstWindowSec: 30,
+		TtlSec:       3600,
+	},
 }
 
 var DefaultConfig = Config{

@@ -82,7 +82,10 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
   const handleNativeShare = async () => {
     if (!shareLink || !canShare) return;
     try {
-      await navigator.share({ title: t("settings.MTProto.title"), url: shareLink });
+      await navigator.share({
+        title: t("settings.MTProto.title"),
+        url: shareLink,
+      });
     } catch {
       /* user cancelled */
     }
@@ -160,7 +163,9 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           description={t("settings.MTProto.enableDesc")}
         />
         {config.system.mtproto?.enabled && (
-          <B4Alert severity="info">{t("settings.MTProto.restartNote")}</B4Alert>
+          <B4Alert severity="warning">
+            {t("settings.MTProto.restartNote")}
+          </B4Alert>
         )}
         <B4TextField
           label={t("settings.MTProto.bindAddress")}

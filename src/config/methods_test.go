@@ -922,3 +922,178 @@ func TestCollectDuplicateIPs_Dedup(t *testing.T) {
 		t.Errorf("expected 1 unique IPv6, got %d: %v", len(v6), v6)
 	}
 }
+
+func TestEscalateTo_SanitizeMissing(t *testing.T) {
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "missing-id"
+	cfg.Sets = []*SetConfig{&a}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if cfg.Sets[0].Escalate.To != "" {
+		t.Fatalf("missing target should be cleared, got %q", cfg.Sets[0].Escalate.To)
+	}
+}
+
+func TestEscalateTo_SanitizeSelfReference(t *testing.T) {
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "a"
+	cfg.Sets = []*SetConfig{&a}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if cfg.Sets[0].Escalate.To != "" {
+		t.Fatal("self-reference should be cleared")
+	}
+}
+
+func TestEscalateTo_SanitizeDisabledTarget(t *testing.T) {
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "b"
+	b := NewSetConfig()
+	b.Id = "b"
+	b.Name = "B"
+	b.Enabled = false
+	cfg.Sets = []*SetConfig{&a, &b}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if cfg.Sets[0].Escalate.To != "" {
+		t.Fatal("escalate.to to a disabled set should be cleared")
+	}
+}
+
+func TestEscalateTo_SanitizeBreaksCycle(t *testing.T) {
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "b"
+	b := NewSetConfig()
+	b.Id = "b"
+	b.Name = "B"
+	b.Escalate.To = "a"
+	cfg.Sets = []*SetConfig{&a, &b}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if hasEscalationCycle(&cfg) {
+		t.Fatal("Validate should have broken the 2-cycle")
+	}
+}
+
+func TestEscalateTo_SanitizeBreaksThreeCycle(t *testing.T) {
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "b"
+	b := NewSetConfig()
+	b.Id = "b"
+	b.Name = "B"
+	b.Escalate.To = "c"
+	c := NewSetConfig()
+	c.Id = "c"
+	c.Name = "C"
+	c.Escalate.To = "a"
+	cfg.Sets = []*SetConfig{&a, &b, &c}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if hasEscalationCycle(&cfg) {
+		t.Fatal("Validate should have broken the 3-cycle A->B->C->A")
+	}
+
+	if got := cfg.GetSetById("a").Escalate.To; got != "b" {
+		t.Fatalf("A->B should survive, got A->%q", got)
+	}
+	if got := cfg.GetSetById("b").Escalate.To; got != "c" {
+		t.Fatalf("B->C should survive, got B->%q", got)
+	}
+	if got := cfg.GetSetById("c").Escalate.To; got != "" {
+		t.Fatalf("cycle should be broken at C, got C->%q", got)
+	}
+}
+
+func hasEscalationCycle(cfg *Config) bool {
+	for _, s := range cfg.Sets {
+		if s.Escalate.To == "" {
+			continue
+		}
+		seen := map[string]bool{s.Id: true}
+		cur := s
+		for cur.Escalate.To != "" {
+			if seen[cur.Escalate.To] {
+				return true
+			}
+			seen[cur.Escalate.To] = true
+			cur = cfg.GetSetById(cur.Escalate.To)
+			if cur == nil {
+				break
+			}
+		}
+	}
+	return false
+}
+
+func TestEscalateTo_SanitizeKeepsValid(t *testing.T) {
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "b"
+	b := NewSetConfig()
+	b.Id = "b"
+	b.Name = "B"
+	cfg.Sets = []*SetConfig{&a, &b}
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate: %v", err)
+	}
+	if cfg.Sets[0].Escalate.To != "b" {
+		t.Fatalf("valid escalation should be preserved, got %q", cfg.Sets[0].Escalate.To)
+	}
+}
+
+func TestEscalateTo_RoundtripAndDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	path := filepath.Join(tmpDir, "escalate.json")
+
+	cfg := NewConfig()
+	a := NewSetConfig()
+	a.Id = "a"
+	a.Name = "A"
+	a.Escalate.To = "b"
+	b := NewSetConfig()
+	b.Id = "b"
+	b.Name = "B"
+	cfg.Sets = []*SetConfig{&a, &b}
+	if err := cfg.SaveToFile(path); err != nil {
+		t.Fatalf("SaveToFile: %v", err)
+	}
+
+	loaded := NewConfig()
+	if err := loaded.LoadWithMigration(path); err != nil {
+		t.Fatalf("LoadWithMigration: %v", err)
+	}
+	if got := loaded.GetSetById("a"); got == nil || got.Escalate.To != "b" {
+		t.Fatalf("EscalateTo not preserved: %+v", got)
+	}
+	if got := loaded.GetSetById("b"); got == nil || got.Escalate.To != "" {
+		t.Fatalf("EscalateTo default should be empty, got %q", got.Escalate.To)
+	}
+}

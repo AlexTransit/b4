@@ -36,6 +36,8 @@ type MetricsCollector struct {
 	RecentEvents      []SystemEvent                      `json:"recent_events"`
 	DeviceDomains     map[string]map[string]uint64       `json:"device_domains"`
 	DomainTLS         map[string]string                  `json:"domain_tls"`
+	Escalations       []EscalationEntry                  `json:"escalations"`
+	TotalEscalations  uint64                             `json:"total_escalations"`
 
 	lastUpdate      time.Time    `json:"-"`
 	mu              sync.RWMutex `json:"-"`
@@ -81,6 +83,14 @@ type SystemEvent struct {
 	Message   string    `json:"message"`
 }
 
+type EscalationEntry struct {
+	Host      string    `json:"host"`
+	ToSet     string    `json:"to_set"`
+	Hops      int       `json:"hops"`
+	SetAt     time.Time `json:"set_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
 var (
 	metricsCollector *MetricsCollector
 	metricsOnce      sync.Once
@@ -100,6 +110,7 @@ func GetMetricsCollector() *MetricsCollector {
 			WorkerStatus:      make([]WorkerHealth, 0),
 			DeviceDomains:     make(map[string]map[string]uint64),
 			DomainTLS:         make(map[string]string),
+			Escalations:       make([]EscalationEntry, 0),
 			NFQueueStatus:     "active",
 			TablesStatus:      "active",
 			lastUpdate:        time.Now(),
@@ -274,6 +285,18 @@ func (m *MetricsCollector) RecordRSTDrop() {
 	m.RSTDropped++
 }
 
+func (m *MetricsCollector) RecordEscalation() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.TotalEscalations++
+}
+
+func (m *MetricsCollector) UpdateEscalations(entries []EscalationEntry) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Escalations = entries
+}
+
 func (m *MetricsCollector) RecordPacket(bytes uint64) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -333,6 +356,7 @@ func (m *MetricsCollector) ResetStats() {
 	m.UDPConnections = 0
 	m.TargetedConnections = 0
 	m.RSTDropped = 0
+	m.TotalEscalations = 0
 	m.CurrentCPS = 0
 	m.CurrentPPS = 0
 
@@ -341,6 +365,7 @@ func (m *MetricsCollector) ResetStats() {
 	m.GeoDist = make(map[string]uint64)
 	m.DeviceDomains = make(map[string]map[string]uint64)
 	m.DomainTLS = make(map[string]string)
+	m.Escalations = make([]EscalationEntry, 0)
 
 	m.ConnectionRate = make([]TimeSeriesPoint, 0, 60)
 	m.PacketRate = make([]TimeSeriesPoint, 0, 60)
@@ -376,6 +401,7 @@ func (m *MetricsCollector) GetSnapshot() *MetricsCollector {
 		UDPConnections:      m.UDPConnections,
 		TargetedConnections: m.TargetedConnections,
 		RSTDropped:          m.RSTDropped,
+		TotalEscalations:    m.TotalEscalations,
 		StartTime:           m.StartTime,
 		Uptime:              m.Uptime,
 		CPUUsage:            m.CPUUsage,
@@ -447,6 +473,13 @@ func (m *MetricsCollector) GetSnapshot() *MetricsCollector {
 		for d, c := range domains {
 			snapshot.DeviceDomains[mac][d] = c
 		}
+	}
+
+	if len(m.Escalations) > 0 {
+		snapshot.Escalations = make([]EscalationEntry, len(m.Escalations))
+		copy(snapshot.Escalations, m.Escalations)
+	} else {
+		snapshot.Escalations = make([]EscalationEntry, 0)
 	}
 
 	snapshot.ConnectionRate = smoothTimeSeriesData(m.ConnectionRate, 3)

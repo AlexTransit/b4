@@ -27,12 +27,13 @@ Available actions:
 
 ## Set editor
 
-The editor has 5 tabs:
+The editor has 6 tabs:
 
 - [Targets](./targets) - domains, IPs, GeoSite/GeoIP categories, devices
 - [TCP](./tcp/) - fragmentation, faking, desync, and other TCP strategies
 - [UDP](./udp) - UDP traffic handling, QUIC, STUN
 - [Routing](./routing) - DNS redirect and traffic routing through interfaces
+- [Escalation](./escalation) - automatic fallback to a backup set when this one keeps failing
 - **Import/Export** - JSON representation of the set configuration for moving between devices
 
 ![20260418234644](../../static/img/index/20260418234644.png)
@@ -133,4 +134,4 @@ The **Import/Export** tab shows the JSON configuration of a set. You can:
 - Copy the JSON to move it to another device
 - Paste JSON to import a configuration
 
-Source devices (MAC addresses) are not exported - they must be configured again on the target device.
+Source devices (MAC addresses) and the [Escalation](./escalation) settings are not exported - they reference local state (devices and other sets) that does not transfer between devices. Configure them again on the target.

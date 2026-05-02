@@ -8,12 +8,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import {
-  B4Alert,
-  B4Badge,
-  B4Switch,
-  B4TextField,
-} from "@b4.elements";
+import { B4Alert, B4Badge, B4Hint, B4Switch, B4TextField } from "@b4.elements";
 import {
   DnsIcon,
   SecurityIcon,
@@ -56,18 +51,14 @@ export const DnsRedirect = ({ config, ipv6, onChange }: DnsRedirectProps) => {
     target_dns: "",
     fragment_query: false,
   };
-  const selectedServer = POPULAR_DNS.find(
-    (d) => d.ip === dnsConfig.target_dns,
-  );
+  const selectedServer = POPULAR_DNS.find((d) => d.ip === dnsConfig.target_dns);
   const handleServerSelect = (ip: string) => {
     onChange("dns.target_dns", ip);
   };
 
   return (
     <Grid container spacing={3}>
-      <B4Alert severity="info" sx={{ m: 0 }}>
-        {t("sets.dns.alert")}
-      </B4Alert>
+      <B4Hint>{t("sets.dns.alert")}</B4Hint>
 
       <Grid size={{ lg: 12 }}>
         <B4Switch
@@ -199,26 +190,17 @@ export const DnsRedirect = ({ config, ipv6, onChange }: DnsRedirectProps) => {
                     </ListItemIcon>
                     <ListItemText
                       primary={
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={1}
-                        >
+                        <Stack direction="row" alignItems="center" spacing={1}>
                           <Typography
                             variant="body2"
                             sx={{
                               fontFamily: "monospace",
-                              color: server.warn
-                                ? colors.secondary
-                                : "inherit",
+                              color: server.warn ? colors.secondary : "inherit",
                             }}
                           >
                             {server.name}
                           </Typography>
-                          <Typography
-                            variant="body2"
-                            color="text.secondary"
-                          >
+                          <Typography variant="body2" color="text.secondary">
                             {server.ip}
                           </Typography>
                           {server.tags.includes("fast") && (
@@ -244,9 +226,7 @@ export const DnsRedirect = ({ config, ipv6, onChange }: DnsRedirectProps) => {
                         secondary: {
                           variant: "caption",
                           sx: {
-                            color: server.warn
-                              ? colors.secondary
-                              : undefined,
+                            color: server.warn ? colors.secondary : undefined,
                           },
                         },
                       }}

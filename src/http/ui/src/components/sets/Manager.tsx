@@ -11,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 
 import {
@@ -75,12 +75,17 @@ interface SetsManagerProps {
 
 interface SortableCardWrapperProps {
   id: string;
+  outerRef?: (el: HTMLDivElement | null) => void;
   children:
     | React.ReactNode
     | ((props: React.HTMLAttributes<HTMLDivElement>) => React.JSX.Element);
 }
 
-const SortableCardWrapper = ({ id, children }: SortableCardWrapperProps) => {
+const SortableCardWrapper = ({
+  id,
+  outerRef,
+  children,
+}: SortableCardWrapperProps) => {
   const {
     attributes,
     listeners,
@@ -90,9 +95,14 @@ const SortableCardWrapper = ({ id, children }: SortableCardWrapperProps) => {
     isDragging,
   } = useSortable({ id });
 
+  const combinedRef = (el: HTMLDivElement | null) => {
+    setNodeRef(el);
+    outerRef?.(el);
+  };
+
   return (
     <Box
-      ref={setNodeRef}
+      ref={combinedRef}
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
@@ -132,6 +142,8 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
   }>({ open: false, setA: null, setB: null });
 
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [highlightedSetId, setHighlightedSetId] = useState<string | null>(null);
+  const cardRefs = useRef(new Map<string, HTMLDivElement>());
 
   const setsData = config.sets || [];
   const sets = setsData.map((s) => ("set" in s ? s.set : s)) as B4SetConfig[];
@@ -159,6 +171,49 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
       totalIps,
     };
   }, [sets, setsStats]);
+
+  const escalationMaps = useMemo(() => {
+    const byId = new Map<string, B4SetConfig>();
+    for (const s of sets) byId.set(s.id, s);
+
+    const escalatesTo = new Map<string, { id: string; name: string }>();
+    const escalatedFrom = new Map<string, { id: string; name: string }[]>();
+
+    for (const s of sets) {
+      const targetId = s.escalate?.to;
+      if (!targetId) continue;
+      const target = byId.get(targetId);
+      if (!target) continue;
+      escalatesTo.set(s.id, { id: target.id, name: target.name || target.id });
+      const list = escalatedFrom.get(target.id) ?? [];
+      list.push({ id: s.id, name: s.name || s.id });
+      escalatedFrom.set(target.id, list);
+    }
+    return { escalatesTo, escalatedFrom };
+  }, [sets]);
+
+  const handleEscalationHover = useCallback((setId: string | null) => {
+    setHighlightedSetId(setId);
+    if (setId) {
+      const el = cardRefs.current.get(setId);
+      el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, []);
+
+  const handleEscalationClick = useCallback(
+    (setId: string) => {
+      navigate(`/sets/${setId}`)?.catch(() => {});
+    },
+    [navigate],
+  );
+
+  const registerCardRef = useCallback(
+    (id: string) => (el: HTMLDivElement | null) => {
+      if (el) cardRefs.current.set(id, el);
+      else cardRefs.current.delete(id);
+    },
+    [],
+  );
 
   const filteredSets = useMemo(() => {
     if (!filterText.trim()) return sets;
@@ -438,7 +493,10 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
 
                 return (
                   <Grid key={set.id} size={{ xs: 12, sm: 6, lg: 4, xl: 3 }}>
-                    <SortableCardWrapper id={set.id}>
+                    <SortableCardWrapper
+                      id={set.id}
+                      outerRef={registerCardRef(set.id)}
+                    >
                       {(
                         dragHandleProps: React.HTMLAttributes<HTMLDivElement>,
                       ) => (
@@ -465,6 +523,11 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
                           selectionMode={selectionMode}
                           selected={selectedIds.has(set.id)}
                           onSelect={() => handleToggleSelection(set.id)}
+                          escalatesTo={escalationMaps.escalatesTo.get(set.id)}
+                          escalatedFrom={escalationMaps.escalatedFrom.get(set.id)}
+                          highlighted={highlightedSetId === set.id}
+                          onEscalationHover={handleEscalationHover}
+                          onEscalationClick={handleEscalationClick}
                         />
                       )}
                     </SortableCardWrapper>

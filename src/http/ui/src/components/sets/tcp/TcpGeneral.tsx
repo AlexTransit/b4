@@ -6,6 +6,7 @@ import {
   B4TextField,
   B4Alert,
   B4FormHeader,
+  B4Hint,
 } from "@b4.elements";
 import { B4Switch } from "@common/B4Switch";
 import { useTranslation } from "react-i18next";
@@ -36,9 +37,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
 
   return (
     <>
-      {/* Basic TCP Settings */}
-      <B4FormHeader label={t("sets.tcp.general.limitsTiming")} />
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ mt: 1, mb: 3 }}>
         <Grid size={{ xs: 12, md: 6 }}>
           <B4Slider
             label={t("sets.tcp.general.connPacketsLimit")}
@@ -95,7 +94,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
 
       {/* Packet Duplication */}
       <B4FormHeader label={t("sets.tcp.general.packetDuplication")} />
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} mt={2}>
         <Grid size={{ xs: 12, md: 4 }}>
           <B4Switch
             label={t("sets.tcp.general.dupEnable")}
@@ -105,7 +104,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
           />
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
-          <B4Alert sx={{ my: 1 }}>{t("sets.tcp.general.dupAlert")}</B4Alert>
+          <B4Hint sx={{ my: 1 }}>{t("sets.tcp.general.dupAlert")}</B4Hint>
         </Grid>
         {dup.enabled && (
           <Grid size={{ xs: 12, md: 6 }}>
@@ -126,7 +125,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
 
       {/* IP Block Detection */}
       <B4FormHeader label={t("sets.tcp.general.ipBlockDetect")} />
-      <Grid container spacing={3} mb={3}>
+      <Grid container spacing={3} mb={3} mt={2}>
         <Grid size={{ xs: 12, md: 4 }}>
           <B4Switch
             label={t("sets.tcp.general.ibdEnable")}
@@ -138,7 +137,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
           />
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
-          <B4Alert sx={{ my: 1 }}>{t("sets.tcp.general.ibdAlert")}</B4Alert>
+          <B4Hint sx={{ my: 1 }}>{t("sets.tcp.general.ibdAlert")}</B4Hint>
         </Grid>
         {ibd.enabled && (
           <>
@@ -191,7 +190,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
 
       {/* RST Protection */}
       <B4FormHeader label={t("sets.tcp.general.rstProtection")} />
-      <Grid container spacing={3}>
+      <Grid container spacing={3} mt={2}>
         <Grid size={{ xs: 12, md: 4 }}>
           <B4Switch
             label={t("sets.tcp.general.rstEnable")}
@@ -203,7 +202,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
           />
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
-          <B4Alert sx={{ mt: 1 }}>{t("sets.tcp.general.rstAlert")}</B4Alert>
+          <B4Hint sx={{ mt: 1 }}>{t("sets.tcp.general.rstAlert")}</B4Hint>
         </Grid>
 
         {rstProt.enabled && (

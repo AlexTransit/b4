@@ -1,7 +1,6 @@
-import { Box, Fade } from "@mui/material";
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { B4SetConfig, QueueConfig } from "@models/config";
-import { B4Tabs, B4Tab, B4Section } from "@b4.elements";
+import { B4Tabs, B4Tab, B4TabPanel, B4Section } from "@b4.elements";
 import { TcpIcon, FragIcon, FakingIcon, CoreIcon } from "@b4.icons";
 import { TcpGeneral } from "./TcpGeneral";
 import { TcpSplitting } from "./TcpSplitting";
@@ -15,29 +14,6 @@ interface TcpTabContainerProps {
     field: string,
     value: string | number | boolean | string[] | number[],
   ) => void;
-}
-
-interface TabPanelProps {
-  children?: ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel({ children, value, index }: Readonly<TabPanelProps>) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`tcp-tabpanel-${index}`}
-      aria-labelledby={`tcp-tab-${index}`}
-    >
-      {value === index && (
-        <Fade in>
-          <Box sx={{ pt: 2 }}>{children}</Box>
-        </Fade>
-      )}
-    </div>
-  );
 }
 
 enum TCP_TABS {
@@ -67,21 +43,25 @@ export const TcpTabContainer = ({
         }}
       >
         <B4Tab icon={<CoreIcon />} label={t("sets.tcp.tabs.general")} inline />
-        <B4Tab icon={<FragIcon />} label={t("sets.tcp.tabs.splitting")} inline />
+        <B4Tab
+          icon={<FragIcon />}
+          label={t("sets.tcp.tabs.splitting")}
+          inline
+        />
         <B4Tab icon={<FakingIcon />} label={t("sets.tcp.tabs.faking")} inline />
       </B4Tabs>
 
-      <TabPanel value={activeTab} index={TCP_TABS.GENERAL}>
+      <B4TabPanel value={activeTab} index={TCP_TABS.GENERAL} idPrefix="tcp-tab">
         <TcpGeneral config={config} queue={queue} onChange={onChange} />
-      </TabPanel>
+      </B4TabPanel>
 
-      <TabPanel value={activeTab} index={TCP_TABS.SPLITTING}>
+      <B4TabPanel value={activeTab} index={TCP_TABS.SPLITTING} idPrefix="tcp-tab">
         <TcpSplitting config={config} onChange={onChange} />
-      </TabPanel>
+      </B4TabPanel>
 
-      <TabPanel value={activeTab} index={TCP_TABS.FAKING}>
+      <B4TabPanel value={activeTab} index={TCP_TABS.FAKING} idPrefix="tcp-tab">
         <TcpFaking config={config} onChange={onChange} />
-      </TabPanel>
+      </B4TabPanel>
     </B4Section>
   );
 };

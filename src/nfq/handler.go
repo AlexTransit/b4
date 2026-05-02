@@ -378,11 +378,28 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 		ipTarget = st.Name
 	}
 
+	if matched && isClientHello && host != "" && cfg.IsTCPPort(dport) {
+		if escId, _, ok := w.destState.GetEscalation(host); ok {
+			if escSet := cfg.GetSetById(escId); escSet != nil && escSet.Enabled {
+				log.Tracef("escalation hit for %s: %s -> %s", host, set.Name, escSet.Name)
+				set = escSet
+				if sniTarget != "" {
+					sniTarget = set.Name
+				}
+				if ipTarget != "" {
+					ipTarget = set.Name
+				}
+			} else {
+				w.destState.ClearEscalation(host)
+			}
+		}
+	}
+
 	if matched && isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
 		ibd := &set.TCP.IPBlockDetect
 		dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 
-		if ibd.CacheBlockedIPs && w.ipBlocker.IsBlocked(dstIPPort) {
+		if ibd.CacheBlockedIPs && w.destState.IsBlocked(dstIPPort) {
 			if !cfg.Queue.IsDiscovery {
 				log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-cached")
 			}
@@ -420,12 +437,14 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	}
 
 	if matched {
-		if isClientHello && set.TCP.IPBlockDetect.Enabled && host != "" && cfg.IsTCPPort(dport) {
+		ibdOn := set.TCP.IPBlockDetect.Enabled
+		canEscalate := set.Escalate.To != ""
+		if isClientHello && (ibdOn || canEscalate) && host != "" && cfg.IsTCPPort(dport) {
 			ibd := &set.TCP.IPBlockDetect
 			dstIPPort := fmt.Sprintf("%s:%d", pkt.dstStr, dport)
 			ibConnKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 
-			count, firstSeen := w.ipBlocker.RecordClientHello(ibConnKey, host)
+			count, firstSeen := w.destState.RecordClientHello(ibConnKey, host)
 			threshold := ibd.RetransmitThreshold
 			if threshold <= 0 {
 				threshold = 3
@@ -436,30 +455,48 @@ func (w *Worker) handleTCPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 			}
 
 			if count >= threshold || (count > 1 && time.Since(firstSeen) > timeout) {
-				if !w.ipBlocker.HasRSTSent(ibConnKey) {
-					w.ipBlocker.MarkRSTSent(ibConnKey)
-					if pkt.ver == IPv4 {
-						w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
-					} else {
-						w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+				if canEscalate {
+					if next := cfg.GetSetById(set.Escalate.To); next != nil && next.Enabled {
+						ttl := time.Duration(set.Escalate.TtlSec) * time.Second
+						if w.destState.SetEscalation(host, next.Id, ttl) {
+							metrics.GetMetricsCollector().RecordEscalation()
+							if !cfg.Queue.IsDiscovery {
+								log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock-escalate->"+next.Name)
+							}
+							if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+								log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+							}
+							return 0
+						}
+						log.Warnf("escalation hop cap reached for %s (chain stopped at %s)", host, set.Name)
 					}
-					if ibd.CacheBlockedIPs {
-						w.ipBlocker.AddBlocked(dstIPPort)
-					}
-					if !cfg.Queue.IsDiscovery {
-						log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
-					}
-					m := metrics.GetMetricsCollector()
-					m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
 				}
-				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
-					log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+				if ibdOn {
+					if !w.destState.HasRSTSent(ibConnKey) {
+						w.destState.MarkRSTSent(ibConnKey)
+						if pkt.ver == IPv4 {
+							w.sendRSTToClientV4(pkt.raw, pkt.ihl, pkt.src, pkt.dst)
+						} else {
+							w.sendRSTToClientV6(pkt.raw, pkt.src, pkt.dst)
+						}
+						if ibd.CacheBlockedIPs {
+							w.destState.AddBlocked(dstIPPort)
+						}
+						if !cfg.Queue.IsDiscovery {
+							log.LogConnection("TCP", sniTarget, host, pkt.srcStr, sport, ipTarget, pkt.dstStr, dport, pkt.srcMac, config.TLSVersionString(tlsVersion), "ipblock")
+						}
+						m := metrics.GetMetricsCollector()
+						m.RecordConnection("TCP", host, pkt.srcStr, pkt.dstStr, true, pkt.srcMac, set.Name, config.TLSVersionString(tlsVersion))
+					}
+					if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+						log.Tracef("failed to set drop verdict on packet %d: %v", id, err)
+					}
+					return 0
 				}
-				return 0
 			}
 		}
 
-		if set.TCP.Incoming.Mode != config.ConfigOff || set.TCP.RSTProtection.Enabled {
+		if set.TCP.Incoming.Mode != config.ConfigOff || set.TCP.RSTProtection.Enabled || set.Escalate.To != "" {
 			connKey := fmt.Sprintf(connKeyFormat, pkt.srcStr, sport, pkt.dstStr, dport)
 			w.connTracker.RegisterOutgoing(connKey, set)
 		}
@@ -605,6 +642,23 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 	udpTLS := ""
 	if matchedQUIC || isQUIC {
 		udpTLS = "1.3" // QUIC is always TLS 1.3
+	}
+
+	if shouldHandle && set != nil && host != "" {
+		if escId, _, ok := w.destState.GetEscalation(host); ok {
+			if escSet := cfg.GetSetById(escId); escSet != nil && escSet.Enabled {
+				log.Tracef("UDP escalation hit for %s: %s -> %s", host, set.Name, escSet.Name)
+				set = escSet
+				if sniTarget != "" {
+					sniTarget = set.Name
+				}
+				if ipTarget != "" {
+					ipTarget = set.Name
+				}
+			} else {
+				w.destState.ClearEscalation(host)
+			}
+		}
 	}
 
 	if !cfg.Queue.IsDiscovery {

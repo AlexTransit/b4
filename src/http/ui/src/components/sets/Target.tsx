@@ -40,11 +40,13 @@ import {
   B4ModalAlertStrip,
   B4Tabs,
   B4Tab,
+  B4TabPanel,
   B4ChipList,
   B4PlusButton,
   B4Badge,
   B4TooltipButton,
   B4Select,
+  B4Hint,
 } from "@b4.elements";
 import SettingAutocomplete from "@common/B4Autocomplete";
 import { B4SetConfig, GeoConfig, TargetsConfig } from "@models/config";
@@ -64,32 +66,28 @@ interface TargetSettingsProps {
   onChange: (field: string, value: string | string[]) => void;
 }
 
+export const wouldCreateEscalationCycle = (
+  candidate: B4SetConfig,
+  currentId: string,
+  all: B4SetConfig[],
+): boolean => {
+  const byId = new Map(all.map((s) => [s.id, s]));
+  const seen = new Set<string>();
+  let cur: B4SetConfig | undefined = candidate;
+  while (cur?.escalate?.to) {
+    if (cur.escalate.to === currentId) return true;
+    if (seen.has(cur.escalate.to)) return false;
+    seen.add(cur.escalate.to);
+    cur = byId.get(cur.escalate.to);
+  }
+  return false;
+};
+
 interface CategoryPreview {
   category: string;
   total_domains: number;
   preview_count: number;
   preview: string[];
-}
-
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: Readonly<TabPanelProps>) {
-  const { children, value, index, ...other } = props;
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`domain-tabpanel-${index}`}
-      aria-labelledby={`domain-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
-    </div>
-  );
 }
 
 export const TargetSettings = ({
@@ -150,10 +148,18 @@ export const TargetSettings = ({
 
   useEffect(() => {
     if (geo.sitedat_path) {
-      void loadCategories("/api/geosite", setAvailableCategories, setLoadingCategories);
+      void loadCategories(
+        "/api/geosite",
+        setAvailableCategories,
+        setLoadingCategories,
+      );
     }
     if (geo.ipdat_path) {
-      void loadCategories("/api/geoip", setAvailableGeoIPCategories, setLoadingGeoIPCategories);
+      void loadCategories(
+        "/api/geoip",
+        setAvailableGeoIPCategories,
+        setLoadingGeoIPCategories,
+      );
     }
   }, [geo.sitedat_path, geo.ipdat_path]);
 
@@ -180,8 +186,12 @@ export const TargetSettings = ({
     }
   };
 
-  const domainCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const ipCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const domainCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
+  const ipCheckTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   const checkDomainBackend = useCallback(
     (domain: string) => {
@@ -298,7 +308,10 @@ export const TargetSettings = ({
   const handleRemove = (field: keyof TargetsConfig, value: string) => {
     const items = config.targets[field] ?? [];
     if (Array.isArray(items)) {
-      onChange(`targets.${String(field)}`, items.filter((item) => item !== value));
+      onChange(
+        `targets.${String(field)}`,
+        items.filter((item) => item !== value),
+      );
     }
   };
 
@@ -388,28 +401,21 @@ export const TargetSettings = ({
           description={t("sets.targets.sectionDescription")}
           icon={<DomainIcon />}
         >
-          <Box sx={{ mb: 2, maxWidth: 200 }}>
-            <B4Select
-              label={t("sets.targets.tlsVersionFilter")}
-              value={config.targets.tls ?? ""}
-              options={[
-                { value: "", label: t("sets.targets.tlsAny") },
-                { value: "1.2", label: "TLS 1.2" },
-                { value: "1.3", label: "TLS 1.3" },
-              ]}
-              helperText={t("sets.targets.tlsHelperText")}
-              onChange={(e) =>
-                onChange("targets.tls", e.target.value as string)
-              }
-            />
-          </Box>
           <Box sx={{ borderBottom: 1, borderColor: "divider", mb: 0 }}>
             <B4Tabs
               value={tabValue}
               onChange={(_, newValue: number) => setTabValue(newValue)}
             >
-              <B4Tab icon={<DomainIcon />} label={t("sets.targets.tabs.domains")} inline />
-              <B4Tab icon={<IpIcon />} label={t("sets.targets.tabs.ips")} inline />
+              <B4Tab
+                icon={<DomainIcon />}
+                label={t("sets.targets.tabs.domains")}
+                inline
+              />
+              <B4Tab
+                icon={<IpIcon />}
+                label={t("sets.targets.tabs.ips")}
+                inline
+              />
               <B4Tab
                 icon={<DeviceIcon />}
                 label={
@@ -423,10 +429,24 @@ export const TargetSettings = ({
           </Box>
 
           {/* DPI Bypass Tab */}
-          <TabPanel value={tabValue} index={0}>
-            <B4Alert severity="info" sx={{ m: 0 }}>
-              {t("sets.targets.domainAlert")}
-            </B4Alert>
+          <B4TabPanel value={tabValue} index={0} idPrefix="target-tab">
+            <B4Hint>{t("sets.targets.domainAlert")}</B4Hint>
+
+            <Box sx={{ my: 3, maxWidth: 260 }}>
+              <B4Select
+                label={t("sets.targets.tlsVersionFilter")}
+                value={config.targets.tls ?? ""}
+                options={[
+                  { value: "", label: t("sets.targets.tlsAny") },
+                  { value: "1.2", label: "TLS 1.2" },
+                  { value: "1.3", label: "TLS 1.3" },
+                ]}
+                helperText={t("sets.targets.tlsHelperText")}
+                onChange={(e) =>
+                  onChange("targets.tls", e.target.value as string)
+                }
+              />
+            </Box>
 
             <Grid container spacing={2}>
               {/* Manual Bypass Domains */}
@@ -476,7 +496,8 @@ export const TargetSettings = ({
                   </Box>
                   {domainDuplicateWarning && (
                     <B4Alert severity="warning" sx={{ mt: 1 }}>
-                      {t("sets.targets.duplicateWarning")} {domainDuplicateWarning}
+                      {t("sets.targets.duplicateWarning")}{" "}
+                      {domainDuplicateWarning}
                     </B4Alert>
                   )}
                   <Box sx={{ mt: 2 }}>
@@ -495,14 +516,21 @@ export const TargetSettings = ({
                         <Box sx={{ display: "flex", gap: 1 }}>
                           <Button
                             size="small"
-                            onClick={() => openBulkEdit("targets.sni_domains", config.targets.sni_domains)}
+                            onClick={() =>
+                              openBulkEdit(
+                                "targets.sni_domains",
+                                config.targets.sni_domains,
+                              )
+                            }
                             startIcon={<EditIcon />}
                           >
                             {t("sets.targets.bulkEdit")}
                           </Button>
                           <Button
                             size="small"
-                            onClick={() => handleClearAll("targets.sni_domains")}
+                            onClick={() =>
+                              handleClearAll("targets.sni_domains")
+                            }
                             startIcon={<ClearIcon />}
                           >
                             {t("core.clearAll")}
@@ -550,7 +578,9 @@ export const TargetSettings = ({
                       onSelect={handleAddBypassCategory}
                       loading={loadingCategories}
                       placeholder={t("sets.targets.addGeositePlaceholder")}
-                      helperText={t("sets.targets.geositeCatAvailable", { count: availableCategories.length })}
+                      helperText={t("sets.targets.geositeCatAvailable", {
+                        count: availableCategories.length,
+                      })}
                     />
 
                     <Box sx={{ mt: 2 }}>
@@ -568,7 +598,9 @@ export const TargetSettings = ({
                           </Typography>
                           <Button
                             size="small"
-                            onClick={() => handleClearAll("targets.geosite_categories")}
+                            onClick={() =>
+                              handleClearAll("targets.geosite_categories")
+                            }
                             startIcon={<ClearIcon />}
                           >
                             {t("core.clearAll")}
@@ -592,13 +624,11 @@ export const TargetSettings = ({
                 </Grid>
               )}
             </Grid>
-          </TabPanel>
+          </B4TabPanel>
 
           {/* Bypass IPs Tab */}
-          <TabPanel value={tabValue} index={1}>
-            <B4Alert>
-              {t("sets.targets.ipAlert")}
-            </B4Alert>
+          <B4TabPanel value={tabValue} index={1} idPrefix="target-tab">
+            <B4Hint>{t("sets.targets.ipAlert")}</B4Hint>
 
             <Grid container spacing={2}>
               {/* Manual Bypass IPs */}
@@ -667,7 +697,9 @@ export const TargetSettings = ({
                         <Box sx={{ display: "flex", gap: 1 }}>
                           <Button
                             size="small"
-                            onClick={() => openBulkEdit("targets.ip", config.targets.ip)}
+                            onClick={() =>
+                              openBulkEdit("targets.ip", config.targets.ip)
+                            }
                             startIcon={<EditIcon />}
                           >
                             {t("sets.targets.bulkEdit")}
@@ -722,7 +754,9 @@ export const TargetSettings = ({
                       onSelect={handleAddBypassGeoIPCategory}
                       loading={loadingGeoIPCategories}
                       placeholder={t("sets.targets.addGeoipPlaceholder")}
-                      helperText={t("sets.targets.geoipCatAvailable", { count: availableGeoIPCategories.length })}
+                      helperText={t("sets.targets.geoipCatAvailable", {
+                        count: availableGeoIPCategories.length,
+                      })}
                     />
 
                     <Box sx={{ mt: 2 }}>
@@ -740,7 +774,9 @@ export const TargetSettings = ({
                           </Typography>
                           <Button
                             size="small"
-                            onClick={() => handleClearAll("targets.geoip_categories")}
+                            onClick={() =>
+                              handleClearAll("targets.geoip_categories")
+                            }
                             startIcon={<ClearIcon />}
                           >
                             {t("core.clearAll")}
@@ -763,13 +799,11 @@ export const TargetSettings = ({
                 </Grid>
               )}
             </Grid>
-          </TabPanel>
+          </B4TabPanel>
 
           {/* Source Devices Tab */}
-          <TabPanel value={tabValue} index={2}>
-            <B4Alert severity="info">
-              {t("sets.targets.deviceAlert")}
-            </B4Alert>
+          <B4TabPanel value={tabValue} index={2} idPrefix="target-tab">
+            <B4Hint>{t("sets.targets.deviceAlert")}</B4Hint>
 
             {devicesAvailable ? (
               <Grid container spacing={2}>
@@ -791,7 +825,11 @@ export const TargetSettings = ({
                           variant="caption"
                           sx={{ ml: 1, color: colors.secondary }}
                         >
-                          ({t("sets.targets.selectedCount", { count: selectedSourceDevices.length })})
+                          (
+                          {t("sets.targets.selectedCount", {
+                            count: selectedSourceDevices.length,
+                          })}
+                          )
                         </Typography>
                       )}
                     </Typography>
@@ -845,7 +883,11 @@ export const TargetSettings = ({
                               }
                             />
                           </TableCell>
-                          {[t("core.devices.macAddress"), t("core.devices.ip"), t("core.devices.deviceName")].map((label) => (
+                          {[
+                            t("core.devices.macAddress"),
+                            t("core.devices.ip"),
+                            t("core.devices.deviceName"),
+                          ].map((label) => (
                             <TableCell
                               key={label}
                               sx={{
@@ -868,67 +910,86 @@ export const TargetSettings = ({
                             </TableCell>
                           </TableRow>
                         ) : (
-                          sortDevices(devices, isSourceDeviceSelected)
-                            .map((device) => (
-                            <TableRow
-                              key={device.mac}
-                              hover
-                              onClick={() =>
-                                handleSourceDeviceToggle(device.mac)
-                              }
-                              sx={{ cursor: "pointer" }}
-                            >
-                              <TableCell padding="checkbox">
-                                <Checkbox
-                                  checked={isSourceDeviceSelected(device.mac)}
-                                  color="secondary"
-                                  onChange={(event) => {
-                                    event.stopPropagation();
-                                    handleSourceDeviceToggle(device.mac);
+                          sortDevices(devices, isSourceDeviceSelected).map(
+                            (device) => (
+                              <TableRow
+                                key={device.mac}
+                                hover
+                                onClick={() =>
+                                  handleSourceDeviceToggle(device.mac)
+                                }
+                                sx={{ cursor: "pointer" }}
+                              >
+                                <TableCell padding="checkbox">
+                                  <Checkbox
+                                    checked={isSourceDeviceSelected(device.mac)}
+                                    color="secondary"
+                                    onChange={(event) => {
+                                      event.stopPropagation();
+                                      handleSourceDeviceToggle(device.mac);
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell
+                                  sx={{
+                                    fontFamily: "monospace",
+                                    fontSize: "0.85rem",
                                   }}
-                                />
-                              </TableCell>
-                              <TableCell
-                                sx={{
-                                  fontFamily: "monospace",
-                                  fontSize: "0.85rem",
-                                }}
-                              >
-                                {device.is_manual ? (
-                                  <Typography variant="caption" color="text.secondary">—</Typography>
-                                ) : device.mac}
-                              </TableCell>
-                              <TableCell
-                                sx={{
-                                  fontFamily: "monospace",
-                                  fontSize: "0.85rem",
-                                }}
-                              >
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                  {device.ip}
-                                  {device.is_manual && (
-                                    <Chip label={t("core.devices.manual")} size="small" variant="outlined" sx={{ fontSize: "0.7rem", height: 20 }} />
+                                >
+                                  {device.is_manual ? (
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
+                                      —
+                                    </Typography>
+                                  ) : (
+                                    device.mac
                                   )}
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <B4Badge
-                                  label={
-                                    device.alias ||
-                                    device.vendor ||
-                                    device.hostname ||
-                                    t("core.unknown")
-                                  }
-                                  color="primary"
-                                  variant={
-                                    isSourceDeviceSelected(device.mac)
-                                      ? "filled"
-                                      : "outlined"
-                                  }
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))
+                                </TableCell>
+                                <TableCell
+                                  sx={{
+                                    fontFamily: "monospace",
+                                    fontSize: "0.85rem",
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 0.5,
+                                    }}
+                                  >
+                                    {device.ip}
+                                    {device.is_manual && (
+                                      <Chip
+                                        label={t("core.devices.manual")}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ fontSize: "0.7rem", height: 20 }}
+                                      />
+                                    )}
+                                  </Box>
+                                </TableCell>
+                                <TableCell>
+                                  <B4Badge
+                                    label={
+                                      device.alias ||
+                                      device.vendor ||
+                                      device.hostname ||
+                                      t("core.unknown")
+                                    }
+                                    color="primary"
+                                    variant={
+                                      isSourceDeviceSelected(device.mac)
+                                        ? "filled"
+                                        : "outlined"
+                                    }
+                                  />
+                                </TableCell>
+                              </TableRow>
+                            ),
+                          )
                         )}
                       </TableBody>
                     </Table>
@@ -954,7 +1015,7 @@ export const TargetSettings = ({
                 </B4Alert>
               </Box>
             )}
-          </TabPanel>
+          </B4TabPanel>
         </B4Section>
       </Stack>
 
@@ -969,7 +1030,11 @@ export const TargetSettings = ({
         fullWidth
         actions={
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button onClick={() => setBulkEditDialog({ open: false, field: "", text: "" })}>
+            <Button
+              onClick={() =>
+                setBulkEditDialog({ open: false, field: "", text: "" })
+              }
+            >
               {t("core.cancel")}
             </Button>
             <Button variant="contained" onClick={saveBulkEdit}>
@@ -983,10 +1048,13 @@ export const TargetSettings = ({
           minRows={10}
           maxRows={25}
           value={bulkEditDialog.text}
-          onChange={(e) => setBulkEditDialog((prev) => ({ ...prev, text: e.target.value }))}
+          onChange={(e) =>
+            setBulkEditDialog((prev) => ({ ...prev, text: e.target.value }))
+          }
           placeholder={t("sets.targets.bulkEditPlaceholder")}
           helperText={t("sets.targets.bulkEditHelper", {
-            count: bulkEditDialog.text.split(/[\n\r]+/).filter((l) => l.trim()).length,
+            count: bulkEditDialog.text.split(/[\n\r]+/).filter((l) => l.trim())
+              .length,
           })}
           fullWidth
         />
@@ -1023,7 +1091,8 @@ export const TargetSettings = ({
             );
           }
           if (previewDialog.data) {
-            const { total_domains, preview_count, preview } = previewDialog.data;
+            const { total_domains, preview_count, preview } =
+              previewDialog.data;
             const showingMore = total_domains > preview_count;
             return (
               <>

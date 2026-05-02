@@ -29,6 +29,8 @@ import {
   TcpIcon,
   CheckIcon,
   CloseIcon,
+  EscalateOutIcon,
+  EscalateInIcon,
 } from "@b4.icons";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { B4Badge } from "@b4.elements";
@@ -36,6 +38,11 @@ import { colors, radius } from "@design";
 import { B4SetConfig } from "@models/config";
 import { useTranslation } from "react-i18next";
 import { SetStats } from "./Manager";
+
+interface EscalationLink {
+  id: string;
+  name: string;
+}
 
 interface SetCardProps {
   set: B4SetConfig;
@@ -50,6 +57,11 @@ interface SetCardProps {
   selectionMode?: boolean;
   selected?: boolean;
   onSelect?: () => void;
+  escalatesTo?: EscalationLink;
+  escalatedFrom?: EscalationLink[];
+  highlighted?: boolean;
+  onEscalationHover?: (setId: string | null) => void;
+  onEscalationClick?: (setId: string) => void;
 }
 
 interface TargetBadgeProps {
@@ -117,10 +129,18 @@ export const SetCard = ({
   selectionMode,
   selected,
   onSelect,
+  escalatesTo,
+  escalatedFrom,
+  highlighted,
+  onEscalationHover,
+  onEscalationClick,
 }: SetCardProps) => {
   const { t } = useTranslation();
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const strategy = set.fragmentation.strategy;
+  const isSelected = !!(selectionMode && selected);
+  const borderColor =
+    highlighted || isSelected ? colors.secondary : colors.border.default;
 
   const domainCount = stats?.total_domains ?? set.targets.sni_domains.length;
   const ipCount = stats?.total_ips ?? set.targets.ip.length;
@@ -144,9 +164,12 @@ export const SetCard = ({
         position: "relative",
         opacity: set.enabled ? 1 : 0.5,
         transition: "all 0.2s ease",
-        border: `1px solid ${selectionMode && selected ? colors.secondary : colors.border.default}`,
+        border: `1px solid ${borderColor}`,
         borderRadius: radius.md,
         bgcolor: set.enabled ? colors.background.paper : colors.background.dark,
+        boxShadow: highlighted
+          ? `0 0 0 2px ${colors.secondary}, 0 8px 24px ${colors.accent.primary}`
+          : undefined,
         "&:hover": {
           borderColor: colors.secondary,
           transform: "translateY(-2px)",
@@ -479,30 +502,69 @@ export const SetCard = ({
         </CardContent>
       </CardActionArea>
 
-      {/* Order indicator */}
       <Box
         sx={{
-          position: "absolute",
-          bottom: 8,
-          right: 8,
-          width: 22,
-          height: 22,
-          borderRadius: "50%",
-          bgcolor: colors.accent.primary,
-          border: `1px solid ${colors.border.default}`,
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          gap: 1,
+          px: 2,
+          pb: 1.5,
+          minHeight: 30,
         }}
       >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          fontWeight={600}
-          sx={{ fontSize: "0.65rem" }}
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 0.5,
+            flex: 1,
+            minWidth: 0,
+          }}
         >
-          {index + 1}
-        </Typography>
+          {escalatesTo && (
+            <EscalationChip
+              icon={<EscalateOutIcon sx={{ fontSize: 12 }} />}
+              prefix={t("sets.card.escalatesTo")}
+              link={escalatesTo}
+              onHover={onEscalationHover}
+              onClick={onEscalationClick}
+            />
+          )}
+          {escalatedFrom?.map((link) => (
+            <EscalationChip
+              key={link.id}
+              icon={<EscalateInIcon sx={{ fontSize: 12 }} />}
+              prefix={t("sets.card.escalatedFrom")}
+              link={link}
+              onHover={onEscalationHover}
+              onClick={onEscalationClick}
+              variant="outlined"
+            />
+          ))}
+        </Box>
+
+        <Box
+          sx={{
+            flexShrink: 0,
+            width: 22,
+            height: 22,
+            borderRadius: "50%",
+            bgcolor: colors.accent.primary,
+            border: `1px solid ${colors.border.default}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            fontWeight={600}
+            sx={{ fontSize: "0.65rem" }}
+          >
+            {index + 1}
+          </Typography>
+        </Box>
       </Box>
     </Card>
   );
@@ -555,3 +617,49 @@ const QuickFlag = ({ icon, label, enabled, tooltip }: QuickFlagProps) => {
     </Tooltip>
   );
 };
+
+interface EscalationChipProps {
+  icon: React.ReactNode;
+  prefix: string;
+  link: { id: string; name: string };
+  variant?: "filled" | "outlined";
+  onHover?: (setId: string | null) => void;
+  onClick?: (setId: string) => void;
+}
+
+const EscalationChip = ({
+  icon,
+  prefix,
+  link,
+  variant,
+  onHover,
+  onClick,
+}: EscalationChipProps) => (
+  <Tooltip title={`${prefix}: ${link.name}`}>
+    <B4Badge
+      icon={icon as React.ReactElement}
+      label={link.name}
+      size="small"
+      color="secondary"
+      variant={variant}
+      clickable
+      onMouseEnter={() => onHover?.(link.id)}
+      onMouseLeave={() => onHover?.(null)}
+      onFocus={() => onHover?.(link.id)}
+      onBlur={() => onHover?.(null)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(link.id);
+      }}
+      sx={{
+        maxWidth: "100%",
+        cursor: "pointer",
+        "& .MuiChip-label": {
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          maxWidth: 110,
+        },
+      }}
+    />
+  </Tooltip>
+);
