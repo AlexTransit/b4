@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { stripPort } from "@utils";
 
 interface IpModalState {
   open: boolean;
@@ -18,7 +19,7 @@ export function useIpActions() {
   });
 
   const openModal = useCallback((ip: string, variants: string[]) => {
-    ip = ip.split(":")[0]; // Remove port if present
+    ip = stripPort(ip);
 
     setModalState({
       open: true,

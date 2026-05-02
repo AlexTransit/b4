@@ -13,6 +13,7 @@ import {
   generateDomainVariants,
   generateIpVariants,
   asnStorage,
+  stripPort,
 } from "@utils";
 import { colors } from "@design";
 import { useWebSocket } from "../../context/B4WsProvider";
@@ -159,7 +160,7 @@ export function ConnectionsPage() {
   }, [fetchSets]);
 
   const handleEnrichIp = useCallback(async (ip: string) => {
-    const cleanIp = ip.split(":")[0].replaceAll(/[[\]]/g, "");
+    const cleanIp = stripPort(ip);
     setEnrichingIps((prev) => new Set(prev).add(cleanIp));
     try {
       const asn = await resolveAsn(cleanIp, ipInfoToken);

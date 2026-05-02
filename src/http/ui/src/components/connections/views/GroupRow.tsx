@@ -9,7 +9,7 @@ import {
 } from "@b4.elements";
 import { ProtocolChip, FlagBadges } from "@common/ProtocolChip";
 import { colors, fonts } from "@design";
-import { formatRelativeShort } from "@utils";
+import { formatRelativeShort, stripPort } from "@utils";
 import type { EnrichedGroup } from "@hooks/useConnectionGroups";
 import { useTranslation } from "react-i18next";
 
@@ -38,7 +38,7 @@ export const GroupRow = memo<Props>(
     enrichingIps,
   }) => {
     const { t } = useTranslation();
-    const ipBase = group.destIp.split(":")[0].replaceAll(/[[\]]/g, "");
+    const ipBase = stripPort(group.destIp);
     const isEnriching = enrichingIps.has(ipBase);
     const hasDomain = !!group.domain;
     const deviceLabel = group.deviceName || group.mac;

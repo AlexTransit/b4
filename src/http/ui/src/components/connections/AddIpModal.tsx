@@ -15,7 +15,7 @@ import { AddIcon, DomainIcon } from "@b4.icons";
 import { colors } from "@design";
 import { B4SetConfig } from "@models/config";
 import { SetSelector } from "@common/SetSelector";
-import { asnStorage } from "@utils";
+import { asnStorage, stripPort } from "@utils";
 import { clearAsnLookupCache } from "@hooks/useDomainActions";
 import { B4Alert, B4Badge, B4Dialog } from "@b4.elements";
 import { useTranslation } from "react-i18next";
@@ -104,7 +104,7 @@ export const AddIpModal = ({
   const loadIpInfo = async () => {
     setLoadingInfo(true);
     try {
-      const cleanIp = ip.split(":")[0].replaceAll(/[[\]]/g, "");
+      const cleanIp = stripPort(ip);
       const response = await fetch(
         `/api/integration/ipinfo?ip=${encodeURIComponent(cleanIp)}`
       );
@@ -130,7 +130,7 @@ export const AddIpModal = ({
   const loadRipeNetworkInfo = async () => {
     setLoadingInfo(true);
     try {
-      const cleanIp = ip.split(":")[0].replaceAll(/[[\]]/g, "");
+      const cleanIp = stripPort(ip);
       const response = await fetch(
         `/api/integration/ripestat?ip=${encodeURIComponent(cleanIp)}`
       );

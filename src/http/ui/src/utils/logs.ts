@@ -79,17 +79,21 @@ export function generateDomainVariants(domain: string): string[] {
   return variants;
 }
 
+export function stripPort(addr: string): string {
+  if (!addr) return addr;
+  if (addr.startsWith("[")) {
+    const end = addr.indexOf("]");
+    return end > 0 ? addr.slice(1, end) : addr.slice(1);
+  }
+  if ((addr.match(/:/g) || []).length === 1) return addr.split(":")[0];
+  return addr;
+}
+
 export function generateIpVariants(ip: string): string[] {
-  if (ip.startsWith("[")) {
-    const addr = ip.split("]")[0].substring(1);
-    return generateIpv6Variants(addr);
-  }
+  const stripped = stripPort(ip);
+  if (stripped.includes(":")) return generateIpv6Variants(stripped);
 
-  if (ip.includes(":") && ip.split(":").length > 2) {
-    return generateIpv6Variants(ip);
-  }
-
-  const parts = ip.split(":")[0].split(".");
+  const parts = stripped.split(".");
 
   if (
     parts.length !== 4 ||
