@@ -570,6 +570,9 @@
       "tlsVersionFilter": "TLS Version Filter",
       "tlsAny": "Any",
       "tlsHelperText": "Match only specific TLS version",
+      "escalateTo": "Escalate to set",
+      "escalateNone": "None",
+      "escalateHelper": "If this set's bypass keeps failing for a destination (no response after a few retries), switch that destination to the chosen set on the next connection. The choice is remembered for one hour, then b4 retries this set.",
       "tabs": {
         "domains": "Bypass Domains",
         "ips": "Bypass IPs",

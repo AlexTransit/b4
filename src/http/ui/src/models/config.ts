@@ -304,6 +304,7 @@ export interface B4SetConfig {
   targets: TargetsConfig;
   dns: DNSConfig;
   routing: RoutingConfig;
+  escalate_to?: string;
 }
 
 export type ComboShuffleMode = "middle" | "full" | "reverse";

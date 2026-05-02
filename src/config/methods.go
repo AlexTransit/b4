@@ -235,6 +235,8 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	c.sanitizeEscalation()
+
 	// Validate global MSS clamp
 	if c.Queue.MSSClamp.Enabled {
 		if c.Queue.MSSClamp.Size < 10 {
@@ -927,6 +929,57 @@ func mergeAndNormalizePorts(ports []string) []string {
 		}
 	}
 	return result
+}
+
+func (c *Config) sanitizeEscalation() {
+	byID := make(map[string]*SetConfig, len(c.Sets))
+	for _, s := range c.Sets {
+		if s.Id != "" {
+			byID[s.Id] = s
+		}
+	}
+
+	for _, s := range c.Sets {
+		if s.EscalateTo == "" {
+			continue
+		}
+		if s.EscalateTo == s.Id {
+			log.Warnf("Set %q: escalate_to references self, clearing", s.Name)
+			s.EscalateTo = ""
+			continue
+		}
+		target, ok := byID[s.EscalateTo]
+		if !ok {
+			log.Warnf("Set %q: escalate_to %q not found, clearing", s.Name, s.EscalateTo)
+			s.EscalateTo = ""
+			continue
+		}
+		if !target.Enabled {
+			log.Warnf("Set %q: escalate_to %q is disabled, clearing", s.Name, target.Name)
+			s.EscalateTo = ""
+			continue
+		}
+	}
+
+	for _, s := range c.Sets {
+		if s.EscalateTo == "" {
+			continue
+		}
+		seen := map[string]bool{s.Id: true}
+		cur := s
+		for cur.EscalateTo != "" {
+			if seen[cur.EscalateTo] {
+				log.Warnf("Set %q: escalate_to chain has a cycle at %q, breaking", s.Name, cur.Name)
+				cur.EscalateTo = ""
+				break
+			}
+			seen[cur.EscalateTo] = true
+			cur = byID[cur.EscalateTo]
+			if cur == nil {
+				break
+			}
+		}
+	}
 }
 
 // sanitizeIfaceName strips any characters not valid in a Linux interface name.

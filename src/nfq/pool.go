@@ -176,6 +176,10 @@ func (p *Pool) UpdateConfig(newCfg *config.Config) error {
 		w.matcher.Store(matcher)
 	}
 
+	if p.state != nil && p.state.ipBlocker != nil {
+		p.state.ipBlocker.ResetEscalations()
+	}
+
 	if p.Dhcp != nil {
 		p.Dhcp.SetManualDevices(newCfg.Queue.Devices.ManualEntries())
 	}

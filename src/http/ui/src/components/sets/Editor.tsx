@@ -266,6 +266,7 @@ export const SetEditorPage = ({
             config={editedSet}
             stats={stats}
             otherSetsTargets={otherSetsTargets}
+            allSets={config.sets}
             onChange={handleChange}
           />
         </TabPanel>

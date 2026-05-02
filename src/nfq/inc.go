@@ -2,6 +2,7 @@ package nfq
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"net"
 	"time"
@@ -37,18 +38,33 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			w.connTracker.RecordServerResponse(dstStr, dport, srcStr, sport, pktTTL, hasOpts)
 		}
 
-		if isRst && incomingSet.TCP.RSTProtection.Enabled {
+		rstProtOn := incomingSet.TCP.RSTProtection.Enabled
+		canEscalate := incomingSet.EscalateTo != ""
+		if isRst && (rstProtOn || canEscalate) {
 			tolerance := incomingSet.TCP.RSTProtection.TTLTolerance
 			if tolerance <= 0 {
 				tolerance = 3
 			}
-			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, hasOpts, hasACK, tolerance); drop {
-				log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
-				metrics.GetMetricsCollector().RecordRSTDrop()
-				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
-					log.Tracef("failed to drop RST packet %d: %v", id, err)
+			drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, hasOpts, hasACK, tolerance)
+			if drop {
+				if canEscalate && w.ipBlocker != nil {
+					serverIPPort := fmt.Sprintf("%s:%d", srcStr, sport)
+					if w.ipBlocker.RecordRSTKill(serverIPPort) {
+						if next := w.getConfig().GetSetById(incomingSet.EscalateTo); next != nil && next.Enabled {
+							if w.ipBlocker.SetEscalation(serverIPPort, next.Id) {
+								log.Warnf("RST-kill escalation for %s: %s -> %s (%s)", serverIPPort, incomingSet.Name, next.Name, reason)
+							}
+						}
+					}
 				}
-				return 0
+				if rstProtOn {
+					log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
+					metrics.GetMetricsCollector().RecordRSTDrop()
+					if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+						log.Tracef("failed to drop RST packet %d: %v", id, err)
+					}
+					return 0
+				}
 			}
 		}
 	}

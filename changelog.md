@@ -2,6 +2,7 @@
 
 ## [1.50.2] - 2026-05-02
 
+- ADDED: **Per-set strategy escalation** - in the set's Targets tab there is a new "Escalate to" dropdown. Pick another set, and if the current set's bypass keeps failing for a destination, b4 switches that destination to the chosen set on the next connection (remembered for one hour, then retried). Lets you chain several strategies instead of giving up after the first one fails. Failure is detected both by stuck handshakes (no response after a few retries) and by RST injection (a few suspicious RSTs to the same destination within 30 seconds), so escalation also triggers on networks where the firewall kills connections with forged RSTs after seeing the SNI.
 - ADDED: **Share MTProto proxy connection** - new "Share connection link" button in Settings > MTProto Proxy. Opens a dialog with a `tg://` connection link, a QR code (scan with your phone camera to add the proxy to Telegram), and Copy / Open in Telegram / Share buttons.
 - FIXED: **Service crashed at startup on routers without `ipset`** - "Enable Packet Duplication" could prevent b4 from starting on routers where `ipset` is not installed (some Keenetic / Merlin setups). b4 now logs a warning and keeps running. For full-connection duplication, install ipset (Keenetic / Entware: `opkg install ipset`).
 - FIXED: **"Update" button in Web UI didn't actually update b4** - on some setups clicking "Update" did nothing and the version stayed the same after restart.

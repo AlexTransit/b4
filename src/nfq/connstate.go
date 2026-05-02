@@ -104,13 +104,43 @@ type IPBlockCache interface {
 }
 
 type ipBlockTracker struct {
-	mu      sync.RWMutex
-	conns   map[string]*ipBlockEntry
-	blocked map[string]time.Time
+	mu          sync.RWMutex
+	conns       map[string]*ipBlockEntry
+	blocked     map[string]time.Time
+	escalations map[string]*escalationEntry
+	rstKills    map[string]*rstKillEntry
+}
+
+type escalationEntry struct {
+	setId  string
+	setAt  time.Time
+	hops   int
+}
+
+type rstKillEntry struct {
+	count   int
+	firstAt time.Time
 }
 
 const maxIPBlockEntries = 10000
 const maxIPBlockCacheEntries = 5000
+const maxEscalationCacheEntries = 5000
+const maxRSTKillEntries = 5000
+
+// RSTKillThreshold is the number of suspicious RSTs to a destination
+// within RSTKillWindow before escalation triggers. Independent from
+// IPBlockDetect because the timing pattern is different (each RST kill
+// is its own connection attempt by the client).
+const RSTKillThreshold = 3
+const RSTKillWindow = 30 * time.Second
+
+// EscalationTTL is how long a per-host escalation decision is remembered.
+// After expiry, b4 retries the original (non-escalated) set for that host.
+const EscalationTTL = time.Hour
+
+// MaxEscalationHops bounds how many times a host can be escalated to
+// guard against accidental cycles in the EscalateTo chain.
+const MaxEscalationHops = 8
 
 func (t *ipBlockTracker) RecordClientHello(connKey, host string) (int, time.Time) {
 	t.mu.Lock()
@@ -194,6 +224,107 @@ func (t *ipBlockTracker) Cleanup(cacheTTL time.Duration) {
 			}
 		}
 	}
+	for k, v := range t.escalations {
+		if now.Sub(v.setAt) > EscalationTTL {
+			delete(t.escalations, k)
+		}
+	}
+	for k, v := range t.rstKills {
+		if now.Sub(v.firstAt) > RSTKillWindow*2 {
+			delete(t.rstKills, k)
+		}
+	}
+}
+
+// GetEscalation returns the escalated set id for a destination, if a
+// non-expired escalation entry exists.
+func (t *ipBlockTracker) GetEscalation(dstIPPort string) (setId string, hops int, ok bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	e, exists := t.escalations[dstIPPort]
+	if !exists {
+		return "", 0, false
+	}
+	if time.Since(e.setAt) > EscalationTTL {
+		return "", 0, false
+	}
+	return e.setId, e.hops, true
+}
+
+// SetEscalation records that future connections to dstIPPort should use setId.
+// Returns false if the per-host escalation chain has reached MaxEscalationHops.
+func (t *ipBlockTracker) SetEscalation(dstIPPort, setId string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.escalations) >= maxEscalationCacheEntries {
+		now := time.Now()
+		for k, v := range t.escalations {
+			if now.Sub(v.setAt) > EscalationTTL {
+				delete(t.escalations, k)
+			}
+		}
+	}
+	prev := t.escalations[dstIPPort]
+	hops := 1
+	if prev != nil {
+		hops = prev.hops + 1
+	}
+	if hops > MaxEscalationHops {
+		return false
+	}
+	t.escalations[dstIPPort] = &escalationEntry{
+		setId: setId,
+		setAt: time.Now(),
+		hops:  hops,
+	}
+	return true
+}
+
+// ClearEscalation removes any escalation entry for dstIPPort.
+func (t *ipBlockTracker) ClearEscalation(dstIPPort string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.escalations, dstIPPort)
+}
+
+// ResetEscalations drops all escalation state. Called on config reload to
+// guarantee renamed/removed sets cannot be referenced by stale entries.
+func (t *ipBlockTracker) ResetEscalations() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.escalations = make(map[string]*escalationEntry)
+	t.rstKills = make(map[string]*rstKillEntry)
+}
+
+// RecordRSTKill bumps the RST-kill counter for dstIPPort and reports
+// whether the threshold has been reached within the rolling window.
+// Returns true at most once per window: when the counter trips, the
+// entry is reset so callers don't re-trigger on every subsequent RST.
+func (t *ipBlockTracker) RecordRSTKill(dstIPPort string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.rstKills) >= maxRSTKillEntries {
+		now := time.Now()
+		for k, v := range t.rstKills {
+			if now.Sub(v.firstAt) > RSTKillWindow*2 {
+				delete(t.rstKills, k)
+			}
+		}
+	}
+
+	now := time.Now()
+	entry, exists := t.rstKills[dstIPPort]
+	if !exists || now.Sub(entry.firstAt) > RSTKillWindow {
+		t.rstKills[dstIPPort] = &rstKillEntry{count: 1, firstAt: now}
+		return false
+	}
+	entry.count++
+	if entry.count >= RSTKillThreshold {
+		delete(t.rstKills, dstIPPort)
+		return true
+	}
+	return false
 }
 
 type runtimeState struct {
@@ -211,8 +342,10 @@ func newRuntimeState() *runtimeState {
 			conns: make(map[string]*connInfo),
 		},
 		ipBlocker: &ipBlockTracker{
-			conns:   make(map[string]*ipBlockEntry),
-			blocked: make(map[string]time.Time),
+			conns:       make(map[string]*ipBlockEntry),
+			blocked:     make(map[string]time.Time),
+			escalations: make(map[string]*escalationEntry),
+			rstKills:    make(map[string]*rstKillEntry),
 		},
 	}
 }

@@ -71,12 +71,12 @@ type TCPConfig struct {
 	DropSACK       bool   `json:"drop_sack"`
 	DPortFilter    string `json:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
 
-	Incoming       IncomingConfig       `json:"incoming"`
-	Desync         DesyncConfig         `json:"desync"`
-	Win            WinConfig            `json:"win"`
-	Duplicate      DuplicateConfig      `json:"duplicate"`
-	IPBlockDetect  IPBlockDetectConfig  `json:"ip_block_detect"`
-	RSTProtection  RSTProtectionConfig  `json:"rst_protection"`
+	Incoming      IncomingConfig      `json:"incoming"`
+	Desync        DesyncConfig        `json:"desync"`
+	Win           WinConfig           `json:"win"`
+	Duplicate     DuplicateConfig     `json:"duplicate"`
+	IPBlockDetect IPBlockDetectConfig `json:"ip_block_detect"`
+	RSTProtection RSTProtectionConfig `json:"rst_protection"`
 }
 
 type IPBlockDetectConfig struct {
@@ -276,6 +276,7 @@ type SetConfig struct {
 	TCPPortRanges []PortRange         `json:"-"`
 	UDPPortRanges []PortRange         `json:"-"`
 	Routing       RoutingConfig       `json:"routing"`
+	EscalateTo    string              `json:"escalate_to"` // ID of next set to use after this set is detected as blocked for a destination
 }
 
 type GeoDatConfig struct {
@@ -346,7 +347,6 @@ type MSSClampConfig struct {
 	Enabled bool `json:"enabled"`
 	Size    int  `json:"size"` // MSS value in bytes (e.g., 88)
 }
-
 
 type RoutingConfig struct {
 	Enabled          bool                `json:"enabled"`
