@@ -16,6 +16,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"github.com/daniellavrushin/b4/ai"
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/discovery"
 	b4http "github.com/daniellavrushin/b4/http"
@@ -98,6 +99,9 @@ func runB4(cmd *cobra.Command, args []string) error {
 
 	var cfgPtr atomic.Pointer[config.Config]
 	cfgPtr.Store(&cfg)
+
+	aiManager := ai.NewManager(cfg.System.AI, cfg.ConfigPath)
+	handler.SetAIManager(aiManager)
 
 	discoveryRT := discovery.NewRuntime()
 
@@ -263,6 +267,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 		tproxyResolver.Set(pool.GetMatcher())
 		tproxyMgr.SyncConfig(c)
 		tables.RoutingSyncConfig(c)
+		aiManager.Update(c.System.AI)
 		return nil
 	})
 	wd.Start()

@@ -253,6 +253,19 @@ export interface ApiConfig {
   ipinfo_token: string;
 }
 
+export type AIProvider = "" | "openai" | "anthropic" | "ollama";
+
+export interface AIConfig {
+  enabled: boolean;
+  provider: AIProvider;
+  model: string;
+  endpoint: string;
+  api_key_ref: string;
+  max_tokens: number;
+  temperature: number;
+  timeout_sec: number;
+}
+
 export interface Socks5Config {
   enabled: boolean;
   port: number;
@@ -282,6 +295,7 @@ export interface SystemConfig {
   checker: DiscoveryConfig;
   geo: GeoConfig;
   api: ApiConfig;
+  ai: AIConfig;
   timezone: string;
 }
 

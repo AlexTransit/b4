@@ -218,7 +218,9 @@ export function SettingsPage() {
       // API
       [TABS.API]:
         JSON.stringify(config.system.api) !==
-        JSON.stringify(originalConfig.system.api),
+          JSON.stringify(originalConfig.system.api) ||
+        JSON.stringify(config.system.ai) !==
+          JSON.stringify(originalConfig.system.ai),
 
       // PAYLOADS
       [TABS.PAYLOADS]: false,
@@ -295,14 +297,16 @@ export function SettingsPage() {
       | null
       | undefined,
   ) => {
-    if (!config) return;
+    setConfig((prev) => {
+      if (!prev) return prev;
 
-    const keys = field.split(".");
+      const keys = field.split(".");
 
-    if (keys.length === 1) {
-      setConfig({ ...config, [field]: value });
-    } else {
-      const newConfig = { ...config };
+      if (keys.length === 1) {
+        return { ...prev, [field]: value };
+      }
+
+      const newConfig = { ...prev };
       let current: Record<string, unknown> = newConfig;
 
       for (let i = 0; i < keys.length - 1; i++) {
@@ -311,8 +315,8 @@ export function SettingsPage() {
       }
 
       current[keys.at(-1)!] = value;
-      setConfig(newConfig);
-    }
+      return newConfig;
+    });
   };
 
   if (loading || !config) {

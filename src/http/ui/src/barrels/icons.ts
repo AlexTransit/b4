@@ -9,6 +9,7 @@ export {
   Place as IpIcon,
   DeleteForever as ClearIcon,
   Info as InfoIcon,
+  AutoAwesome as AiIcon,
   ToggleOn as ToggleOnIcon,
   ToggleOff as ToggleOffIcon,
   Settings as CoreIcon,

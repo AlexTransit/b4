@@ -1,4 +1,4 @@
-import { Grid } from "@mui/material";
+import { Box, Grid } from "@mui/material";
 import { B4SetConfig, QueueConfig } from "@models/config";
 import {
   B4Slider,
@@ -7,6 +7,7 @@ import {
   B4Alert,
   B4FormHeader,
   B4Hint,
+  B4AiExplain,
 } from "@b4.elements";
 import { B4Switch } from "@common/B4Switch";
 import { useTranslation } from "react-i18next";
@@ -39,37 +40,60 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
     <>
       <Grid container spacing={3} sx={{ mt: 1, mb: 3 }}>
         <Grid size={{ xs: 12, md: 6 }}>
-          <B4Slider
-            label={t("sets.tcp.general.connPacketsLimit")}
-            value={config.tcp.conn_bytes_limit}
-            onChange={(value: number) =>
-              onChange("tcp.conn_bytes_limit", value)
-            }
-            min={1}
-            max={queue.tcp_conn_bytes_limit}
-            step={1}
-            helperText={t("sets.tcp.general.connPacketsMax", {
-              max: queue.tcp_conn_bytes_limit,
-            })}
-          />
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+            <Box sx={{ flex: 1 }}>
+              <B4Slider
+                label={t("sets.tcp.general.connPacketsLimit")}
+                value={config.tcp.conn_bytes_limit}
+                onChange={(value: number) =>
+                  onChange("tcp.conn_bytes_limit", value)
+                }
+                min={1}
+                max={queue.tcp_conn_bytes_limit}
+                step={1}
+                helperText={t("sets.tcp.general.connPacketsMax", {
+                  max: queue.tcp_conn_bytes_limit,
+                })}
+              />
+            </Box>
+            <B4AiExplain
+              topic="tcp.conn_bytes_limit"
+              fieldLabel={t("sets.tcp.general.connPacketsLimit")}
+              fieldDoc={t("settings.Queue.tcpLimitHelp")}
+              value={config.tcp.conn_bytes_limit}
+              contextJson={JSON.stringify({
+                queue_max: queue.tcp_conn_bytes_limit,
+              })}
+            />
+          </Box>
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
-          <B4RangeSlider
-            label={t("sets.tcp.general.seg2delay")}
-            value={[
-              config.tcp.seg2delay,
-              config.tcp.seg2delay_max || config.tcp.seg2delay,
-            ]}
-            onChange={(value: [number, number]) => {
-              onChange("tcp.seg2delay", value[0]);
-              onChange("tcp.seg2delay_max", value[1]);
-            }}
-            min={0}
-            max={1000}
-            step={10}
-            valueSuffix=" ms"
-            helperText={t("sets.tcp.general.seg2delayHelper")}
-          />
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+            <Box sx={{ flex: 1 }}>
+              <B4RangeSlider
+                label={t("sets.tcp.general.seg2delay")}
+                value={[
+                  config.tcp.seg2delay,
+                  config.tcp.seg2delay_max || config.tcp.seg2delay,
+                ]}
+                onChange={(value: [number, number]) => {
+                  onChange("tcp.seg2delay", value[0]);
+                  onChange("tcp.seg2delay_max", value[1]);
+                }}
+                min={0}
+                max={1000}
+                step={10}
+                valueSuffix=" ms"
+                helperText={t("sets.tcp.general.seg2delayHelper")}
+              />
+            </Box>
+            <B4AiExplain
+              topic="tcp.seg2delay"
+              fieldLabel={t("sets.tcp.general.seg2delay")}
+              fieldDoc={t("sets.tcp.general.seg2delayHelper")}
+              value={`${config.tcp.seg2delay}-${config.tcp.seg2delay_max || config.tcp.seg2delay} ms`}
+            />
+          </Box>
         </Grid>
 
         <Grid size={{ xs: 12, md: 6 }}>

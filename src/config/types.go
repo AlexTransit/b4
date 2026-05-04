@@ -194,7 +194,19 @@ type SystemConfig struct {
 	Checker   DiscoveryConfig `json:"checker"`
 	Geo       GeoDatConfig    `json:"geo"`
 	API       ApiConfig       `json:"api"`
+	AI        AIConfig        `json:"ai"`
 	Timezone  string          `json:"timezone"`
+}
+
+type AIConfig struct {
+	Enabled     bool    `json:"enabled"`
+	Provider    string  `json:"provider"`
+	Model       string  `json:"model"`
+	Endpoint    string  `json:"endpoint"`
+	APIKeyRef   string  `json:"api_key_ref"`
+	MaxTokens   int     `json:"max_tokens"`
+	Temperature float64 `json:"temperature"`
+	TimeoutSec  int     `json:"timeout_sec"`
 }
 
 type MTProtoConfig struct {
