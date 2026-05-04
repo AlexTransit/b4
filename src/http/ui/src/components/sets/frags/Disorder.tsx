@@ -239,6 +239,10 @@ export const DisorderSettings = ({
         onChange={(value) =>
           onChange("fragmentation.seq_overlap_pattern", value)
         }
+        length={config.fragmentation.seq_overlap_length || 0}
+        onLengthChange={(value) =>
+          onChange("fragmentation.seq_overlap_length", value)
+        }
       />
     </>
   );

@@ -823,6 +823,8 @@
           "seqOverlapAlert": "Prepends fake bytes with decreased TCP sequence number. DPI sees fake protocol header, server discards overlap.",
           "overlapPattern": "Overlap Pattern",
           "overlapPatternHelper": "Fake bytes DPI will see",
+          "seqOverlapLength": "Overlap Length",
+          "seqOverlapLengthHelper": "How many pattern bytes to prepend to a real segment, with its sequence number shifted back by the same amount (0 = off).",
           "seqovlViz": "SEQOVL VISUALIZATION",
           "seqovlReal": "Real TLS ClientHello...",
           "seqovlNote": "DPI sees fake header at decreased seq#, server reassembles correctly",

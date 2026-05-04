@@ -55,6 +55,15 @@ var migrationRegistry = map[int]MigrationFunc{
 	32: migrateV32to33, // Add TCP RST protection config
 	33: migrateV33to34, // Add manual devices to device config
 	34: migrateV34to35, // Add routing mode and upstream proxy config
+	35: migrateV35to36, // Add fragmentation seq overlap length
+}
+
+func migrateV35to36(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v35->v36: Adding fragmentation seq overlap length")
+	for _, set := range c.Sets {
+		set.Fragmentation.SeqOverlapLength = DefaultSetConfig.Fragmentation.SeqOverlapLength
+	}
+	return nil
 }
 
 func migrateV34to35(c *Config, _ map[string]interface{}) error {

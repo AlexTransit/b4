@@ -41,6 +41,26 @@ func (w *Worker) sendDisorderFragmentsV6(cfg *config.SetConfig, packet []byte, d
 		segments = append(segments, Segment{Data: seg, Seq: pi.Seq0 + uint32(start)})
 	}
 
+	if seqovlLength := cfg.Fragmentation.SeqOverlapLength; seqovlLength > 0 && seqovlLen > 0 && len(segments) >= 2 {
+		second := segments[1]
+		startOff := int(second.Seq - pi.Seq0)
+		if seqovlLength < startOff {
+			payloadLen := len(second.Data) - pi.PayloadStart
+			if startOff+payloadLen <= pi.PayloadLen {
+				origPayload := pi.Payload[startOff : startOff+payloadLen]
+				newData := BuildSeqOverlapSegmentV6(packet, pi, origPayload, startOff, seqovlLength, seqovlPattern)
+				if len(segments) > 2 {
+					ClearPSH(newData, pi.IPHdrLen)
+					sock.FixTCPChecksumV6(newData)
+				}
+				segments[1] = Segment{
+					Data: newData,
+					Seq:  pi.Seq0 + uint32(startOff) - uint32(seqovlLength),
+				}
+			}
+		}
+	}
+
 	r := utils.NewRand()
 	ShuffleSegments(segments, disorder.ShuffleMode, r)
 	SetMaxSeqPSH(segments, pi.IPHdrLen, sock.FixTCPChecksumV6)
