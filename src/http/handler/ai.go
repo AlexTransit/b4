@@ -201,8 +201,9 @@ func (api *API) handleAIExplain(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system := buildExplainSystemPrompt(body.FieldDoc != "", body.Language)
-	user := buildExplainUserPrompt(body)
+	facts := ai.TopicFacts(body.Topic)
+	system := buildExplainSystemPrompt(body.FieldDoc != "", facts != "", body.Language)
+	user := buildExplainUserPrompt(body, facts)
 
 	streamAI(w, r, ai.Request{
 		System:   system,
@@ -324,12 +325,18 @@ func writeJSON(w http.ResponseWriter, status int, body any) {
 	_ = json.NewEncoder(w).Encode(body)
 }
 
-func buildExplainSystemPrompt(hasFieldDoc bool, language string) string {
+func buildExplainSystemPrompt(hasFieldDoc, hasFacts bool, language string) string {
 	base := []string{
 		"You are an in-app assistant for B4, a Linux DPI-bypass tool that uses netfilter queues.",
 		"Audience: a non-expert end user configuring B4 through its web UI.",
 		"Style: concise (under 200 words), plain language, no jargon without a one-line definition.",
 		"When explaining a setting: cover (1) what it does in one sentence, (2) when to enable/change it, (3) common pitfalls.",
+	}
+	if hasFacts {
+		base = append(base,
+			"You will be given a 'B4-specific facts' block. Treat it as authoritative ground truth about how this setting behaves in b4 specifically — paraphrase from it, do not contradict it.",
+			"If the user's question goes beyond what the facts block covers, say so explicitly rather than infer behavior from the field name or generic networking knowledge.",
+		)
 	}
 	if hasFieldDoc {
 		base = append(base,
@@ -339,7 +346,7 @@ func buildExplainSystemPrompt(hasFieldDoc bool, language string) string {
 			"If the Authoritative description does not cover something the user asked about, say you do not have authoritative info on that point rather than guessing.",
 			"Do not call the user's value 'unusual' or recommend changing it unless the Authoritative description gives you a basis to do so.",
 		)
-	} else {
+	} else if !hasFacts {
 		base = append(base,
 			"You were NOT given authoritative documentation for this setting. Be explicit about that uncertainty in your answer and avoid prescriptive recommendations.",
 		)
@@ -395,7 +402,7 @@ func languageName(code string) string {
 	}
 }
 
-func buildExplainUserPrompt(body aiExplainRequest) string {
+func buildExplainUserPrompt(body aiExplainRequest, facts string) string {
 	var sb strings.Builder
 	sb.WriteString("Topic: ")
 	sb.WriteString(body.Topic)
@@ -408,6 +415,11 @@ func buildExplainUserPrompt(body aiExplainRequest) string {
 	if body.FieldDoc != "" {
 		sb.WriteString("Authoritative description: ")
 		sb.WriteString(body.FieldDoc)
+		sb.WriteString("\n")
+	}
+	if facts != "" {
+		sb.WriteString("B4-specific facts (authoritative — trust over guesses):\n")
+		sb.WriteString(facts)
 		sb.WriteString("\n")
 	}
 	if body.Value != "" {

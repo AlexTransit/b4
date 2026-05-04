@@ -374,7 +374,7 @@ func TestAIExplainNoFieldDocWarnsModel(t *testing.T) {
 	mgr.Secrets().Set("openai", "sk-x")
 	api := newAITestAPI(t, mgr)
 
-	body := `{"topic":"tcp.conn_bytes_limit","value":"19"}`
+	body := `{"topic":"undocumented.test_topic","value":"42"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/ai/explain", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
