@@ -52,6 +52,7 @@ export const DisorderSettings = ({
             onChange("fragmentation.middle_sni", checked)
           }
           description={t("sets.tcp.splitting.disorder.sniSplitDesc")}
+          aiTopic="fragmentation.middle_sni"
         />
       </Grid>
 
@@ -64,6 +65,8 @@ export const DisorderSettings = ({
             onChange("fragmentation.disorder.shuffle_mode", e.target.value)
           }
           helperText={t("sets.tcp.splitting.disorder.shuffleHelper")}
+          aiTopic="fragmentation.disorder.shuffle_mode"
+          aiContext={{ available: shuffleModeOptions.map((o) => o.value) }}
         />
       </Grid>
 
@@ -149,6 +152,11 @@ export const DisorderSettings = ({
           max={5000}
           step={100}
           helperText={t("sets.tcp.splitting.disorder.minJitterHelper")}
+          aiTopic="fragmentation.disorder.jitter"
+          aiContext={{
+            min_jitter_us: disorder.min_jitter_us,
+            max_jitter_us: disorder.max_jitter_us,
+          }}
         />
       </Grid>
 
@@ -163,6 +171,11 @@ export const DisorderSettings = ({
           max={10000}
           step={100}
           helperText={t("sets.tcp.splitting.disorder.maxJitterHelper")}
+          aiTopic="fragmentation.disorder.jitter"
+          aiContext={{
+            min_jitter_us: disorder.min_jitter_us,
+            max_jitter_us: disorder.max_jitter_us,
+          }}
         />
       </Grid>
 
@@ -186,6 +199,13 @@ export const DisorderSettings = ({
             onChange("fragmentation.disorder.fake_per_segment", checked)
           }
           description={t("sets.tcp.splitting.disorder.fakePerSegDesc")}
+          aiTopic="fragmentation.disorder.fake_per_segment"
+          aiContext={{
+            fake_per_seg_count: disorder.fake_per_seg_count,
+            fake_per_seg_count_max: disorder.fake_per_seg_count_max,
+            seq_overlap_pattern_set:
+              (config.fragmentation.seq_overlap_pattern || []).length > 0,
+          }}
         />
       </Grid>
 

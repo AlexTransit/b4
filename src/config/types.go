@@ -143,6 +143,7 @@ type FragmentationConfig struct {
 
 	SeqOverlapPattern []string `json:"seq_overlap_pattern"`
 	SeqOverlapBytes   []byte   `json:"-"`
+	SeqOverlapLength  int      `json:"seq_overlap_length"`
 
 	Combo    ComboFragConfig    `json:"combo"`
 	Disorder DisorderFragConfig `json:"disorder"`

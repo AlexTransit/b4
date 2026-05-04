@@ -152,6 +152,11 @@ export const SeqOverlapPatternFields = ({
           }))}
           onChange={(e) => handlePresetChange(e.target.value as string)}
           helperText={t("sets.tcp.splitting.disorder.overlapPatternHelper")}
+          aiTopic="fragmentation.seq_overlap_pattern"
+          aiContext={{
+            available: SEQ_OVERLAP_PRESETS.map((p) => p.value),
+            current_pattern: normalizedPattern,
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
