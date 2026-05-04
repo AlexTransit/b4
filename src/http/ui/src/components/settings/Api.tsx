@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { B4Config, AIProvider } from "@models/config";
 import {
@@ -25,8 +25,9 @@ import {
   B4Switch,
   B4TextField,
 } from "@b4.elements";
-import { aiApi, AIModel, AIStatus } from "@api/ai";
+import { aiApi, AIModel } from "@api/ai";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { useAiStatus } from "@context/AiStatusProvider";
 import { colors } from "@design";
 
 export interface ApiSettingsProps {
@@ -99,8 +100,7 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
   const provider = ai?.provider ?? "";
   const keyRef = (ai?.api_key_ref || provider || "").trim();
 
-  const [status, setStatus] = useState<AIStatus | null>(null);
-  const [statusLoading, setStatusLoading] = useState(false);
+  const { status, loading: statusLoading, refresh: refreshStatus } = useAiStatus();
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [pendingKey, setPendingKey] = useState("");
   const [savingKey, setSavingKey] = useState(false);
@@ -108,22 +108,6 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string>("");
   const [modelsLoadedFor, setModelsLoadedFor] = useState<string>("");
-
-  const refreshStatus = useCallback(async () => {
-    try {
-      setStatusLoading(true);
-      const data = await aiApi.status();
-      setStatus(data);
-    } catch (err) {
-      console.error("ai status failed", err);
-    } finally {
-      setStatusLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshStatus().catch(() => {});
-  }, [refreshStatus]);
 
   const requiresKey = provider === "openai" || provider === "anthropic";
   const hasKey = Boolean(status?.has_key);
