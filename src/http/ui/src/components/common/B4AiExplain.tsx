@@ -16,12 +16,29 @@ import { streamAi } from "@api/aiStream";
 import { useAiStatus } from "@context/AiStatusProvider";
 import { colors } from "@design";
 
+export const aiHoverRevealSx = {
+  "& [data-ai-trigger]": {
+    opacity: 0,
+    transition: "opacity 120ms ease",
+  },
+  "&:hover [data-ai-trigger]": {
+    opacity: 1,
+  },
+  "& [data-ai-trigger]:focus-visible": {
+    opacity: 1,
+  },
+  '& [data-ai-trigger][data-ai-open="true"]': {
+    opacity: 1,
+  },
+};
+
 export interface B4AiExplainProps {
   topic: string;
   fieldLabel?: string;
   fieldDoc?: string;
   value?: string | number | boolean;
   contextJson?: string;
+  context?: Record<string, unknown>;
   question?: string;
   size?: "small" | "medium";
 }
@@ -32,6 +49,7 @@ export const B4AiExplain = ({
   fieldDoc,
   value,
   contextJson,
+  context,
   question,
   size = "small",
 }: B4AiExplainProps) => {
@@ -44,6 +62,8 @@ export const B4AiExplain = ({
   const abortRef = useRef<AbortController | null>(null);
 
   const open = Boolean(anchorEl);
+
+  const ctxJson = context ? JSON.stringify(context) : (contextJson ?? "");
 
   const start = useCallback(async () => {
     setText("");
@@ -66,7 +86,7 @@ export const B4AiExplain = ({
         field_label: fieldLabel ?? "",
         field_doc: fieldDoc ?? "",
         value: value === undefined ? "" : String(value),
-        context_json: contextJson ?? "",
+        context_json: ctxJson,
         question: question ?? "",
         language: i18n.language || "",
       },
@@ -77,7 +97,7 @@ export const B4AiExplain = ({
       },
       ctrl.signal,
     );
-  }, [status, ready, refresh, topic, fieldLabel, fieldDoc, value, contextJson, question, i18n.language, t]);
+  }, [status, ready, refresh, topic, fieldLabel, fieldDoc, value, ctxJson, question, i18n.language, t]);
 
   useEffect(() => {
     if (!open) {
@@ -106,6 +126,8 @@ export const B4AiExplain = ({
       <Tooltip title={t("aiExplain.tooltip")}>
         <span>
           <IconButton
+            data-ai-trigger
+            data-ai-open={open ? "true" : undefined}
             size={size}
             onClick={(e) => setAnchorEl(e.currentTarget)}
             sx={{ color: colors.primary }}

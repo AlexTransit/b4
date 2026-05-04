@@ -1,4 +1,5 @@
 import {
+  Box,
   FormControl,
   InputLabel,
   Select,
@@ -7,20 +8,27 @@ import {
   FormHelperText,
 } from "@mui/material";
 import { colors } from "@design";
+import { B4AiExplain, aiHoverRevealSx } from "./B4AiExplain";
 
 interface B4SelectProps extends Omit<SelectProps<string | number>, "variant"> {
   label: string;
   options: { value: string | number; label: string }[];
   helperText?: string;
+  aiTopic?: string;
+  aiContext?: Record<string, unknown>;
+  aiQuestion?: string;
 }
 
 export const B4Select = ({
   label,
   options,
   helperText,
+  aiTopic,
+  aiContext,
+  aiQuestion,
   ...props
 }: B4SelectProps) => {
-  return (
+  const fc = (
     <FormControl fullWidth size="small">
       <InputLabel shrink sx={{ color: colors.text.secondary }}>{label}</InputLabel>
       <Select
@@ -58,6 +66,34 @@ export const B4Select = ({
         </FormHelperText>
       )}
     </FormControl>
+  );
+
+  if (!aiTopic) return fc;
+
+  const valStr =
+    typeof props.value === "string" || typeof props.value === "number"
+      ? props.value
+      : undefined;
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "flex-start",
+        gap: 1,
+        ...aiHoverRevealSx,
+      }}
+    >
+      <Box sx={{ flex: 1 }}>{fc}</Box>
+      <B4AiExplain
+        topic={aiTopic}
+        fieldLabel={label}
+        fieldDoc={helperText}
+        value={valStr}
+        context={aiContext}
+        question={aiQuestion}
+      />
+    </Box>
   );
 };
 
