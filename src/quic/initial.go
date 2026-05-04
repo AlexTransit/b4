@@ -47,6 +47,28 @@ func IsInitial(b []byte) bool {
 	}
 }
 
+func LooksLikeQUIC(b []byte) bool {
+	if len(b) < 7 || b[0]&longHdrBit == 0 {
+		return false
+	}
+	off := 1 + 4
+	if len(b) < off+1 {
+		return false
+	}
+	dlen := int(b[off])
+	off++
+	if dlen > 20 || len(b) < off+dlen+1 {
+		return false
+	}
+	off += dlen
+	slen := int(b[off])
+	off++
+	if slen > 20 || len(b) < off+slen {
+		return false
+	}
+	return true
+}
+
 func DecryptInitial(dcid, packet []byte) ([]byte, bool) {
 	if len(packet) < 7 || packet[0]&0x80 == 0 {
 		return nil, false
