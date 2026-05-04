@@ -29,6 +29,7 @@ import {
   WarningIcon,
 } from "@b4.icons";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { useAiStatus } from "@context/AiStatusProvider";
 import { ApiSettings } from "./Api";
 import { CaptureSettings } from "./Capture";
 import { ControlSettings } from "./Control";
@@ -256,6 +257,8 @@ export function SettingsPage() {
     loadConfig().catch(() => {});
   }, [loadConfig]);
 
+  const { refresh: refreshAiStatus } = useAiStatus();
+
   const saveConfig = async () => {
     if (!config) return;
 
@@ -275,6 +278,7 @@ export function SettingsPage() {
     } finally {
       setSaving(false);
       await loadConfig();
+      void refreshAiStatus();
     }
   };
 

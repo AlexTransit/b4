@@ -12,8 +12,8 @@ import {
 } from "@mui/material";
 import ReactMarkdown from "react-markdown";
 import { AiIcon, CloseIcon, RefreshIcon } from "@b4.icons";
-import { aiApi, AIStatus } from "@api/ai";
 import { streamAi } from "@api/aiStream";
+import { useAiStatus } from "@context/AiStatusProvider";
 import { colors } from "@design";
 
 export interface B4AiExplainProps {
@@ -36,8 +36,8 @@ export const B4AiExplain = ({
   size = "small",
 }: B4AiExplainProps) => {
   const { t, i18n } = useTranslation();
+  const { status, enabled, ready, refresh } = useAiStatus();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [status, setStatus] = useState<AIStatus | null>(null);
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [errMsg, setErrMsg] = useState("");
@@ -48,18 +48,11 @@ export const B4AiExplain = ({
   const start = useCallback(async () => {
     setText("");
     setErrMsg("");
-    let s = status;
-    if (!s) {
-      try {
-        s = await aiApi.status();
-        setStatus(s);
-      } catch (err) {
-        setErrMsg(err instanceof Error ? err.message : String(err));
-        return;
-      }
+    if (!status) {
+      await refresh();
     }
-    if (!s.ready) {
-      setErrMsg(s.not_ready_reason || t("aiExplain.notReady"));
+    if (!ready) {
+      setErrMsg(status?.not_ready_reason || t("aiExplain.notReady"));
       return;
     }
     abortRef.current?.abort();
@@ -84,7 +77,7 @@ export const B4AiExplain = ({
       },
       ctrl.signal,
     );
-  }, [status, topic, fieldLabel, fieldDoc, value, contextJson, question, i18n.language, t]);
+  }, [status, ready, refresh, topic, fieldLabel, fieldDoc, value, contextJson, question, i18n.language, t]);
 
   useEffect(() => {
     if (!open) {
@@ -103,6 +96,10 @@ export const B4AiExplain = ({
   );
 
   const handleClose = () => setAnchorEl(null);
+
+  if (!enabled) {
+    return null;
+  }
 
   return (
     <>
