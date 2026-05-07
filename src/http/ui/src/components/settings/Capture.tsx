@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Tooltip,
   IconButton,
+  Chip,
 } from "@mui/material";
 import {
   CaptureIcon,
@@ -61,12 +62,44 @@ export const CaptureSettings = () => {
     if (!uploadForm.domain && uploadForm.file) {
       setUploadForm((prev) => {
         let name = (prev.file?.name ?? "").replace(/\.bin$/i, "");
-        const proto = name.startsWith("quic_") ? "quic" : "tls";
         name = name.replace(/^(tls|quic)_/, "").replaceAll("_", ".");
-        return { ...prev, domain: name, protocol: proto };
+        return { ...prev, domain: name };
       });
     }
   }, [uploadForm.domain, uploadForm.file]);
+
+  const detectPayloadProtocol = async (
+    file: File,
+  ): Promise<"tls" | "quic" | null> => {
+    try {
+      const buf = await file.slice(0, 5).arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length < 2) return null;
+      if (bytes[0] === 0x16 && bytes[1] === 0x03) return "tls";
+      if ((bytes[0] & 0xf0) === 0xc0) return "quic";
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleFileChange = async (file: File | null) => {
+    if (!file) {
+      setUploadForm({ ...uploadForm, file: null });
+      return;
+    }
+    let protocol = await detectPayloadProtocol(file);
+    if (!protocol) {
+      const name = file.name.toLowerCase();
+      if (name.startsWith("quic_")) protocol = "quic";
+      else if (name.startsWith("tls_")) protocol = "tls";
+    }
+    setUploadForm({
+      ...uploadForm,
+      file,
+      protocol: protocol ?? uploadForm.protocol,
+    });
+  };
 
   const generateCapture = async () => {
     if (!probeForm.domain) return;
@@ -205,7 +238,7 @@ export const CaptureSettings = () => {
                     accept=".bin,application/octet-stream"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
-                      setUploadForm({ ...uploadForm, file });
+                      void handleFileChange(file);
                     }}
                   />
                 </Button>
@@ -452,7 +485,31 @@ const CaptureCard = ({
             {capture.size.toLocaleString()} bytes
           </Typography>
         </Box>
-        <CaptureIcon sx={{ color: colors.secondary, fontSize: 20, ml: 1 }} />
+        <Chip
+          label={capture.protocol.toUpperCase()}
+          size="small"
+          sx={{
+            ml: 1,
+            height: 20,
+            fontSize: "0.65rem",
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            bgcolor:
+              capture.protocol === "quic"
+                ? colors.accent.secondary
+                : `${colors.state.info}26`,
+            color:
+              capture.protocol === "quic"
+                ? colors.secondary
+                : colors.state.info,
+            border: `1px solid ${
+              capture.protocol === "quic"
+                ? colors.border.strong
+                : `${colors.state.info}66`
+            }`,
+            "& .MuiChip-label": { px: 0.75 },
+          }}
+        />
       </Stack>
 
       {/* Timestamp */}

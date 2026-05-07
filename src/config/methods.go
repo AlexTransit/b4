@@ -873,14 +873,22 @@ func (c *Config) LoadCapturePayloads() {
 		}
 
 		set.UDP.FakePayloadData = nil
-		if set.UDP.FakePayloadFile != "" && set.UDP.FakePayloadFile != FakePayloadAutoQUIC && capturesDir != "" {
-			payloadPath := filepath.Join(capturesDir, set.UDP.FakePayloadFile)
-			data, err := os.ReadFile(payloadPath)
-			if err != nil {
-				log.Errorf("Failed to load UDP fake payload %s: %v", set.UDP.FakePayloadFile, err)
-			} else {
-				set.UDP.FakePayloadData = data
-				log.Tracef("Loaded UDP fake payload %s (%d bytes)", set.UDP.FakePayloadFile, len(data))
+		switch set.UDP.FakePayloadFile {
+		case "", FakePayloadAutoQUIC:
+		case FakePayloadPreset1:
+			set.UDP.FakePayloadData = FakeQUIC1
+		case FakePayloadPreset2:
+			set.UDP.FakePayloadData = FakeQUIC2
+		default:
+			if capturesDir != "" {
+				payloadPath := filepath.Join(capturesDir, set.UDP.FakePayloadFile)
+				data, err := os.ReadFile(payloadPath)
+				if err != nil {
+					log.Errorf("Failed to load UDP fake payload %s: %v", set.UDP.FakePayloadFile, err)
+				} else {
+					set.UDP.FakePayloadData = data
+					log.Tracef("Loaded UDP fake payload %s (%d bytes)", set.UDP.FakePayloadFile, len(data))
+				}
 			}
 		}
 	}

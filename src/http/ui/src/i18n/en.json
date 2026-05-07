@@ -468,7 +468,7 @@
       "protocol": "Protocol",
       "protocolTls": "TLS (for TCP fakes)",
       "protocolQuic": "QUIC (for UDP fakes)",
-      "protocolHelp": "TLS payloads are used by TCP fake-SNI; QUIC payloads are used by UDP fake packets",
+      "protocolHelp": "Auto-detected from file contents on upload. Override only if needed.",
       "chooseFile": "Choose File...",
       "uploadFailed": "Failed to upload payload",
       "generateTitle": "Generate Payload",
@@ -1111,6 +1111,8 @@
       "fakePayloadFileEmpty": "No captures uploaded yet. Default = zero fill.",
       "fakePayloadFileAutoQuicOption": "(auto: QUIC Initial)",
       "fakePayloadFileAutoQuic": "b4 generates a fresh randomized QUIC Initial for each fake packet, with random connection IDs. Recommended size: 1200 bytes.",
+      "fakePayloadFilePreset1": "QUIC preset 1",
+      "fakePayloadFilePreset2": "QUIC preset 2",
       "fakePayloadManage": "Upload or manage payloads in Settings → Payloads",
       "seg2delay": "Segment 2 Delay",
       "seg2delayHelper": "Delay between segments. Use a range for random delay per packet."

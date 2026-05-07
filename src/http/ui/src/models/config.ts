@@ -123,6 +123,8 @@ export type UdpFilterQuicMode = "disabled" | "all" | "parse";
 export type UdpFakingStrategy = "none" | "ttl" | "checksum";
 
 export const UDP_FAKE_PAYLOAD_AUTO_QUIC = "@quic_initial";
+export const UDP_FAKE_PAYLOAD_PRESET_1 = "@preset:quic1";
+export const UDP_FAKE_PAYLOAD_PRESET_2 = "@preset:quic2";
 
 export interface UdpConfig {
   mode: UdpMode;

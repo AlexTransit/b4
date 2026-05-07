@@ -17,6 +17,8 @@ import {
   QueueConfig,
   UdpMode,
   UDP_FAKE_PAYLOAD_AUTO_QUIC,
+  UDP_FAKE_PAYLOAD_PRESET_1,
+  UDP_FAKE_PAYLOAD_PRESET_2,
 } from "@models/config";
 import { useCaptures } from "@b4.capture";
 import { useTranslation, Trans } from "react-i18next";
@@ -113,6 +115,11 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
   } else {
     payloadFileHelperKey = "sets.udp.fakePayloadFileHelper";
   }
+
+  const captureProtocolRank = (proto: string) => (proto === "quic" ? 0 : 1);
+  const sortedCaptures = [...captures].sort(
+    (a, b) => captureProtocolRank(a.protocol) - captureProtocolRank(b.protocol),
+  );
 
   const showParseWarning =
     config.udp.filter_quic === "parse" && !hasDomainsConfigured;
@@ -282,7 +289,15 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                     value: UDP_FAKE_PAYLOAD_AUTO_QUIC,
                     label: t("sets.udp.fakePayloadFileAutoQuicOption"),
                   },
-                  ...captures.map((c) => ({
+                  {
+                    value: UDP_FAKE_PAYLOAD_PRESET_1,
+                    label: t("sets.udp.fakePayloadFilePreset1"),
+                  },
+                  {
+                    value: UDP_FAKE_PAYLOAD_PRESET_2,
+                    label: t("sets.udp.fakePayloadFilePreset2"),
+                  },
+                  ...sortedCaptures.map((c) => ({
                     value: c.filepath,
                     label: `[${c.protocol}] ${c.domain} (${c.size} bytes)`,
                   })),
