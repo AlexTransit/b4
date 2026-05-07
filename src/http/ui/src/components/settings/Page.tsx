@@ -29,6 +29,7 @@ import {
   WarningIcon,
 } from "@b4.icons";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { useAiStatus } from "@context/AiStatusProvider";
 import { ApiSettings } from "./Api";
 import { CaptureSettings } from "./Capture";
 import { ControlSettings } from "./Control";
@@ -160,9 +161,7 @@ export function SettingsPage() {
 
   // Handle tab change
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    const category = settingCategories.find(
-      (cat) => cat.id === (newValue as TABS),
-    );
+    const category = settingCategories.find((cat) => cat.id === newValue);
     if (category) {
       navigate(`/settings/${category.path}`)?.catch(() => {});
     }
@@ -218,7 +217,9 @@ export function SettingsPage() {
       // API
       [TABS.API]:
         JSON.stringify(config.system.api) !==
-        JSON.stringify(originalConfig.system.api),
+          JSON.stringify(originalConfig.system.api) ||
+        JSON.stringify(config.system.ai) !==
+          JSON.stringify(originalConfig.system.ai),
 
       // PAYLOADS
       [TABS.PAYLOADS]: false,
@@ -248,11 +249,13 @@ export function SettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [i18n, t]);
 
   useEffect(() => {
     loadConfig().catch(() => {});
   }, [loadConfig]);
+
+  const { refresh: refreshAiStatus } = useAiStatus();
 
   const saveConfig = async () => {
     if (!config) return;
@@ -264,15 +267,16 @@ export function SettingsPage() {
 
       const requiresRestart = categoryHasChanges[0];
       showSuccess(
-        requiresRestart
-          ? t("core.configSavedRestart")
-          : t("core.configSaved"),
+        requiresRestart ? t("core.configSavedRestart") : t("core.configSaved"),
       );
     } catch (error) {
-      showError(error instanceof Error ? error.message : t("core.configSaveError"));
+      showError(
+        error instanceof Error ? error.message : t("core.configSaveError"),
+      );
     } finally {
       setSaving(false);
       await loadConfig();
+      void refreshAiStatus();
     }
   };
 
@@ -295,14 +299,16 @@ export function SettingsPage() {
       | null
       | undefined,
   ) => {
-    if (!config) return;
+    setConfig((prev) => {
+      if (!prev) return prev;
 
-    const keys = field.split(".");
+      const keys = field.split(".");
 
-    if (keys.length === 1) {
-      setConfig({ ...config, [field]: value });
-    } else {
-      const newConfig = { ...config };
+      if (keys.length === 1) {
+        return { ...prev, [field]: value };
+      }
+
+      const newConfig = { ...prev };
       let current: Record<string, unknown> = newConfig;
 
       for (let i = 0; i < keys.length - 1; i++) {
@@ -311,8 +317,8 @@ export function SettingsPage() {
       }
 
       current[keys.at(-1)!] = value;
-      setConfig(newConfig);
-    }
+      return newConfig;
+    });
   };
 
   if (loading || !config) {
@@ -383,7 +389,10 @@ export function SettingsPage() {
             <Stack direction="row" spacing={1}>
               {categoryHasChanges[TABS.GENERAL] && (
                 <B4Alert severity="warning" sx={{ py: 0, px: spacing.sm }}>
-                  <Trans i18nKey="core.coreRestartWarning" components={{ strong: <strong /> }} />
+                  <Trans
+                    i18nKey="core.coreRestartWarning"
+                    components={{ strong: <strong /> }}
+                  />
                 </B4Alert>
               )}
               <Button
@@ -526,7 +535,9 @@ export function SettingsPage() {
         onClose={() => setShowResetDialog(false)}
         actions={
           <>
-            <Button onClick={() => setShowResetDialog(false)}>{t("core.cancel")}</Button>
+            <Button onClick={() => setShowResetDialog(false)}>
+              {t("core.cancel")}
+            </Button>
             <Box sx={{ flex: 1 }} />
             <Button onClick={resetChanges} variant="contained">
               {t("core.discard")}
@@ -535,9 +546,7 @@ export function SettingsPage() {
         }
       >
         <DialogContent>
-          <DialogContentText>
-            {t("core.discardConfirm")}
-          </DialogContentText>
+          <DialogContentText>{t("core.discardConfirm")}</DialogContentText>
         </DialogContent>
       </B4Dialog>
     </Container>

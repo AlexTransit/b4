@@ -319,6 +319,19 @@ func BuildValidSplits(splits []int, payloadLen int) []int {
 	return validSplits
 }
 
+func BuildSeqOverlapSegmentV4(packet []byte, pi PacketInfo, origPayload []byte, origStartOffset int, seqovlLen int, pattern []byte, idOffset uint16) []byte {
+	if seqovlLen <= 0 || len(pattern) == 0 {
+		return BuildSegmentV4(packet, pi, origPayload, uint32(origStartOffset), idOffset)
+	}
+	ext := make([]byte, seqovlLen+len(origPayload))
+	for i := 0; i < seqovlLen; i++ {
+		ext[i] = pattern[i%len(pattern)]
+	}
+	copy(ext[seqovlLen:], origPayload)
+	seqOffset := uint32(origStartOffset) - uint32(seqovlLen)
+	return BuildSegmentV4(packet, pi, ext, seqOffset, idOffset)
+}
+
 func BuildFakeOverlapSegmentV4(packet []byte, pi PacketInfo, payloadLen int, seqOffset uint32, idOffset uint16, fakePattern []byte, fakeTTL uint8) []byte {
 	if payloadLen <= 0 {
 		return nil

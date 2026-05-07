@@ -6,6 +6,7 @@ import {
   SliderProps,
 } from "@mui/material";
 import { colors } from "@design";
+import { B4AiExplain, aiHoverRevealSx } from "./B4AiExplain";
 
 interface B4SliderProps extends Omit<SliderProps, "onChange"> {
   label: string;
@@ -19,6 +20,9 @@ interface B4SliderProps extends Omit<SliderProps, "onChange"> {
   valueSuffix?: string;
   alert?: React.ReactNode;
   disabled?: boolean;
+  aiTopic?: string;
+  aiContext?: Record<string, unknown>;
+  aiQuestion?: string;
 }
 
 export const B4Slider = ({
@@ -33,6 +37,9 @@ export const B4Slider = ({
   valueSuffix = "",
   disabled,
   alert,
+  aiTopic,
+  aiContext,
+  aiQuestion,
   ...props
 }: B4SliderProps) => {
   const handleChange = (_event: Event, newValue: number | number[]) => {
@@ -40,7 +47,7 @@ export const B4Slider = ({
   };
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box sx={{ width: "100%", ...aiHoverRevealSx }}>
       <Box
         sx={{
           display: "flex",
@@ -60,25 +67,37 @@ export const B4Slider = ({
         >
           {label}
         </Typography>
-        {showValue && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: disabled ? colors.text.disabled : colors.secondary,
-              fontWeight: 600,
-              bgcolor: disabled
-                ? colors.background.dark
-                : colors.accent.secondary,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              textAlign: "center",
-            }}
-          >
-            {value}
-            {valueSuffix}
-          </Typography>
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {aiTopic && (
+            <B4AiExplain
+              topic={aiTopic}
+              fieldLabel={label}
+              fieldDoc={helperText}
+              value={value}
+              context={aiContext}
+              question={aiQuestion}
+            />
+          )}
+          {showValue && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: disabled ? colors.text.disabled : colors.secondary,
+                fontWeight: 600,
+                bgcolor: disabled
+                  ? colors.background.dark
+                  : colors.accent.secondary,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                textAlign: "center",
+              }}
+            >
+              {value}
+              {valueSuffix}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       <Slider

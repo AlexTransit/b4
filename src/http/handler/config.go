@@ -376,6 +376,9 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 	if routingSyncFunc != nil {
 		routingSyncFunc(newCfg)
 	}
+	if globalAIManager != nil {
+		globalAIManager.Update(newCfg.System.AI)
+	}
 
 	return nil
 }

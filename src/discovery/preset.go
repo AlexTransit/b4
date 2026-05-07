@@ -712,6 +712,34 @@ func GetPhase2Presets(family StrategyFamily) []ConfigPreset {
 			}
 		}
 
+		// Sequence overlap length variations (prepends pattern bytes to first segment, shifts seq back)
+		for _, n := range []int{64, 256, 681} {
+			presets = append(presets, ConfigPreset{
+				Name:     formatName("combo-seqovl%d", n),
+				Family:   FamilyCombo,
+				Phase:    PhaseOptimize,
+				Priority: 300 + n,
+				Config: withTCP(withFragmentation(base, config.FragmentationConfig{
+					Strategy:          "combo",
+					ReverseOrder:      true,
+					MiddleSNI:         true,
+					SNIPosition:       1,
+					SeqOverlapPattern: []string{"0x16", "0x03", "0x03", "0x00", "0x00"},
+					SeqOverlapLength:  n,
+					Combo: config.ComboFragConfig{
+						FirstByteSplit: true,
+						ExtensionSplit: true,
+						ShuffleMode:    "full",
+						FirstDelayMs:   30,
+						JitterMaxUs:    1000,
+					},
+				}), config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+				}),
+			})
+		}
+
 	case FamilyTCPFrag:
 		positions := []int{1, 2, 3, 5, 10}
 		for _, pos := range positions {
@@ -815,6 +843,39 @@ func GetPhase2Presets(family StrategyFamily) []ConfigPreset {
 					}),
 				})
 			}
+		}
+
+		// Sequence overlap length variations (prepends pattern bytes to second segment, shifts seq back)
+		// SNIPosition is set explicitly large enough that the second segment starts past seqovlLength.
+		seqovlDisorder := []struct {
+			length int
+			pos    int
+		}{
+			{128, 256},
+			{256, 512},
+		}
+		for _, v := range seqovlDisorder {
+			presets = append(presets, ConfigPreset{
+				Name:     formatName("disorder-seqovl%d-pos%d", v.length, v.pos),
+				Family:   FamilyDisorder,
+				Phase:    PhaseOptimize,
+				Priority: 300 + v.length,
+				Config: withTCP(withFragmentation(base, config.FragmentationConfig{
+					Strategy:          "disorder",
+					ReverseOrder:      true,
+					SNIPosition:       v.pos,
+					SeqOverlapPattern: []string{"0x16", "0x03", "0x03", "0x00", "0x00"},
+					SeqOverlapLength:  v.length,
+					Disorder: config.DisorderFragConfig{
+						ShuffleMode: "full",
+						MinJitterUs: 500,
+						MaxJitterUs: 2100,
+					},
+				}), config.TCPConfig{
+					ConnBytesLimit: 19,
+					Seg2Delay:      20,
+				}),
+			})
 		}
 
 		// TLS header overlap pattern

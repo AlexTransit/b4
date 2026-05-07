@@ -7,9 +7,8 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { ClearIcon } from "@b4.icons";
+import { ClearIcon, ArrowDownIcon } from "@b4.icons";
 import { B4Badge, B4TextField, B4Switch, B4TooltipButton } from "@b4.elements";
-import { ArrowDownIcon } from "@b4.icons";
 import { colors, fonts, glows } from "@design";
 import { useWebSocket } from "@context/B4WsProvider";
 import { useSnackbar } from "@context/SnackbarProvider";
@@ -72,10 +71,10 @@ export function LogsPage() {
       } else if (e.key === "p" || e.key === "Pause") {
         e.preventDefault();
         setPauseLogs(!pauseLogs);
-        showSuccess(!pauseLogs ? t("logs.paused") : t("logs.resumed"));
+        showSuccess(pauseLogs ? t("logs.resumed") : t("logs.paused"));
       }
     },
-    [clearLogs, pauseLogs, setPauseLogs, showSuccess]
+    [clearLogs, pauseLogs, setPauseLogs, showSuccess, t],
   );
 
   useEffect(() => {
@@ -126,13 +125,21 @@ export function LogsPage() {
               onChange={(e) => setFilter(e.target.value)}
             />
             <Stack direction="row" spacing={1} alignItems="center">
-              <B4Badge label={t("core.lines", { count: logs.length })} size="small" />
+              <B4Badge
+                label={t("core.lines", { count: logs.length })}
+                size="small"
+              />
               {filter && (
-                <B4Badge label={t("core.filtered", { count: filtered.length })} size="small" />
+                <B4Badge
+                  label={t("core.filtered", { count: filtered.length })}
+                  size="small"
+                />
               )}
             </Stack>
             <B4Switch
-              label={pauseLogs ? t("logs.pausedLabel") : t("logs.streamingLabel")}
+              label={
+                pauseLogs ? t("logs.pausedLabel") : t("logs.streamingLabel")
+              }
               checked={pauseLogs}
               onChange={(checked: boolean) => setPauseLogs(checked)}
             />

@@ -1,9 +1,5 @@
 import { useState, useCallback } from "react";
 
-interface UpdateRequest {
-  version?: string;
-}
-
 interface UpdateResponse {
   success: boolean;
   message: string;
@@ -26,7 +22,7 @@ export const useSystemUpdate = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ version } as UpdateRequest),
+          body: JSON.stringify({ version }),
         });
 
         const rawData: unknown = await response.json();
@@ -36,7 +32,7 @@ export const useSystemUpdate = () => {
             typeof obj === "object" &&
             obj !== null &&
             "success" in obj &&
-            typeof (obj as { success: unknown }).success === "boolean" &&
+            typeof obj.success === "boolean" &&
             "message" in obj &&
             typeof (obj as { message: unknown }).message === "string" &&
             "service_manager" in obj &&
@@ -73,7 +69,7 @@ export const useSystemUpdate = () => {
         return null;
       }
     },
-    []
+    [],
   );
 
   const waitForReconnection = useCallback(
@@ -103,7 +99,7 @@ export const useSystemUpdate = () => {
       setError("Update did not complete within expected time");
       return false;
     },
-    []
+    [],
   );
 
   return {

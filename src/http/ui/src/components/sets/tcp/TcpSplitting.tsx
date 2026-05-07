@@ -6,6 +6,8 @@ import {
   B4Alert,
   B4FormHeader,
   B4Hint,
+  B4AiExplain,
+  aiHoverRevealSx,
 } from "@b4.elements";
 import { B4SetConfig, FragmentationStrategy } from "@models/config";
 import { colors } from "@design";
@@ -73,6 +75,11 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
           value={strategy}
           options={fragmentationOptions}
           onChange={(e) => onChange("fragmentation.strategy", e.target.value)}
+          aiTopic="fragmentation.strategy"
+          aiContext={{
+            available: fragmentationOptions.map((o) => o.value),
+            pool,
+          }}
         />
       </Grid>
 
@@ -84,20 +91,42 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
             onChange("fragmentation.reverse_order", checked)
           }
           description={t("sets.tcp.splitting.reverseOrderDesc")}
+          aiTopic="fragmentation.reverse_order"
         />
       </Grid>
 
       <Grid size={{ xs: 12 }}>
-        <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
-          {t("sets.tcp.splitting.strategyPool")}
-        </Typography>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ mb: 1, display: "block" }}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 1,
+            ...aiHoverRevealSx,
+          }}
         >
-          {t("sets.tcp.splitting.strategyPoolDesc")}
-        </Typography>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500, mb: 1 }}>
+              {t("sets.tcp.splitting.strategyPool")}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ mb: 1, display: "block" }}
+            >
+              {t("sets.tcp.splitting.strategyPoolDesc")}
+            </Typography>
+          </Box>
+          <B4AiExplain
+            topic="fragmentation.strategy_pool"
+            fieldLabel={t("sets.tcp.splitting.strategyPool")}
+            fieldDoc={t("sets.tcp.splitting.strategyPoolDesc")}
+            value={pool.join(",")}
+            context={{
+              current_strategy: strategy,
+              pool_size: pool.length,
+            }}
+          />
+        </Box>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
           {poolOptions.map((opt) => {
             const active: boolean = pool.includes(opt.value);
@@ -172,6 +201,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
               max={50}
               step={1}
               helperText={t("sets.tcp.splitting.oobPositionHelper")}
+              aiTopic="fragmentation.oob_position"
             />
           </Grid>
 
@@ -217,6 +247,7 @@ export const TcpSplitting = ({ config, onChange }: TcpSplittingProps) => {
               max={100}
               step={1}
               helperText={t("sets.tcp.splitting.tlsRecPositionHelper")}
+              aiTopic="fragmentation.tlsrec_pos"
             />
           </Grid>
         </>

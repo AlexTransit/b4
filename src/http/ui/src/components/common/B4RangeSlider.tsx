@@ -6,6 +6,7 @@ import {
   SliderProps,
 } from "@mui/material";
 import { colors } from "@design";
+import { B4AiExplain, aiHoverRevealSx } from "./B4AiExplain";
 
 interface B4RangeSliderProps extends Omit<SliderProps, "onChange" | "value"> {
   label: string;
@@ -19,6 +20,9 @@ interface B4RangeSliderProps extends Omit<SliderProps, "onChange" | "value"> {
   valueSuffix?: string;
   alert?: React.ReactNode;
   disabled?: boolean;
+  aiTopic?: string;
+  aiContext?: Record<string, unknown>;
+  aiQuestion?: string;
 }
 
 export const B4RangeSlider = ({
@@ -33,6 +37,9 @@ export const B4RangeSlider = ({
   valueSuffix = "",
   disabled,
   alert,
+  aiTopic,
+  aiContext,
+  aiQuestion,
   ...props
 }: B4RangeSliderProps) => {
   const handleChange = (_event: Event, newValue: number | number[]) => {
@@ -44,7 +51,7 @@ export const B4RangeSlider = ({
   const isRange = value[0] !== value[1];
 
   return (
-    <Box sx={{ width: "100%" }}>
+    <Box sx={{ width: "100%", ...aiHoverRevealSx }}>
       <Box
         sx={{
           display: "flex",
@@ -64,26 +71,42 @@ export const B4RangeSlider = ({
         >
           {label}
         </Typography>
-        {showValue && (
-          <Typography
-            variant="body2"
-            sx={{
-              color: disabled ? colors.text.disabled : colors.secondary,
-              fontWeight: 600,
-              bgcolor: disabled
-                ? colors.background.dark
-                : colors.accent.secondary,
-              px: 1.5,
-              py: 0.5,
-              borderRadius: 1,
-              textAlign: "center",
-            }}
-          >
-            {isRange
-              ? `${value[0]}${valueSuffix} – ${value[1]}${valueSuffix}`
-              : `${value[0]}${valueSuffix}`}
-          </Typography>
-        )}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {aiTopic && (
+            <B4AiExplain
+              topic={aiTopic}
+              fieldLabel={label}
+              fieldDoc={helperText}
+              value={
+                isRange
+                  ? `${value[0]}${valueSuffix} - ${value[1]}${valueSuffix}`
+                  : `${value[0]}${valueSuffix}`
+              }
+              context={aiContext}
+              question={aiQuestion}
+            />
+          )}
+          {showValue && (
+            <Typography
+              variant="body2"
+              sx={{
+                color: disabled ? colors.text.disabled : colors.secondary,
+                fontWeight: 600,
+                bgcolor: disabled
+                  ? colors.background.dark
+                  : colors.accent.secondary,
+                px: 1.5,
+                py: 0.5,
+                borderRadius: 1,
+                textAlign: "center",
+              }}
+            >
+              {isRange
+                ? `${value[0]}${valueSuffix} – ${value[1]}${valueSuffix}`
+                : `${value[0]}${valueSuffix}`}
+            </Typography>
+          )}
+        </Box>
       </Box>
 
       <Slider

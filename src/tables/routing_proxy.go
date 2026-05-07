@@ -12,14 +12,26 @@ import (
 
 const proxyRulePriority = 5
 
+const proxyLocalDeliveryTable = 252
+
 func proxyMarkAndPort(set *config.SetConfig) (uint32, int) {
 	mark := tproxy.MarkForSet(set.Id, set.Routing.FWMark)
 	port := tproxy.PortFor(mark)
 	return mark, port
 }
 
-func proxyTable(mark uint32) int {
-	return 1000 + int(mark)
+func proxyTable() int {
+	return proxyLocalDeliveryTable
+}
+
+func proxyActiveCount() int {
+	n := 0
+	for _, st := range routeRuleCache {
+		if st.mode == config.RoutingModeProxy {
+			n++
+		}
+	}
+	return n
 }
 
 func routeEnsureProxyRule(be routeBackend, cfg *config.Config, set *config.SetConfig, st routeState, sources []string) error {
@@ -91,8 +103,10 @@ func routeCleanupProxyRule(be routeBackend, st routeState) {
 		routeDelRuleLoop(false, markStrMask, tableStr)
 		routeDelRuleLoop(true, markStr, tableStr)
 		routeDelRuleLoop(true, markStrMask, tableStr)
-		runLogged("routing: delete proxy local route v4", "ip", "route", "del", "local", "0.0.0.0/0", "dev", "lo", "table", tableStr)
-		runLogged("routing: delete proxy local route v6", "ip", "-6", "route", "del", "local", "::/0", "dev", "lo", "table", tableStr)
+		if proxyActiveCount() <= 1 {
+			runLogged("routing: delete proxy local route v4", "ip", "route", "del", "local", "0.0.0.0/0", "dev", "lo", "table", tableStr)
+			runLogged("routing: delete proxy local route v6", "ip", "-6", "route", "del", "local", "::/0", "dev", "lo", "table", tableStr)
+		}
 	}
 
 	removeProxyInputAccept(be, st.mark)
