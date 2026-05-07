@@ -52,8 +52,13 @@ func (s *SecretStore) load() {
 
 func (s *SecretStore) save() error {
 	s.mu.RLock()
-	raw, err := json.MarshalIndent(s.data, "", "  ")
+	data := s.data
 	s.mu.RUnlock()
+	return s.persist(data)
+}
+
+func (s *SecretStore) persist(data map[string]string) error {
+	raw, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -80,13 +85,25 @@ func (s *SecretStore) Set(ref, key string) error {
 		return nil
 	}
 	s.mu.Lock()
+	next := make(map[string]string, len(s.data)+1)
+	for k, v := range s.data {
+		next[k] = v
+	}
 	if key == "" {
-		delete(s.data, ref)
+		delete(next, ref)
 	} else {
-		s.data[ref] = key
+		next[ref] = key
 	}
 	s.mu.Unlock()
-	return s.save()
+
+	if err := s.persist(next); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	s.data = next
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *SecretStore) Delete(ref string) error {
