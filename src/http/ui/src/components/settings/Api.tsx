@@ -151,6 +151,7 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
 
   const handleProviderChange = (value: string) => {
     onChange("system.ai.provider", value);
+    onChange("system.ai.model", "");
     const next = DEFAULT_ENDPOINTS[value] ?? "";
     const current = (ai?.endpoint ?? "").trim();
     const knownDefaults = Object.values(DEFAULT_ENDPOINTS);
