@@ -5,10 +5,13 @@ import (
 	"encoding/binary"
 )
 
-const quicFakeHeaderLen = 30
+const (
+	quicFakeHeaderLen = 30
+	quicFakeMaxSize   = quicFakeHeaderLen + 0x3FFF - 4
+)
 
 func BuildQUICInitial(size int) []byte {
-	if size < quicFakeHeaderLen {
+	if size < quicFakeHeaderLen || size > quicFakeMaxSize {
 		return nil
 	}
 	out := make([]byte, size)
@@ -44,9 +47,6 @@ func BuildQUICInitial(size int) []byte {
 	}
 
 	coveredLen := 4 + (size - quicFakeHeaderLen)
-	if coveredLen > 0x3FFF {
-		coveredLen = 0x3FFF
-	}
 	binary.BigEndian.PutUint16(out[24:26], 0x4000|uint16(coveredLen))
 
 	return out

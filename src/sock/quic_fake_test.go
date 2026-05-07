@@ -55,7 +55,7 @@ func TestBuildQUICInitial_LengthVarint(t *testing.T) {
 		{30, 4},
 		{100, 74},
 		{1200, 1174},
-		{20000, 0x3FFF},
+		{quicFakeMaxSize, 0x3FFF},
 	}
 	for _, c := range cases {
 		pkt := BuildQUICInitial(c.size)
@@ -67,6 +67,12 @@ func TestBuildQUICInitial_LengthVarint(t *testing.T) {
 		if got != expected {
 			t.Errorf("size=%d: expected length varint 0x%04X, got 0x%04X", c.size, expected, got)
 		}
+	}
+}
+
+func TestBuildQUICInitial_TooLarge(t *testing.T) {
+	if got := BuildQUICInitial(quicFakeMaxSize + 1); got != nil {
+		t.Errorf("expected nil for size > %d, got %d bytes", quicFakeMaxSize, len(got))
 	}
 }
 
