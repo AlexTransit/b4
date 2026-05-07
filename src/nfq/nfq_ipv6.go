@@ -19,7 +19,11 @@ func (w *Worker) dropAndInjectQUICV6(cfg *config.SetConfig, raw []byte, dst net.
 
 	if cfg.UDP.FakeSeqLength > 0 {
 		for i := 0; i < cfg.UDP.FakeSeqLength; i++ {
-			fake, ok := sock.BuildFakeUDPFromOriginalV6(raw, cfg.UDP.FakeLen, cfg.Faking.TTL)
+			payload := cfg.UDP.FakePayloadData
+			if cfg.UDP.FakePayloadFile == config.FakePayloadAutoQUIC {
+				payload = sock.BuildQUICInitial(cfg.UDP.FakeLen)
+			}
+			fake, ok := sock.BuildFakeUDPFromOriginalV6(raw, cfg.UDP.FakeLen, cfg.Faking.TTL, payload)
 			if ok {
 				if cfg.UDP.FakingStrategy == "checksum" {
 					ipv6HdrLen := 40

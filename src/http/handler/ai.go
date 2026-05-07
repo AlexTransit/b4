@@ -22,6 +22,18 @@ func (api *API) RegisterAIApi() {
 	api.mux.HandleFunc("/api/ai/chat", api.handleAIChat)
 }
 
+// @Summary List models for an AI provider
+// @Tags AI
+// @Produce json
+// @Param provider query string false "Provider id (openai, anthropic, ollama). Defaults to configured provider."
+// @Param endpoint query string false "Override endpoint URL (used when provider matches the configured one)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 428 {object} map[string]string "API key missing for provider"
+// @Failure 502 {object} map[string]string "Upstream provider error"
+// @Failure 503 {object} map[string]string "AI manager not initialized"
+// @Security BearerAuth
+// @Router /ai/models [get]
 func (api *API) handleAIModels(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -83,6 +95,13 @@ type aiStatusResponse struct {
 	AvailableProviders []string `json:"available_providers"`
 }
 
+// @Summary Get AI assistant status
+// @Description Returns whether the AI assistant is enabled, configured, and ready to serve requests.
+// @Tags AI
+// @Produce json
+// @Success 200 {object} aiStatusResponse
+// @Security BearerAuth
+// @Router /ai/status [get]
 func (api *API) handleAIStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -123,6 +142,13 @@ type aiSecretBody struct {
 	Key string `json:"key"`
 }
 
+// @Summary List stored AI secret refs
+// @Tags AI
+// @Produce json
+// @Success 200 {object} map[string][]string
+// @Failure 503 {object} map[string]string "AI manager not initialized"
+// @Security BearerAuth
+// @Router /ai/secrets [get]
 func (api *API) handleAISecrets(w http.ResponseWriter, r *http.Request) {
 	mgr := globalAIManager
 	if mgr == nil {
@@ -137,43 +163,70 @@ func (api *API) handleAISecrets(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string][]string{"refs": refs})
 
 	case http.MethodPut:
-		var body aiSecretBody
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeJsonError(w, http.StatusBadRequest, "invalid body")
-			return
-		}
-		body.Ref = strings.TrimSpace(body.Ref)
-		if body.Ref == "" {
-			writeJsonError(w, http.StatusBadRequest, "ref is required")
-			return
-		}
-		if strings.TrimSpace(body.Key) == "" {
-			writeJsonError(w, http.StatusBadRequest, "key is required (use DELETE to remove)")
-			return
-		}
-		if err := mgr.Secrets().Set(body.Ref, body.Key); err != nil {
-			log.Errorf("ai: failed to save secret: %v", err)
-			writeJsonError(w, http.StatusInternalServerError, "failed to save secret")
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"success": true, "ref": body.Ref})
+		api.putAISecret(w, r, mgr)
 
 	case http.MethodDelete:
-		ref := strings.TrimSpace(r.URL.Query().Get("ref"))
-		if ref == "" {
-			writeJsonError(w, http.StatusBadRequest, "ref query param is required")
-			return
-		}
-		if err := mgr.Secrets().Delete(ref); err != nil {
-			log.Errorf("ai: failed to delete secret: %v", err)
-			writeJsonError(w, http.StatusInternalServerError, "failed to delete secret")
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"success": true})
+		api.deleteAISecret(w, r, mgr)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+// @Summary Save an AI provider secret
+// @Tags AI
+// @Accept json
+// @Produce json
+// @Param body body aiSecretBody true "Secret ref and key"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
+// @Router /ai/secrets [put]
+func (api *API) putAISecret(w http.ResponseWriter, r *http.Request, mgr *ai.Manager) {
+	var body aiSecretBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeJsonError(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	body.Ref = strings.TrimSpace(body.Ref)
+	if body.Ref == "" {
+		writeJsonError(w, http.StatusBadRequest, "ref is required")
+		return
+	}
+	if strings.TrimSpace(body.Key) == "" {
+		writeJsonError(w, http.StatusBadRequest, "key is required (use DELETE to remove)")
+		return
+	}
+	if err := mgr.Secrets().Set(body.Ref, body.Key); err != nil {
+		log.Errorf("ai: failed to save secret: %v", err)
+		writeJsonError(w, http.StatusInternalServerError, "failed to save secret")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "ref": body.Ref})
+}
+
+// @Summary Delete an AI provider secret
+// @Tags AI
+// @Produce json
+// @Param ref query string true "Secret ref to remove"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Security BearerAuth
+// @Router /ai/secrets [delete]
+func (api *API) deleteAISecret(w http.ResponseWriter, r *http.Request, mgr *ai.Manager) {
+	ref := strings.TrimSpace(r.URL.Query().Get("ref"))
+	if ref == "" {
+		writeJsonError(w, http.StatusBadRequest, "ref query param is required")
+		return
+	}
+	if err := mgr.Secrets().Delete(ref); err != nil {
+		log.Errorf("ai: failed to delete secret: %v", err)
+		writeJsonError(w, http.StatusInternalServerError, "failed to delete secret")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true})
 }
 
 type aiExplainRequest struct {
@@ -186,6 +239,17 @@ type aiExplainRequest struct {
 	Language    string `json:"language,omitempty"`
 }
 
+// @Summary Stream an AI explanation for a config setting
+// @Description Streams a Server-Sent Events response with delta/done/error events.
+// @Tags AI
+// @Accept json
+// @Produce text/event-stream
+// @Param body body aiExplainRequest true "Explain request"
+// @Success 200 {string} string "SSE stream"
+// @Failure 400 {object} map[string]string
+// @Failure 503 {object} map[string]string "AI manager not initialized or provider unavailable"
+// @Security BearerAuth
+// @Router /ai/explain [post]
 func (api *API) handleAIExplain(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -220,6 +284,17 @@ type aiChatRequest struct {
 	Messages []ai.Message `json:"messages"`
 }
 
+// @Summary Stream an AI chat completion
+// @Description Streams a Server-Sent Events response with delta/done/error events for a chat conversation.
+// @Tags AI
+// @Accept json
+// @Produce text/event-stream
+// @Param body body aiChatRequest true "Chat request"
+// @Success 200 {string} string "SSE stream"
+// @Failure 400 {object} map[string]string
+// @Failure 503 {object} map[string]string "AI manager not initialized or provider unavailable"
+// @Security BearerAuth
+// @Router /ai/chat [post]
 func (api *API) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)

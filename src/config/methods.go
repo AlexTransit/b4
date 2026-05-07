@@ -824,6 +824,32 @@ func (c *Config) Clone() *Config {
 	return &clone
 }
 
+func safeCapturePath(configDir, name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("empty path")
+	}
+	if filepath.IsAbs(name) {
+		return "", fmt.Errorf("absolute path not allowed")
+	}
+	configAbs, err := filepath.Abs(configDir)
+	if err != nil {
+		return "", err
+	}
+	capturesAbs := filepath.Join(configAbs, "captures")
+	candidate := filepath.Clean(filepath.Join(configAbs, name))
+	rel, err := filepath.Rel(capturesAbs, candidate)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path escapes captures directory")
+	}
+	if !strings.HasSuffix(strings.ToLower(candidate), ".bin") {
+		return "", fmt.Errorf("only .bin files are allowed")
+	}
+	return candidate, nil
+}
+
 func (c *Config) LoadCapturePayloads() {
 	capturesDir := ""
 	if c.ConfigPath != "" {
@@ -846,7 +872,12 @@ func (c *Config) LoadCapturePayloads() {
 				set.Faking.PayloadData = nil
 				continue
 			}
-			capturePath := filepath.Join(capturesDir, set.Faking.PayloadFile)
+			capturePath, err := safeCapturePath(capturesDir, set.Faking.PayloadFile)
+			if err != nil {
+				log.Errorf("Rejected capture payload %q: %v", set.Faking.PayloadFile, err)
+				set.Faking.PayloadData = nil
+				continue
+			}
 			data, err := os.ReadFile(capturePath)
 			if err != nil {
 				log.Errorf("Failed to load capture file %s: %v", set.Faking.PayloadFile, err)
@@ -870,6 +901,30 @@ func (c *Config) LoadCapturePayloads() {
 			log.Tracef("Generated domain payload for %s (%d bytes)", set.Faking.PayloadDomain, len(data))
 		default:
 			set.Faking.PayloadData = nil
+		}
+
+		set.UDP.FakePayloadData = nil
+		switch set.UDP.FakePayloadFile {
+		case "", FakePayloadAutoQUIC:
+		case FakePayloadPreset1:
+			set.UDP.FakePayloadData = FakeQUIC1
+		case FakePayloadPreset2:
+			set.UDP.FakePayloadData = FakeQUIC2
+		default:
+			if capturesDir != "" {
+				payloadPath, err := safeCapturePath(capturesDir, set.UDP.FakePayloadFile)
+				if err != nil {
+					log.Errorf("Rejected UDP fake payload %q: %v", set.UDP.FakePayloadFile, err)
+					break
+				}
+				data, err := os.ReadFile(payloadPath)
+				if err != nil {
+					log.Errorf("Failed to load UDP fake payload %s: %v", set.UDP.FakePayloadFile, err)
+				} else {
+					set.UDP.FakePayloadData = data
+					log.Tracef("Loaded UDP fake payload %s (%d bytes)", set.UDP.FakePayloadFile, len(data))
+				}
+			}
 		}
 	}
 }

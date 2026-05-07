@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Grid } from "@mui/material";
+import { Link } from "react-router";
 import { DnsIcon, WarningIcon } from "@b4.icons";
 import {
   B4Slider,
@@ -10,7 +12,15 @@ import {
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
-import { B4SetConfig, QueueConfig, UdpMode } from "@models/config";
+import {
+  B4SetConfig,
+  QueueConfig,
+  UdpMode,
+  UDP_FAKE_PAYLOAD_AUTO_QUIC,
+  UDP_FAKE_PAYLOAD_PRESET_1,
+  UDP_FAKE_PAYLOAD_PRESET_2,
+} from "@models/config";
+import { useCaptures } from "@b4.capture";
 import { useTranslation, Trans } from "react-i18next";
 
 interface UdpSettingsProps {
@@ -21,6 +31,11 @@ interface UdpSettingsProps {
 
 export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
   const { t } = useTranslation();
+  const { captures, loadCaptures } = useCaptures();
+
+  useEffect(() => {
+    loadCaptures().catch(() => {});
+  }, [loadCaptures]);
 
   const UDP_MODES = [
     {
@@ -89,6 +104,22 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
 
   const isFakeMode = config.udp.mode === "fake";
   const showFakeSettings = showActionSettings && isFakeMode;
+  const isAutoQuic =
+    config.udp.fake_payload_file === UDP_FAKE_PAYLOAD_AUTO_QUIC;
+
+  let payloadFileHelperKey: string;
+  if (isAutoQuic) {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileAutoQuic";
+  } else if (captures.length === 0) {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileEmpty";
+  } else {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileHelper";
+  }
+
+  const captureProtocolRank = (proto: string) => (proto === "quic" ? 0 : 1);
+  const sortedCaptures = [...captures].sort(
+    (a, b) => captureProtocolRank(a.protocol) - captureProtocolRank(b.protocol),
+  );
 
   const showParseWarning =
     config.udp.filter_quic === "parse" && !hasDomainsConfigured;
@@ -244,6 +275,43 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 valueSuffix=" bytes"
                 helperText={t("sets.udp.fakeSizeHelper")}
               />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <B4Select
+                label={t("sets.udp.fakePayloadFile")}
+                value={config.udp.fake_payload_file ?? ""}
+                options={[
+                  {
+                    value: "",
+                    label: t("sets.udp.fakePayloadFileNone"),
+                  },
+                  {
+                    value: UDP_FAKE_PAYLOAD_AUTO_QUIC,
+                    label: t("sets.udp.fakePayloadFileAutoQuicOption"),
+                  },
+                  {
+                    value: UDP_FAKE_PAYLOAD_PRESET_1,
+                    label: t("sets.udp.fakePayloadFilePreset1"),
+                  },
+                  {
+                    value: UDP_FAKE_PAYLOAD_PRESET_2,
+                    label: t("sets.udp.fakePayloadFilePreset2"),
+                  },
+                  ...sortedCaptures.map((c) => ({
+                    value: c.filepath,
+                    label: `[${c.protocol}] ${c.domain} (${c.size} bytes)`,
+                  })),
+                ]}
+                onChange={(e) =>
+                  onChange("udp.fake_payload_file", e.target.value)
+                }
+                helperText={t(payloadFileHelperKey)}
+              />
+              <B4Alert>
+                <Link to="/settings/payloads">
+                  {t("sets.udp.fakePayloadManage")}
+                </Link>
+              </B4Alert>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <B4RangeSlider

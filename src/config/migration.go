@@ -56,6 +56,15 @@ var migrationRegistry = map[int]MigrationFunc{
 	33: migrateV33to34, // Add manual devices to device config
 	34: migrateV34to35, // Add routing mode and upstream proxy config
 	35: migrateV35to36, // Add fragmentation seq overlap length
+	36: migrateV36to37, // Add UDP fake_payload_file field
+}
+
+func migrateV36to37(c *Config, _ map[string]interface{}) error {
+	log.Tracef("Migration v36->v37: Adding UDP fake_payload_file field")
+	for _, set := range c.Sets {
+		set.UDP.FakePayloadFile = DefaultSetConfig.UDP.FakePayloadFile
+	}
+	return nil
 }
 
 func migrateV35to36(c *Config, _ map[string]interface{}) error {

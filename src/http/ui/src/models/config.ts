@@ -122,11 +122,16 @@ export type UdpMode = "drop" | "reject" | "fake";
 export type UdpFilterQuicMode = "disabled" | "all" | "parse";
 export type UdpFakingStrategy = "none" | "ttl" | "checksum";
 
+export const UDP_FAKE_PAYLOAD_AUTO_QUIC = "@quic_initial";
+export const UDP_FAKE_PAYLOAD_PRESET_1 = "@preset:quic1";
+export const UDP_FAKE_PAYLOAD_PRESET_2 = "@preset:quic2";
+
 export interface UdpConfig {
   mode: UdpMode;
   fake_seq_length: number;
   fake_len: number;
   faking_strategy: UdpFakingStrategy;
+  fake_payload_file?: string;
   dport_filter: string;
   filter_quic: UdpFilterQuicMode;
   conn_bytes_limit: number;
