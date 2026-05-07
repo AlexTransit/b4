@@ -19,7 +19,7 @@ func proxyMarkAndPort(set *config.SetConfig) (uint32, int) {
 }
 
 func proxyTable(mark uint32) int {
-	return 1000 + int(mark)
+	return 100 + int(mark%150)
 }
 
 func routeEnsureProxyRule(be routeBackend, cfg *config.Config, set *config.SetConfig, st routeState, sources []string) error {
