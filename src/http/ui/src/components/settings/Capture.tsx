@@ -85,20 +85,20 @@ export const CaptureSettings = () => {
 
   const handleFileChange = async (file: File | null) => {
     if (!file) {
-      setUploadForm({ ...uploadForm, file: null });
+      setUploadForm((prev) => ({ ...prev, file: null }));
       return;
     }
+    setUploadForm((prev) => ({ ...prev, file }));
     let protocol = await detectPayloadProtocol(file);
     if (!protocol) {
       const name = file.name.toLowerCase();
       if (name.startsWith("quic_")) protocol = "quic";
       else if (name.startsWith("tls_")) protocol = "tls";
     }
-    setUploadForm({
-      ...uploadForm,
-      file,
-      protocol: protocol ?? uploadForm.protocol,
-    });
+    if (!protocol) return;
+    setUploadForm((prev) =>
+      prev.file === file ? { ...prev, protocol } : prev,
+    );
   };
 
   const generateCapture = async () => {
