@@ -47,6 +47,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
               onChange("fragmentation.combo.first_byte_split", checked)
             }
             description={t("sets.tcp.splitting.combo.firstByteDesc")}
+            aiTopic="fragmentation.combo.first_byte_split"
           />
 
           <B4Switch
@@ -56,6 +57,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
               onChange("fragmentation.combo.extension_split", checked)
             }
             description={t("sets.tcp.splitting.combo.extensionSplitDesc")}
+            aiTopic="fragmentation.combo.extension_split"
           />
 
           <B4Switch
@@ -65,6 +67,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
               onChange("fragmentation.middle_sni", checked)
             }
             description={t("sets.tcp.splitting.combo.sniSplitDesc")}
+            aiTopic="fragmentation.middle_sni"
           />
         </Stack>
       </Grid>
@@ -185,6 +188,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
             onChange("fragmentation.combo.decoy_enabled", checked)
           }
           description={t("sets.tcp.splitting.combo.decoyDesc")}
+          aiTopic="fragmentation.combo.decoy_enabled"
         />
       </Grid>
       {combo.decoy_enabled && (
@@ -280,6 +284,8 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
             onChange("fragmentation.combo.shuffle_mode", e.target.value)
           }
           helperText={t("sets.tcp.splitting.combo.shuffleHelper")}
+          aiTopic="fragmentation.combo.shuffle_mode"
+          aiContext={{ available: shuffleModeOptions.map((o) => o.value) }}
         />
       </Grid>
 
@@ -312,6 +318,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           step={10}
           valueSuffix=" ms"
           helperText={t("sets.tcp.splitting.combo.firstDelayHelper")}
+          aiTopic="fragmentation.combo.first_delay_ms"
         />
       </Grid>
 
@@ -331,6 +338,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
           step={100}
           valueSuffix=" μs"
           helperText={t("sets.tcp.splitting.combo.jitterMaxHelper")}
+          aiTopic="fragmentation.combo.jitter_max_us"
         />
       </Grid>
 
@@ -344,6 +352,7 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
             onChange("fragmentation.combo.fake_per_segment", checked)
           }
           description={t("sets.tcp.splitting.combo.fakePerSegDesc")}
+          aiTopic="fragmentation.combo.fake_per_segment"
         />
       </Grid>
       <Grid size={{ xs: 12, md: 8 }}>
@@ -380,6 +389,10 @@ export const ComboSettings = ({ config, onChange }: ComboSettingsProps) => {
         pattern={seqPattern}
         onChange={(value) =>
           onChange("fragmentation.seq_overlap_pattern", value)
+        }
+        length={config.fragmentation.seq_overlap_length || 0}
+        onLengthChange={(value) =>
+          onChange("fragmentation.seq_overlap_length", value)
         }
       />
     </>

@@ -57,7 +57,7 @@ export class ApiError extends Error {
   private static extractDetail(body: unknown): string | undefined {
     if (typeof body === "string" && body.length > 0) return body.trim();
     if (body && typeof body === "object" && "error" in body) {
-      const msg = (body as { error: unknown }).error;
+      const msg = (body).error;
       if (typeof msg === "string" && msg.length > 0) return msg;
     }
     return undefined;

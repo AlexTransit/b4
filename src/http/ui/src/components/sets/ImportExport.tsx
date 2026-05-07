@@ -166,6 +166,9 @@ export const ImportExportSettings = ({
       if (!frag.seq_overlap_pattern) {
         frag.seq_overlap_pattern = [];
       }
+      if (typeof frag.seq_overlap_length !== "number") {
+        frag.seq_overlap_length = 0;
+      }
       delete frag.overlap;
     }
 

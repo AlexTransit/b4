@@ -51,6 +51,8 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             helperText={t("sets.tcp.general.connPacketsMax", {
               max: queue.tcp_conn_bytes_limit,
             })}
+            aiTopic="tcp.conn_bytes_limit"
+            aiContext={{ queue_max: queue.tcp_conn_bytes_limit }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -69,6 +71,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             step={10}
             valueSuffix=" ms"
             helperText={t("sets.tcp.general.seg2delayHelper")}
+            aiTopic="tcp.seg2delay"
           />
         </Grid>
 
@@ -79,6 +82,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             onChange={(e) => onChange("tcp.dport_filter", e.target.value)}
             placeholder={t("sets.tcp.general.portFilterPlaceholder")}
             helperText={t("sets.tcp.general.portFilterHelper")}
+            aiTopic="tcp.dport_filter"
           />
         </Grid>
 
@@ -88,6 +92,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             description={t("sets.tcp.general.dropSackDesc")}
             checked={config.tcp.drop_sack || false}
             onChange={(checked) => onChange("tcp.drop_sack", checked)}
+            aiTopic="tcp.drop_sack"
           />
         </Grid>
       </Grid>
@@ -101,6 +106,8 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             description={t("sets.tcp.general.dupEnableDesc")}
             checked={dup.enabled}
             onChange={(checked) => onChange("tcp.duplicate.enabled", checked)}
+            aiTopic="tcp.duplicate"
+            aiContext={{ count: dup.count }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
@@ -134,6 +141,12 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             onChange={(checked) =>
               onChange("tcp.ip_block_detect.enabled", checked)
             }
+            aiTopic="tcp.ip_block_detect"
+            aiContext={{
+              retransmit_threshold: ibd.retransmit_threshold,
+              timeout_ms: ibd.timeout_ms,
+              cache_blocked_ips: ibd.cache_blocked_ips,
+            }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
@@ -152,6 +165,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
                 max={10}
                 step={1}
                 helperText={t("sets.tcp.general.ibdThresholdHelper")}
+                aiTopic="tcp.ip_block_detect.retransmit_threshold"
               />
               {ibd.retransmit_threshold <= 1 && (
                 <B4Alert severity="warning">
@@ -199,6 +213,8 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
             onChange={(checked) =>
               onChange("tcp.rst_protection.enabled", checked)
             }
+            aiTopic="tcp.rst_protection"
+            aiContext={{ ttl_tolerance: rstProt.ttl_tolerance }}
           />
         </Grid>
         <Grid size={{ xs: 12, md: 8 }}>
@@ -217,6 +233,7 @@ export const TcpGeneral = ({ config, queue, onChange }: TcpGeneralProps) => {
               max={20}
               step={1}
               helperText={t("sets.tcp.general.rstTtlToleranceHelper")}
+              aiTopic="tcp.rst_protection.ttl_tolerance"
             />
           </Grid>
         )}

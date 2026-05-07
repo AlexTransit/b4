@@ -109,6 +109,19 @@ func (w *Worker) SendTwoSegmentsV6(seg1, seg2 []byte, dst net.IP, delay int, rev
 	}
 }
 
+func BuildSeqOverlapSegmentV6(packet []byte, pi PacketInfo, origPayload []byte, origStartOffset int, seqovlLen int, pattern []byte) []byte {
+	if seqovlLen <= 0 || len(pattern) == 0 {
+		return BuildSegmentV6(packet, pi, origPayload, uint32(origStartOffset))
+	}
+	ext := make([]byte, seqovlLen+len(origPayload))
+	for i := 0; i < seqovlLen; i++ {
+		ext[i] = pattern[i%len(pattern)]
+	}
+	copy(ext[seqovlLen:], origPayload)
+	seqOffset := uint32(origStartOffset) - uint32(seqovlLen)
+	return BuildSegmentV6(packet, pi, ext, seqOffset)
+}
+
 func BuildFakeOverlapSegmentV6(packet []byte, pi PacketInfo, payloadLen int, seqOffset uint32, fakePattern []byte, fakeHopLimit uint8) []byte {
 	if payloadLen <= 0 {
 		return nil

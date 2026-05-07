@@ -10,12 +10,15 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"syscall"
 	"time"
 	_ "time/tzdata"
 
+	"github.com/daniellavrushin/b4/ai"
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/discovery"
 	b4http "github.com/daniellavrushin/b4/http"
@@ -44,10 +47,12 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "b4",
-	Short: "B4 network packet processor",
-	Long:  `B4 is a netfilter queue based packet processor for DPI circumvention`,
-	RunE:  runB4,
+	Use:           "b4",
+	Short:         "B4 network packet processor",
+	Long:          `B4 is a netfilter queue based packet processor for DPI circumvention`,
+	RunE:          runB4,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 func init() {
@@ -82,6 +87,10 @@ func runB4(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	if err := ensureSingleInstance(); err != nil {
+		return err
+	}
+
 	initTimezone()
 	initMemoryLimit()
 
@@ -98,6 +107,9 @@ func runB4(cmd *cobra.Command, args []string) error {
 
 	var cfgPtr atomic.Pointer[config.Config]
 	cfgPtr.Store(&cfg)
+
+	aiManager := ai.NewManager(cfg.System.AI, cfg.ConfigPath)
+	handler.SetAIManager(aiManager)
 
 	discoveryRT := discovery.NewRuntime()
 
@@ -263,6 +275,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 		tproxyResolver.Set(pool.GetMatcher())
 		tproxyMgr.SyncConfig(c)
 		tables.RoutingSyncConfig(c)
+		aiManager.Update(c.System.AI)
 		return nil
 	})
 	wd.Start()
@@ -433,6 +446,41 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 
 	log.CloseErrorFile()
 	log.Flush()
+	return nil
+}
+
+func ensureSingleInstance() error {
+	self := os.Getpid()
+	selfComm, err := os.ReadFile("/proc/self/comm")
+	if err != nil {
+		return nil
+	}
+	target := strings.TrimSpace(string(selfComm))
+	if target == "" {
+		return nil
+	}
+
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil
+	}
+
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		pid, err := strconv.Atoi(e.Name())
+		if err != nil || pid == self {
+			continue
+		}
+		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
+		if err != nil {
+			continue
+		}
+		if strings.TrimSpace(string(data)) == target {
+			return fmt.Errorf("another b4 instance is already running (pid %d)", pid)
+		}
+	}
 	return nil
 }
 

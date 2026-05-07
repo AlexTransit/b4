@@ -1,6 +1,5 @@
 import { B4Badge } from "@b4.elements";
 import { CheckCircleIcon, WarningIcon } from "@b4.icons";
-import { colors } from "@design";
 import { statusColors } from "./constants";
 
 export function StatusChip({

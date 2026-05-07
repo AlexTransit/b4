@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/daniellavrushin/b4/ai"
 	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/discovery"
 	"github.com/daniellavrushin/b4/geodat"
@@ -38,7 +39,16 @@ var (
 	routingSyncFunc    func(*config.Config)
 	discoveryRuntime   *discovery.Runtime
 	globalWatchdog     *watchdog.Watchdog
+	globalAIManager    *ai.Manager
 )
+
+func SetAIManager(m *ai.Manager) {
+	globalAIManager = m
+}
+
+func GetAIManager() *ai.Manager {
+	return globalAIManager
+}
 
 func setJsonHeader(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -130,6 +140,7 @@ func (api *API) RegisterEndpoints(mux *http.ServeMux, cfgPtr *atomic.Pointer[con
 	api.RegisterBackupApi()
 	api.RegisterAsnApi()
 	api.RegisterWatchdogApi()
+	api.RegisterAIApi()
 }
 
 func sendResponse(w http.ResponseWriter, response interface{}) {

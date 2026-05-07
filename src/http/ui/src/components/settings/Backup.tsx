@@ -42,7 +42,7 @@ export const BackupSettings = () => {
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       URL.revokeObjectURL(url);
 
       showSuccess(t("settings.Backup.downloadSuccess"));

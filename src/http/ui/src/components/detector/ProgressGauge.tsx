@@ -38,14 +38,16 @@ function getStepState(
 function RadialGauge({
   progress,
   checksLabel,
-}: {
+}: Readonly<{
   progress: number;
   checksLabel: string;
-}) {
+}>) {
   const offset = CIRCUMFERENCE - (progress / 100) * CIRCUMFERENCE;
 
   return (
-    <Box sx={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}>
+    <Box
+      sx={{ position: "relative", width: SIZE, height: SIZE, flexShrink: 0 }}
+    >
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} width={SIZE} height={SIZE}>
         {/* Background track */}
         <circle
@@ -101,14 +103,13 @@ function RadialGauge({
 }
 
 function StepIndicator({
-  test,
   state,
   label,
-}: {
+}: Readonly<{
   test: DetectorTestType;
   state: "completed" | "running" | "failed" | "pending";
   label: string;
-}) {
+}>) {
   const bgMap = {
     completed: `${statusColors.ok}33`,
     running: `${colors.secondary}33`,
@@ -189,9 +190,7 @@ function StepIndicator({
         variant="caption"
         sx={{
           color:
-            state === "pending"
-              ? colors.text.disabled
-              : colors.text.secondary,
+            state === "pending" ? colors.text.disabled : colors.text.secondary,
           fontSize: "0.65rem",
           textAlign: "center",
           lineHeight: 1.2,
@@ -204,7 +203,9 @@ function StepIndicator({
   );
 }
 
-function Connector({ state }: { state: "completed" | "active" | "pending" }) {
+function Connector({
+  state,
+}: Readonly<{ state: "completed" | "active" | "pending" }>) {
   const colorMap = {
     completed: statusColors.ok,
     active: colors.secondary,
@@ -231,7 +232,7 @@ export function ProgressGauge({
   totalChecks,
   tests,
   suite,
-}: ProgressGaugeProps) {
+}: Readonly<ProgressGaugeProps>) {
   const { t } = useTranslation();
 
   return (
@@ -248,7 +249,10 @@ export function ProgressGauge({
     >
       <RadialGauge
         progress={progress}
-        checksLabel={t("detector.progress.checks", { completed: completedChecks, total: totalChecks })}
+        checksLabel={t("detector.progress.checks", {
+          completed: completedChecks,
+          total: totalChecks,
+        })}
       />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -301,7 +305,11 @@ export function ProgressGauge({
                   flex: i < tests.length - 1 ? 1 : "none",
                 }}
               >
-                <StepIndicator test={test} state={state} label={getTestName(t, test)} />
+                <StepIndicator
+                  test={test}
+                  state={state}
+                  label={getTestName(t, test)}
+                />
                 {i < tests.length - 1 && <Connector state={connectorState} />}
               </Box>
             );

@@ -55,6 +55,19 @@ func (w *Worker) sendComboFragmentsV6(cfg *config.SetConfig, packet []byte, dst 
 		return
 	}
 
+	if seqovlLength := cfg.Fragmentation.SeqOverlapLength; seqovlLength > 0 && seqovlLen > 0 {
+		first := segments[0]
+		startOff := int(first.Seq - pi.Seq0)
+		payloadLen := len(first.Data) - pi.PayloadStart
+		if startOff >= 0 && startOff+payloadLen <= pi.PayloadLen {
+			origPayload := pi.Payload[startOff : startOff+payloadLen]
+			segments[0] = Segment{
+				Data: BuildSeqOverlapSegmentV6(packet, pi, origPayload, startOff, seqovlLength, seqovlPattern),
+				Seq:  pi.Seq0 + uint32(startOff) - uint32(seqovlLength),
+			}
+		}
+	}
+
 	r := utils.NewRand()
 	ShuffleSegments(segments, combo.ShuffleMode, r)
 	SetMaxSeqPSH(segments, pi.IPHdrLen, sock.FixTCPChecksumV6)

@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 interface SeqOverlapPatternFieldsProps {
   pattern: string[];
   onChange: (pattern: string[]) => void;
+  length: number;
+  onLengthChange: (length: number) => void;
 }
 
 const normalizeByte = (b: string): string => {
@@ -24,6 +26,8 @@ const normalizeByte = (b: string): string => {
 export const SeqOverlapPatternFields = ({
   pattern,
   onChange,
+  length,
+  onLengthChange,
 }: SeqOverlapPatternFieldsProps) => {
   const { t } = useTranslation();
   const [customMode, setCustomMode] = useState(false);
@@ -152,10 +156,33 @@ export const SeqOverlapPatternFields = ({
           }))}
           onChange={(e) => handlePresetChange(e.target.value as string)}
           helperText={t("sets.tcp.splitting.disorder.overlapPatternHelper")}
+          aiTopic="fragmentation.seq_overlap_pattern"
+          aiContext={{
+            available: SEQ_OVERLAP_PRESETS.map((p) => p.value),
+            current_pattern: normalizedPattern,
+          }}
         />
       </Grid>
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Hint>{t("sets.tcp.splitting.disorder.seqOverlapAlert")}</B4Hint>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4TextField
+          label={t("sets.tcp.splitting.disorder.seqOverlapLength")}
+          type="number"
+          value={length === 0 ? "" : String(length)}
+          onChange={(e) => {
+            const v = Number.parseInt(e.target.value, 10);
+            onLengthChange(Number.isNaN(v) || v < 0 ? 0 : v);
+          }}
+          placeholder="0"
+          helperText={t("sets.tcp.splitting.disorder.seqOverlapLengthHelper")}
+          aiTopic="fragmentation.seq_overlap_length"
+          aiContext={{
+            current_length: length,
+            pattern_set: pattern.length > 0,
+          }}
+        />
       </Grid>
       {normalizedPattern.length > 0 && (
         <Grid size={{ xs: 6 }}>
@@ -192,8 +219,16 @@ export const SeqOverlapPatternFields = ({
                   border: `2px dashed ${colors.secondary}`,
                 }}
               >
-                [{normalizedPattern.join(" ")}] (fake, seq-
-                {normalizedPattern.length})
+                {(() => {
+                  const effectiveLen =
+                    length > 0 ? length : normalizedPattern.length;
+                  const shown = Array.from(
+                    { length: Math.min(effectiveLen, 16) },
+                    (_, i) => normalizedPattern[i % normalizedPattern.length],
+                  );
+                  const ellipsis = effectiveLen > shown.length ? " ..." : "";
+                  return `[${shown.join(" ")}${ellipsis}] (${effectiveLen}B, seq-${effectiveLen})`;
+                })()}
               </Box>
               <Typography sx={{ mx: 1 }}>+</Typography>
               <Box

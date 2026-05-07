@@ -258,6 +258,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               checked={config.faking.sni}
               onChange={(checked: boolean) => onChange("faking.sni", checked)}
               description={t("sets.faking.fakeSni.enableDesc")}
+              aiTopic="faking.sni"
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -268,6 +269,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               onChange={(e) => onChange("faking.strategy", e.target.value)}
               helperText={t("sets.faking.fakeSni.strategyHelper")}
               disabled={!config.faking.sni}
+              aiTopic="faking.strategy"
+              aiContext={{ available: FAKE_STRATEGIES.map((s) => s.value) }}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
@@ -281,6 +284,10 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                 }
                 helperText={t("sets.faking.fakeSni.payloadHelper")}
                 disabled={!config.faking.sni}
+                aiTopic="faking.sni_type"
+                aiContext={{
+                  available: FAKE_PAYLOAD_TYPES.map((p) => p.value),
+                }}
               />
 
               {config.faking.sni_type === FakingPayloadType.CUSTOM && (
@@ -470,6 +477,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               description={t("sets.faking.synFake.enableDesc")}
               checked={config.tcp.syn_fake || false}
               onChange={(checked) => onChange("tcp.syn_fake", checked)}
+              aiTopic="tcp.syn_fake"
             />
           </Grid>
 
@@ -479,6 +487,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               description={t("sets.faking.synFake.md5Desc")}
               checked={config.faking.tcp_md5 || false}
               onChange={(checked) => onChange("faking.tcp_md5", checked)}
+              aiTopic="faking.tcp_md5"
             />
           </Grid>
 
@@ -530,6 +539,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               options={desyncModeOptions}
               onChange={(e) => onChange("tcp.desync.mode", e.target.value)}
               helperText={desyncModeDescriptions[config.tcp.desync.mode]}
+              aiTopic="tcp.desync.mode"
+              aiContext={{ available: desyncModeOptions.map((o) => o.value) }}
             />
           </Grid>
 
@@ -574,6 +585,7 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               onChange={(checked) =>
                 onChange("tcp.desync.post_desync", checked)
               }
+              aiTopic="tcp.desync.post_desync"
             />
           </Grid>
         </Grid>
@@ -594,6 +606,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               options={windowModeOptions}
               onChange={(e) => onChange("tcp.win.mode", e.target.value)}
               helperText={windowModeDescriptions[config.tcp.win.mode]}
+              aiTopic="tcp.win.mode"
+              aiContext={{ available: windowModeOptions.map((o) => o.value) }}
             />
           </Grid>
 
@@ -670,6 +684,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
               helperText={
                 incomingModeDescriptions[config.tcp.incoming?.mode || "off"]
               }
+              aiTopic="tcp.incoming.mode"
+              aiContext={{ available: incomingModeOptions.map((o) => o.value) }}
             />
           </Grid>
 
@@ -689,6 +705,10 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                       config.tcp.incoming?.strategy || "badsum"
                     ]
               }
+              aiTopic="tcp.incoming.strategy"
+              aiContext={{
+                available: incomingStrategyOptions.map((o) => o.value),
+              }}
             />
           </Grid>
 
@@ -784,6 +804,8 @@ export const TcpFaking = ({ config, onChange }: TcpFakingProps) => {
                 onChange("faking.sni_mutation.mode", e.target.value)
               }
               helperText={mutationModeDescriptions[mutation.mode]}
+              aiTopic="faking.sni_mutation.mode"
+              aiContext={{ available: MUTATION_MODES.map((m) => m.value) }}
             />
           </Grid>
 

@@ -46,7 +46,7 @@ export const DetailPane = memo<Props>(
       group.deviceName ||
       group.mac ||
       t("connections.aggregated.unknownDevice");
-    const matched = !!group.hostSet || !!group.ipSet;
+
     const duration = Math.max(
       0,
       Math.floor((group.lastSeen - group.firstSeen) / 1000),
@@ -254,7 +254,7 @@ export const DetailPane = memo<Props>(
                           label={group.asnName}
                           onDelete={
                             group.asnId
-                              ? () => onDeleteAsn(group.asnId)
+                              ? () => onDeleteAsn(group.asnId!)
                               : undefined
                           }
                           sx={{

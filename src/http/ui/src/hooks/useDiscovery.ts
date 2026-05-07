@@ -14,6 +14,18 @@ export function useDiscovery() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const initRef = useRef(false);
 
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const entries = await discoveryApi.history();
+      setHistory(entries ?? []);
+    } catch {
+      setHistory([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   // On mount: check for current running discovery and load history
   useEffect(() => {
     if (initRef.current) return;
@@ -23,7 +35,10 @@ export function useDiscovery() {
       // Check for currently running discovery
       try {
         const current = await discoveryApi.current();
-        if (current && (current.status === "running" || current.status === "pending")) {
+        if (
+          current &&
+          (current.status === "running" || current.status === "pending")
+        ) {
           setSuiteId(current.id);
           setSuite(current);
           setDiscoveryRunning(true);
@@ -37,19 +52,7 @@ export function useDiscovery() {
     };
 
     void init();
-  }, []);
-
-  const loadHistory = useCallback(async () => {
-    setHistoryLoading(true);
-    try {
-      const entries = await discoveryApi.history();
-      setHistory(entries ?? []);
-    } catch {
-      setHistory([]);
-    } finally {
-      setHistoryLoading(false);
-    }
-  }, []);
+  }, [loadHistory]);
 
   // Poll for status when running
   useEffect(() => {

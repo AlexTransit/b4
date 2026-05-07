@@ -270,6 +270,17 @@ var DefaultConfig = Config{
 			IPInfoToken: "",
 		},
 
+		AI: AIConfig{
+			Enabled:     false,
+			Provider:    "",
+			Model:       "",
+			Endpoint:    "",
+			APIKeyRef:   "",
+			MaxTokens:   1024,
+			Temperature: 0.2,
+			TimeoutSec:  120,
+		},
+
 		Timezone: "",
 	},
 }
