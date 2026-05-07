@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { B4Config, AIProvider } from "@models/config";
 import {
@@ -108,9 +108,23 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelsError, setModelsError] = useState<string>("");
   const [modelsLoadedFor, setModelsLoadedFor] = useState<string>("");
+  const [secretRefs, setSecretRefs] = useState<string[]>([]);
+
+  const refreshSecretRefs = useCallback(async () => {
+    try {
+      const data = await aiApi.listSecrets();
+      setSecretRefs(data.refs ?? []);
+    } catch {
+      setSecretRefs([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSecretRefs();
+  }, [refreshSecretRefs]);
 
   const requiresKey = provider === "openai" || provider === "anthropic";
-  const hasKey = Boolean(status?.has_key);
+  const hasKey = Boolean(keyRef) && secretRefs.includes(keyRef);
 
   const isDirty = useMemo(() => {
     if (!status) return false;
@@ -235,7 +249,7 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
       showSuccess(t("settings.Ai.keySaved"));
       setKeyDialogOpen(false);
       setPendingKey("");
-      await refreshStatus();
+      await Promise.all([refreshStatus(), refreshSecretRefs()]);
     } catch (err) {
       showError(
         err instanceof Error ? err.message : t("settings.Ai.keySaveError"),
@@ -250,7 +264,7 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
     try {
       await aiApi.deleteSecret(keyRef);
       showSuccess(t("settings.Ai.keyRemoved"));
-      await refreshStatus();
+      await Promise.all([refreshStatus(), refreshSecretRefs()]);
     } catch (err) {
       showError(
         err instanceof Error ? err.message : t("settings.Ai.keyRemoveError"),
