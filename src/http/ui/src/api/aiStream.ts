@@ -42,9 +42,6 @@ export async function streamAi(
   handlers: AIStreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {
-  const reader = await openStream(url, body, handlers, signal);
-  if (!reader) return;
-
   let finished = false;
   const finish = (usage?: AIStreamUsage) => {
     if (finished) return;
@@ -53,6 +50,8 @@ export async function streamAi(
   };
 
   try {
+    const reader = await openStream(url, body, handlers, signal);
+    if (!reader) return;
     await consumeStream(reader, handlers, finish);
   } catch (err) {
     if ((err as { name?: string }).name !== "AbortError") {
