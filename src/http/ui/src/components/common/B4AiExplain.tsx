@@ -128,6 +128,7 @@ export const B4AiExplain = ({
             data-ai-open={open ? "true" : undefined}
             size={size}
             onClick={(e) => setAnchorEl(e.currentTarget)}
+            aria-label={t("aiExplain.tooltip")}
             sx={{ color: colors.primary }}
           >
             <AiIcon fontSize={size === "small" ? "small" : "medium"} />
