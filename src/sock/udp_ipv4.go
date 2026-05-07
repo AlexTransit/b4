@@ -52,19 +52,8 @@ func BuildFakeUDPFromOriginalV4(orig []byte, fakeLen int, ttl uint8, payload []b
 	binary.BigEndian.PutUint16(out[2:4], uint16(20+8+fakeLen))
 	copy(out[20:], orig[ihl:ihl+8])
 	binary.BigEndian.PutUint16(out[20+4:20+6], uint16(8+fakeLen))
-	if n := len(payload); n > 0 {
-		copyLen := n
-		if copyLen > fakeLen {
-			copyLen = fakeLen
-		}
-		copy(out[28:28+copyLen], payload[:copyLen])
-		for i := copyLen; i < fakeLen; i++ {
-			out[28+i] = 0
-		}
-	} else {
-		for i := 0; i < fakeLen; i++ {
-			out[28+i] = 0
-		}
+	if len(payload) > 0 {
+		copy(out[28:28+fakeLen], payload)
 	}
 	FixIPv4Checksum(out[:20])
 	udpChecksumIPv4(out)
