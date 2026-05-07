@@ -585,11 +585,24 @@ func routeAddMasqueradeRules(be routeBackend, iface, chain string, mark uint32, 
 	}
 }
 
+func interfaceShareCount(mark uint32, table int) int {
+	n := 0
+	for _, st := range routeRuleCache {
+		if st.mode == config.RoutingModeProxy {
+			continue
+		}
+		if st.mark == mark && st.table == table {
+			n++
+		}
+	}
+	return n
+}
+
 func routeCleanupRule(be routeBackend, st routeState) {
 	markStr := fmt.Sprintf("0x%x", st.mark)
 	markStrMask := fmt.Sprintf("0x%x/0x%x", st.mark, st.mark)
 	tableStr := fmt.Sprintf("%d", st.table)
-	if hasBinary("ip") {
+	if hasBinary("ip") && interfaceShareCount(st.mark, st.table) <= 1 {
 		routeDelRuleLoop(false, markStr, tableStr)
 		routeDelRuleLoop(false, markStrMask, tableStr)
 		routeDelRuleLoop(true, markStr, tableStr)
