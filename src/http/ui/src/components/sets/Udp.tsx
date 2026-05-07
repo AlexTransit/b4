@@ -12,7 +12,12 @@ import {
   B4Alert,
   B4FormHeader,
 } from "@b4.elements";
-import { B4SetConfig, QueueConfig, UdpMode } from "@models/config";
+import {
+  B4SetConfig,
+  QueueConfig,
+  UdpMode,
+  UDP_FAKE_PAYLOAD_AUTO_QUIC,
+} from "@models/config";
 import { useCaptures } from "@b4.capture";
 import { useTranslation, Trans } from "react-i18next";
 
@@ -82,11 +87,6 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
       label: t("sets.udp.strategyChecksum"),
       description: t("sets.udp.strategyChecksumDesc"),
     },
-    {
-      value: "quic_initial",
-      label: t("sets.udp.strategyQuicInitial"),
-      description: t("sets.udp.strategyQuicInitialDesc"),
-    },
   ];
 
   const isQuicEnabled = config.udp.filter_quic !== "disabled";
@@ -102,11 +102,12 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
 
   const isFakeMode = config.udp.mode === "fake";
   const showFakeSettings = showActionSettings && isFakeMode;
-  const isQuicInitial = config.udp.faking_strategy === "quic_initial";
+  const isAutoQuic =
+    config.udp.fake_payload_file === UDP_FAKE_PAYLOAD_AUTO_QUIC;
 
   let payloadFileHelperKey: string;
-  if (isQuicInitial) {
-    payloadFileHelperKey = "sets.udp.fakePayloadFileQuicInitial";
+  if (isAutoQuic) {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileAutoQuic";
   } else if (captures.length === 0) {
     payloadFileHelperKey = "sets.udp.fakePayloadFileEmpty";
   } else {
@@ -271,13 +272,15 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
             <Grid size={{ xs: 12 }}>
               <B4Select
                 label={t("sets.udp.fakePayloadFile")}
-                value={
-                  isQuicInitial ? "" : (config.udp.fake_payload_file ?? "")
-                }
+                value={config.udp.fake_payload_file ?? ""}
                 options={[
                   {
                     value: "",
                     label: t("sets.udp.fakePayloadFileNone"),
+                  },
+                  {
+                    value: UDP_FAKE_PAYLOAD_AUTO_QUIC,
+                    label: t("sets.udp.fakePayloadFileAutoQuicOption"),
                   },
                   ...captures.map((c) => ({
                     value: c.filepath,
@@ -287,7 +290,6 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 onChange={(e) =>
                   onChange("udp.fake_payload_file", e.target.value)
                 }
-                disabled={isQuicInitial}
                 helperText={t(payloadFileHelperKey)}
               />
               <B4Alert>

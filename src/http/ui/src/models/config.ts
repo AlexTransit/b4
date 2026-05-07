@@ -120,7 +120,9 @@ export interface CategoryPreviewConfig {
 
 export type UdpMode = "drop" | "reject" | "fake";
 export type UdpFilterQuicMode = "disabled" | "all" | "parse";
-export type UdpFakingStrategy = "none" | "ttl" | "checksum" | "quic_initial";
+export type UdpFakingStrategy = "none" | "ttl" | "checksum";
+
+export const UDP_FAKE_PAYLOAD_AUTO_QUIC = "@quic_initial";
 
 export interface UdpConfig {
   mode: UdpMode;

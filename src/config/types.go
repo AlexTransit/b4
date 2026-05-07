@@ -11,6 +11,8 @@ const (
 	ConfigNone = "none"
 )
 
+const FakePayloadAutoQUIC = "@quic_initial"
+
 const (
 	RoutingModeInterface = "interface"
 	RoutingModeProxy     = "proxy"

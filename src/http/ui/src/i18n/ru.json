@@ -1098,8 +1098,6 @@
       "strategyTtlDesc": "Использовать низкий TTL для истечения пакетов",
       "strategyChecksum": "Checksum",
       "strategyChecksumDesc": "Повредить контрольную сумму UDP",
-      "strategyQuicInitial": "QUIC Initial (auto)",
-      "strategyQuicInitialDesc": "Генерировать свежий рандомизированный QUIC Initial для каждого фейка (переопределяет выбор payload ниже)",
       "fakeCount": "Количество фейковых пакетов",
       "fakeCountHelper": "Количество фейковых пакетов перед реальным",
       "fakeSize": "Размер фейкового пакета",
@@ -1108,7 +1106,8 @@
       "fakePayloadFileNone": "(заполнение нулями)",
       "fakePayloadFileHelper": "Выберите захваченный payload, который будет вставлен в тело фейкового UDP-пакета. Обрезается или дополняется нулями до размера выше. По умолчанию - нули.",
       "fakePayloadFileEmpty": "Захваченных payload-ов пока нет. По умолчанию - нули.",
-      "fakePayloadFileQuicInitial": "Автогенерация стратегией QUIC Initial выше. Выбор payload игнорируется.",
+      "fakePayloadFileAutoQuicOption": "(авто: QUIC Initial)",
+      "fakePayloadFileAutoQuic": "b4 генерирует свежий рандомизированный QUIC Initial для каждого фейкового пакета, со случайными connection ID. Рекомендуемый размер: 1200 байт.",
       "fakePayloadManage": "Загрузить или управлять payload-ами в Настройки → Payloads",
       "seg2delay": "Задержка сегмента 2",
       "seg2delayHelper": "Задержка между сегментами. Используйте диапазон для случайной задержки."

@@ -120,7 +120,7 @@ func (w *Worker) dropAndInjectQUIC(cfg *config.SetConfig, raw []byte, dst net.IP
 	if udpCfg.FakeSeqLength > 0 {
 		for i := 0; i < udpCfg.FakeSeqLength; i++ {
 			payload := udpCfg.FakePayloadData
-			if udpCfg.FakingStrategy == "quic_initial" {
+			if udpCfg.FakePayloadFile == config.FakePayloadAutoQUIC {
 				payload = sock.BuildQUICInitial(udpCfg.FakeLen)
 			}
 			fake, ok := sock.BuildFakeUDPFromOriginalV4(raw, udpCfg.FakeLen, cfg.Faking.TTL, payload)

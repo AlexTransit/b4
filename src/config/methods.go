@@ -873,7 +873,7 @@ func (c *Config) LoadCapturePayloads() {
 		}
 
 		set.UDP.FakePayloadData = nil
-		if capturesDir != "" && set.UDP.FakePayloadFile != "" {
+		if set.UDP.FakePayloadFile != "" && set.UDP.FakePayloadFile != FakePayloadAutoQUIC && capturesDir != "" {
 			payloadPath := filepath.Join(capturesDir, set.UDP.FakePayloadFile)
 			data, err := os.ReadFile(payloadPath)
 			if err != nil {

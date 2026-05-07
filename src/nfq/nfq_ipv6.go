@@ -20,7 +20,7 @@ func (w *Worker) dropAndInjectQUICV6(cfg *config.SetConfig, raw []byte, dst net.
 	if cfg.UDP.FakeSeqLength > 0 {
 		for i := 0; i < cfg.UDP.FakeSeqLength; i++ {
 			payload := cfg.UDP.FakePayloadData
-			if cfg.UDP.FakingStrategy == "quic_initial" {
+			if cfg.UDP.FakePayloadFile == config.FakePayloadAutoQUIC {
 				payload = sock.BuildQUICInitial(cfg.UDP.FakeLen)
 			}
 			fake, ok := sock.BuildFakeUDPFromOriginalV6(raw, cfg.UDP.FakeLen, cfg.Faking.TTL, payload)
