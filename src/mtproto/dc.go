@@ -133,8 +133,7 @@ func RefreshDCs() error {
 		if id < 0 {
 			id = -id
 		}
-		_, port, err := net.SplitHostPort(f[2])
-		if err != nil || port != "443" {
+		if _, _, err := net.SplitHostPort(f[2]); err != nil {
 			continue
 		}
 		if _, ok := next[id]; ok {
@@ -143,7 +142,7 @@ func RefreshDCs() error {
 		next[id] = f[2]
 	}
 	if len(next) == 0 {
-		return fmt.Errorf("no :443 entries parsed")
+		return fmt.Errorf("no proxy_for entries parsed")
 	}
 	dcRuntimeMu.Lock()
 	dcRuntime = next

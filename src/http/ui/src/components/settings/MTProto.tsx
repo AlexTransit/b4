@@ -8,16 +8,14 @@ import {
   Tooltip,
   Typography,
   Chip,
-  Collapse,
-  Stack,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
 import IosShareIcon from "@mui/icons-material/IosShare";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { MTProtoRelayHelpDialog } from "./MTProtoRelayHelpDialog";
 import { QRCodeSVG } from "qrcode.react";
 import { ConnectionIcon } from "@b4.icons";
 import {
@@ -51,10 +49,21 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
   const [shareOpen, setShareOpen] = useState(false);
   const [shareHost, setShareHost] = useState("");
   const [copied, setCopied] = useState(false);
-  const [showDcs, setShowDcs] = useState(false);
+  const [relayHelpOpen, setRelayHelpOpen] = useState(false);
 
   const port = config.system.mtproto?.port ?? 3128;
   const secret = config.system.mtproto?.secret || "";
+  const dcRelay = config.system.mtproto?.dc_relay || "";
+
+  const relayInfo = useMemo(() => {
+    if (!dcRelay) return null;
+    const m = /^(\[[^\]]+\]|[^:]+):(\d+)$/.exec(dcRelay);
+    if (!m) return null;
+    const basePort = Number(m[2]);
+    if (!basePort || basePort < 1 || basePort > 65535) return null;
+    return { host: m[1].replaceAll(/^\[|\]$/g, ""), basePort };
+  }, [dcRelay]);
+
   const shareLink = useMemo(() => {
     const host = (shareHost || "").trim();
     if (!host || !secret) return "";
@@ -91,6 +100,13 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
     }
   };
 
+  const openRelayHelp = () => {
+    setRelayHelpOpen(true);
+    if (!refreshResult?.ok && !refreshing) {
+      void handleRefreshDCs();
+    }
+  };
+
   const handleRefreshDCs = async () => {
     setRefreshing(true);
     setRefreshResult(null);
@@ -104,7 +120,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
       };
       if (data.success && typeof data.count === "number" && data.dcs) {
         setRefreshResult({ ok: true, count: data.count, dcs: data.dcs });
-        setShowDcs(true);
       } else {
         setRefreshResult({ ok: false, error: data.error || "unknown error" });
       }
@@ -132,20 +147,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
       setGenerating(false);
     }
   };
-
-  let dcAlertSeverity: "success" | "error" | "info" = "info";
-  let dcAlertText: string = t("settings.MTProto.refreshDCsHint");
-  if (refreshResult?.ok) {
-    dcAlertSeverity = "success";
-    dcAlertText = t("settings.MTProto.refreshDCsOk", {
-      count: refreshResult.count,
-    });
-  } else if (refreshResult && !refreshResult.ok) {
-    dcAlertSeverity = "error";
-    dcAlertText = t("settings.MTProto.refreshDCsErr", {
-      error: refreshResult.error,
-    });
-  }
 
   return (
     <B4Section
@@ -201,6 +202,25 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           placeholder="vps-ip:7007"
           disabled={!config.system.mtproto?.enabled}
           helperText={t("settings.MTProto.dcRelayHelp")}
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Tooltip title={t("settings.MTProto.dcRelayHelpButton")}>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={openRelayHelp}
+                        disabled={!config.system.mtproto?.enabled}
+                      >
+                        <HelpOutlineIcon fontSize="small" />
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </InputAdornment>
+              ),
+            },
+          }}
         />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <B4TextField
@@ -255,92 +275,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           </Button>
         </Box>
 
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <B4Alert
-            severity={dcAlertSeverity}
-            action={
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                {refreshResult?.ok && (
-                  <Tooltip
-                    title={
-                      showDcs
-                        ? t("settings.MTProto.hideDCs")
-                        : t("settings.MTProto.showDCs")
-                    }
-                  >
-                    <IconButton
-                      size="small"
-                      color="inherit"
-                      onClick={() => setShowDcs((v) => !v)}
-                      sx={{
-                        transition: "transform 0.2s",
-                        transform: showDcs ? "rotate(180deg)" : "rotate(0deg)",
-                      }}
-                    >
-                      <ExpandMoreIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Button
-                  color="inherit"
-                  size="small"
-                  startIcon={
-                    <RefreshIcon
-                      sx={{
-                        animation: refreshing
-                          ? "spin 1s linear infinite"
-                          : "none",
-                        "@keyframes spin": {
-                          from: { transform: "rotate(0deg)" },
-                          to: { transform: "rotate(360deg)" },
-                        },
-                      }}
-                    />
-                  }
-                  onClick={() => void handleRefreshDCs()}
-                  disabled={refreshing}
-                >
-                  {refreshing
-                    ? t("settings.MTProto.refreshingDCs")
-                    : t("settings.MTProto.refreshDCs")}
-                </Button>
-              </Stack>
-            }
-          >
-            {dcAlertText}
-            {refreshResult?.ok && (
-              <Collapse in={showDcs} unmountOnExit>
-                <Box
-                  component="ul"
-                  sx={{
-                    m: 0,
-                    mt: 1,
-                    pl: 2,
-                    fontFamily: "monospace",
-                    fontSize: "0.8rem",
-                  }}
-                >
-                  {Object.entries(refreshResult.dcs)
-                    .sort((a, b) => Number(a[0]) - Number(b[0]))
-                    .map(([id, addr]) => (
-                      <li key={id}>
-                        DC{id} → {addr}
-                      </li>
-                    ))}
-                </Box>
-              </Collapse>
-            )}
-          </B4Alert>
-        </Box>
-        {config.system.mtproto?.enabled && config.system.mtproto?.dc_relay && (
-          <B4Alert severity="info">
-            <span
-              dangerouslySetInnerHTML={{
-                __html: t("settings.MTProto.relaySetup"),
-              }}
-            />
-          </B4Alert>
-        )}
       </B4FormGroup>
       <B4Dialog
         open={shareOpen}
@@ -454,6 +388,14 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           </Box>
         )}
       </B4Dialog>
+      <MTProtoRelayHelpDialog
+        open={relayHelpOpen}
+        onClose={() => setRelayHelpOpen(false)}
+        relayInfo={relayInfo}
+        refreshResult={refreshResult}
+        refreshing={refreshing}
+        onRefresh={() => void handleRefreshDCs()}
+      />
     </B4Section>
   );
 };
