@@ -119,7 +119,7 @@ func (w *Worker) dropAndInjectQUIC(cfg *config.SetConfig, raw []byte, dst net.IP
 	}
 	if udpCfg.FakeSeqLength > 0 {
 		for i := 0; i < udpCfg.FakeSeqLength; i++ {
-			fake, ok := sock.BuildFakeUDPFromOriginalV4(raw, udpCfg.FakeLen, cfg.Faking.TTL)
+			fake, ok := sock.BuildFakeUDPFromOriginalV4(raw, udpCfg.FakeLen, cfg.Faking.TTL, udpCfg.FakePayloadData)
 			if ok {
 				if udpCfg.FakingStrategy == "checksum" {
 					ipHdrLen := int((fake[0] & 0x0F) * 4)

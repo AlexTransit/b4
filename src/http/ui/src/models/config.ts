@@ -127,6 +127,7 @@ export interface UdpConfig {
   fake_seq_length: number;
   fake_len: number;
   faking_strategy: UdpFakingStrategy;
+  fake_payload_file?: string;
   dport_filter: string;
   filter_quic: UdpFilterQuicMode;
   conn_bytes_limit: number;

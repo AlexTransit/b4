@@ -871,6 +871,18 @@ func (c *Config) LoadCapturePayloads() {
 		default:
 			set.Faking.PayloadData = nil
 		}
+
+		set.UDP.FakePayloadData = nil
+		if capturesDir != "" && set.UDP.FakePayloadFile != "" {
+			payloadPath := filepath.Join(capturesDir, set.UDP.FakePayloadFile)
+			data, err := os.ReadFile(payloadPath)
+			if err != nil {
+				log.Errorf("Failed to load UDP fake payload %s: %v", set.UDP.FakePayloadFile, err)
+			} else {
+				set.UDP.FakePayloadData = data
+				log.Tracef("Loaded UDP fake payload %s (%d bytes)", set.UDP.FakePayloadFile, len(data))
+			}
+		}
 	}
 }
 

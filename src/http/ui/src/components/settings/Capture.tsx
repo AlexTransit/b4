@@ -21,7 +21,13 @@ import {
   UploadIcon,
 } from "@b4.icons";
 import { useSnackbar } from "@context/SnackbarProvider";
-import { B4Dialog, B4TextField, B4Section, B4Alert } from "@b4.elements";
+import {
+  B4Dialog,
+  B4TextField,
+  B4Section,
+  B4Alert,
+  B4Select,
+} from "@b4.elements";
 import { useCaptures, Capture } from "@b4.capture";
 import { colors, radius } from "@design";
 import { copyText } from "@utils";
@@ -164,6 +170,22 @@ export const CaptureSettings = () => {
                 }
                 placeholder="youtube.com"
                 helperText={t("settings.Capture.nameDomainHelp")}
+                disabled={loading}
+              />
+              <B4Select
+                label={t("settings.Capture.protocol")}
+                value={uploadForm.protocol}
+                options={[
+                  { value: "tls", label: t("settings.Capture.protocolTls") },
+                  { value: "quic", label: t("settings.Capture.protocolQuic") },
+                ]}
+                onChange={(e) =>
+                  setUploadForm({
+                    ...uploadForm,
+                    protocol: String(e.target.value),
+                  })
+                }
+                helperText={t("settings.Capture.protocolHelp")}
                 disabled={loading}
               />
               <Stack direction="row" spacing={1} alignItems="center">

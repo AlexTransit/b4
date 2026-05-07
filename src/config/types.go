@@ -113,16 +113,18 @@ type IncomingConfig struct {
 }
 
 type UDPConfig struct {
-	Mode           string `json:"mode"`
-	FakeSeqLength  int    `json:"fake_seq_length"`
-	FakeLen        int    `json:"fake_len"`
-	FakingStrategy string `json:"faking_strategy"`
-	DPortFilter    string `json:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
-	FilterQUIC     string `json:"filter_quic"`
-	FilterSTUN     bool   `json:"filter_stun"`
-	ConnBytesLimit int    `json:"conn_bytes_limit"`
-	Seg2Delay      int    `json:"seg2delay"`
-	Seg2DelayMax   int    `json:"seg2delay_max"`
+	Mode            string `json:"mode"`
+	FakeSeqLength   int    `json:"fake_seq_length"`
+	FakeLen         int    `json:"fake_len"`
+	FakingStrategy  string `json:"faking_strategy"`
+	FakePayloadFile string `json:"fake_payload_file"` // capture filename (e.g. "captures/quic_google_com.bin"); empty = zero fill
+	FakePayloadData []byte `json:"-"`
+	DPortFilter     string `json:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
+	FilterQUIC      string `json:"filter_quic"`
+	FilterSTUN      bool   `json:"filter_stun"`
+	ConnBytesLimit  int    `json:"conn_bytes_limit"`
+	Seg2Delay       int    `json:"seg2delay"`
+	Seg2DelayMax    int    `json:"seg2delay_max"`
 }
 
 type FragmentationConfig struct {

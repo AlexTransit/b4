@@ -52,7 +52,7 @@ func udpChecksumIPv6(pkt []byte) {
 	binary.BigEndian.PutUint16(pkt[udpOffset+6:udpOffset+8], checksum)
 }
 
-func BuildFakeUDPFromOriginalV6(orig []byte, fakeLen int, hopLimit uint8) ([]byte, bool) {
+func BuildFakeUDPFromOriginalV6(orig []byte, fakeLen int, hopLimit uint8, payload []byte) ([]byte, bool) {
 	if len(orig) < 48 || orig[0]>>4 != 6 {
 		return nil, false
 	}
@@ -64,27 +64,31 @@ func BuildFakeUDPFromOriginalV6(orig []byte, fakeLen int, hopLimit uint8) ([]byt
 
 	out := make([]byte, ipv6HdrLen+8+fakeLen)
 
-	// Copy IPv6 header
 	copy(out, orig[:ipv6HdrLen])
 
-	// Set hop limit (equivalent to TTL in IPv4)
 	out[7] = hopLimit
 
-	// Update payload length
 	binary.BigEndian.PutUint16(out[4:6], uint16(8+fakeLen))
 
-	// Copy UDP header
 	copy(out[ipv6HdrLen:], orig[ipv6HdrLen:ipv6HdrLen+8])
 
-	// Update UDP length
 	binary.BigEndian.PutUint16(out[ipv6HdrLen+4:ipv6HdrLen+6], uint16(8+fakeLen))
 
-	// Zero out fake payload
-	for i := 0; i < fakeLen; i++ {
-		out[ipv6HdrLen+8+i] = 0
+	if n := len(payload); n > 0 {
+		copyLen := n
+		if copyLen > fakeLen {
+			copyLen = fakeLen
+		}
+		copy(out[ipv6HdrLen+8:ipv6HdrLen+8+copyLen], payload[:copyLen])
+		for i := copyLen; i < fakeLen; i++ {
+			out[ipv6HdrLen+8+i] = 0
+		}
+	} else {
+		for i := 0; i < fakeLen; i++ {
+			out[ipv6HdrLen+8+i] = 0
+		}
 	}
 
-	// Calculate checksum
 	udpChecksumIPv6(out)
 
 	return out, true

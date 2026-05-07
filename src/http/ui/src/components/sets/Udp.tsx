@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Grid } from "@mui/material";
+import { Link } from "react-router";
 import { DnsIcon, WarningIcon } from "@b4.icons";
 import {
   B4Slider,
@@ -11,6 +13,7 @@ import {
   B4FormHeader,
 } from "@b4.elements";
 import { B4SetConfig, QueueConfig, UdpMode } from "@models/config";
+import { useCaptures } from "@b4.capture";
 import { useTranslation, Trans } from "react-i18next";
 
 interface UdpSettingsProps {
@@ -21,6 +24,11 @@ interface UdpSettingsProps {
 
 export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
   const { t } = useTranslation();
+  const { captures, loadCaptures } = useCaptures();
+
+  useEffect(() => {
+    loadCaptures().catch(() => {});
+  }, [loadCaptures]);
 
   const UDP_MODES = [
     {
@@ -244,6 +252,35 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 valueSuffix=" bytes"
                 helperText={t("sets.udp.fakeSizeHelper")}
               />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <B4Select
+                label={t("sets.udp.fakePayloadFile")}
+                value={config.udp.fake_payload_file ?? ""}
+                options={[
+                  {
+                    value: "",
+                    label: t("sets.udp.fakePayloadFileNone"),
+                  },
+                  ...captures.map((c) => ({
+                    value: c.filepath,
+                    label: `[${c.protocol}] ${c.domain} (${c.size} bytes)`,
+                  })),
+                ]}
+                onChange={(e) =>
+                  onChange("udp.fake_payload_file", e.target.value)
+                }
+                helperText={
+                  captures.length === 0
+                    ? t("sets.udp.fakePayloadFileEmpty")
+                    : t("sets.udp.fakePayloadFileHelper")
+                }
+              />
+              <B4Alert>
+                <Link to="/settings/payloads">
+                  {t("sets.udp.fakePayloadManage")}
+                </Link>
+              </B4Alert>
             </Grid>
             <Grid size={{ xs: 12, md: 6 }}>
               <B4RangeSlider
