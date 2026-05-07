@@ -99,6 +99,10 @@ type anthropicEvent struct {
 		InputTokens  int `json:"input_tokens"`
 		OutputTokens int `json:"output_tokens"`
 	} `json:"usage"`
+	Error struct {
+		Type    string `json:"type"`
+		Message string `json:"message"`
+	} `json:"error"`
 }
 
 func (p *anthropicProvider) Stream(ctx context.Context, req Request) (<-chan Chunk, error) {
@@ -173,7 +177,18 @@ func (p *anthropicProvider) Stream(ctx context.Context, req Request) (<-chan Chu
 				u := usage
 				return Chunk{Done: true, Usage: &u}, true, true
 			case "error":
-				return Chunk{Err: fmt.Errorf("anthropic: stream error")}, true, true
+				msg := strings.TrimSpace(ev.Error.Message)
+				kind := strings.TrimSpace(ev.Error.Type)
+				switch {
+				case msg != "" && kind != "":
+					return Chunk{Err: fmt.Errorf("anthropic: %s: %s", kind, msg)}, true, true
+				case msg != "":
+					return Chunk{Err: fmt.Errorf("anthropic: %s", msg)}, true, true
+				case kind != "":
+					return Chunk{Err: fmt.Errorf("anthropic: %s", kind)}, true, true
+				default:
+					return Chunk{Err: fmt.Errorf("anthropic: stream error")}, true, true
+				}
 			default:
 				return Chunk{}, false, false
 			}
