@@ -45,6 +45,7 @@ func BuildFakeUDPFromOriginalV4(orig []byte, fakeLen int, ttl uint8, payload []b
 	}
 	out := make([]byte, 20+8+fakeLen)
 	copy(out, orig[:20])
+	out[0] = (out[0] & 0xF0) | 0x05
 	out[8] = ttl
 	id := binary.BigEndian.Uint16(out[4:6])
 	binary.BigEndian.PutUint16(out[4:6], id+1)
@@ -91,6 +92,7 @@ func IPv4FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 	id := binary.BigEndian.Uint16(orig[4:6])
 	ip1 := make([]byte, 20+firstDataAligned)
 	copy(ip1, orig[:20])
+	ip1[0] = (ip1[0] & 0xF0) | 0x05
 	binary.BigEndian.PutUint16(ip1[4:6], id)
 	ip1[6] = 0x20
 	ip1[7] = 0x00
@@ -101,6 +103,7 @@ func IPv4FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 	offsetUnits := firstDataAligned / 8
 	ip2 := make([]byte, 20+len(ip2Data))
 	copy(ip2, orig[:20])
+	ip2[0] = (ip2[0] & 0xF0) | 0x05
 	binary.BigEndian.PutUint16(ip2[4:6], id)
 	ip2[6] = byte(offsetUnits>>8) & 0x1F
 	ip2[7] = byte(offsetUnits)
