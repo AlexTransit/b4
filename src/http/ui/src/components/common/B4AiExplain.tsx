@@ -54,7 +54,7 @@ export const B4AiExplain = ({
   size = "small",
 }: B4AiExplainProps) => {
   const { t, i18n } = useTranslation();
-  const { status, enabled, ready, refresh } = useAiStatus();
+  const { status, enabled, refresh } = useAiStatus();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [text, setText] = useState("");
   const [streaming, setStreaming] = useState(false);
@@ -68,11 +68,9 @@ export const B4AiExplain = ({
   const start = useCallback(async () => {
     setText("");
     setErrMsg("");
-    if (!status) {
-      await refresh();
-    }
-    if (!ready) {
-      setErrMsg(status?.not_ready_reason || t("aiExplain.notReady"));
+    const s = status ?? (await refresh());
+    if (!s?.ready) {
+      setErrMsg(s?.not_ready_reason || t("aiExplain.notReady"));
       return;
     }
     abortRef.current?.abort();
@@ -97,7 +95,7 @@ export const B4AiExplain = ({
       },
       ctrl.signal,
     );
-  }, [status, ready, refresh, topic, fieldLabel, fieldDoc, value, ctxJson, question, i18n.language, t]);
+  }, [status, refresh, topic, fieldLabel, fieldDoc, value, ctxJson, question, i18n.language, t]);
 
   useEffect(() => {
     if (!open) {
