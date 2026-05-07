@@ -606,7 +606,7 @@ func (w *Worker) handleUDPPacket(q *nfqueue.Nfqueue, id uint32, pkt *pktInfo, cf
 
 	isSTUN = stun.IsSTUNMessage(payload)
 
-	isQUIC := quic.IsInitial(payload)
+	isQUIC := quic.LooksLikeQUIC(payload)
 
 	if host == "" && isQUIC {
 		if h, ok := sni.ParseQUICClientHelloSNI(payload); ok {
