@@ -170,7 +170,7 @@ func buildRouteState(cfg *config.Config, set *config.SetConfig) routeState {
 	if mode == config.RoutingModeProxy {
 		mark, port := proxyMarkAndPort(set)
 		st.mark = mark
-		st.table = proxyTable(mark)
+		st.table = proxyTable()
 		st.tproxyPort = port
 		st.upstreamKey = fmt.Sprintf("%s:%d|%s", set.Routing.Upstream.Host, set.Routing.Upstream.Port, set.Routing.Upstream.Username)
 	} else {
