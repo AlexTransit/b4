@@ -82,6 +82,11 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
       label: t("sets.udp.strategyChecksum"),
       description: t("sets.udp.strategyChecksumDesc"),
     },
+    {
+      value: "quic_initial",
+      label: t("sets.udp.strategyQuicInitial"),
+      description: t("sets.udp.strategyQuicInitialDesc"),
+    },
   ];
 
   const isQuicEnabled = config.udp.filter_quic !== "disabled";
@@ -97,6 +102,16 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
 
   const isFakeMode = config.udp.mode === "fake";
   const showFakeSettings = showActionSettings && isFakeMode;
+  const isQuicInitial = config.udp.faking_strategy === "quic_initial";
+
+  let payloadFileHelperKey: string;
+  if (isQuicInitial) {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileQuicInitial";
+  } else if (captures.length === 0) {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileEmpty";
+  } else {
+    payloadFileHelperKey = "sets.udp.fakePayloadFileHelper";
+  }
 
   const showParseWarning =
     config.udp.filter_quic === "parse" && !hasDomainsConfigured;
@@ -256,7 +271,9 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
             <Grid size={{ xs: 12 }}>
               <B4Select
                 label={t("sets.udp.fakePayloadFile")}
-                value={config.udp.fake_payload_file ?? ""}
+                value={
+                  isQuicInitial ? "" : (config.udp.fake_payload_file ?? "")
+                }
                 options={[
                   {
                     value: "",
@@ -270,11 +287,8 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 onChange={(e) =>
                   onChange("udp.fake_payload_file", e.target.value)
                 }
-                helperText={
-                  captures.length === 0
-                    ? t("sets.udp.fakePayloadFileEmpty")
-                    : t("sets.udp.fakePayloadFileHelper")
-                }
+                disabled={isQuicInitial}
+                helperText={t(payloadFileHelperKey)}
               />
               <B4Alert>
                 <Link to="/settings/payloads">
