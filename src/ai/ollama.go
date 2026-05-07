@@ -77,8 +77,8 @@ type ollamaMessage struct {
 }
 
 type ollamaOptions struct {
-	Temperature float64 `json:"temperature,omitempty"`
-	NumPredict  int     `json:"num_predict,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
+	NumPredict  int      `json:"num_predict,omitempty"`
 }
 
 type ollamaRequest struct {
@@ -107,12 +107,13 @@ func (p *ollamaProvider) Stream(ctx context.Context, req Request) (<-chan Chunk,
 		msgs = append(msgs, ollamaMessage{Role: string(m.Role), Content: m.Content})
 	}
 
+	temp := clampTemperature(req)
 	body := ollamaRequest{
 		Model:    p.model,
 		Messages: msgs,
 		Stream:   true,
 		Options: &ollamaOptions{
-			Temperature: clampTemperature(req),
+			Temperature: &temp,
 			NumPredict:  clampMaxTokens(req, 1024),
 		},
 	}

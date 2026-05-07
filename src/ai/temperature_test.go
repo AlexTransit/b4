@@ -102,11 +102,11 @@ func TestAnthropicTemperatureRetry(t *testing.T) {
 	if len(captured) != 2 {
 		t.Fatalf("captured %d", len(captured))
 	}
-	if captured[0].Temperature == 0 {
+	if captured[0].Temperature == nil {
 		t.Fatal("first attempt should have included temperature")
 	}
-	if captured[1].Temperature != 0 {
-		t.Fatalf("retry should omit temperature, got %v", captured[1].Temperature)
+	if captured[1].Temperature != nil {
+		t.Fatalf("retry should omit temperature, got %v", *captured[1].Temperature)
 	}
 }
 
@@ -168,11 +168,11 @@ func TestOpenAITemperatureRetry(t *testing.T) {
 	if attempt.Load() != 2 {
 		t.Fatalf("expected 2 attempts, got %d", attempt.Load())
 	}
-	if captured[0].Temperature == 0 {
+	if captured[0].Temperature == nil {
 		t.Fatal("first attempt should have included temperature")
 	}
-	if captured[1].Temperature != 0 {
-		t.Fatalf("retry should omit temperature, got %v", captured[1].Temperature)
+	if captured[1].Temperature != nil {
+		t.Fatalf("retry should omit temperature, got %v", *captured[1].Temperature)
 	}
 }
 

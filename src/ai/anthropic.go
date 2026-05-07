@@ -77,7 +77,7 @@ type anthropicRequest struct {
 	System      string             `json:"system,omitempty"`
 	Messages    []anthropicMessage `json:"messages"`
 	MaxTokens   int                `json:"max_tokens"`
-	Temperature float64            `json:"temperature,omitempty"`
+	Temperature *float64           `json:"temperature,omitempty"`
 	Stream      bool               `json:"stream"`
 }
 
@@ -125,7 +125,8 @@ func (p *anthropicProvider) Stream(ctx context.Context, req Request) (<-chan Chu
 			Stream:    true,
 		}
 		if !omitTemperature {
-			body.Temperature = clampTemperature(req)
+			t := clampTemperature(req)
+			body.Temperature = &t
 		}
 		raw, err := json.Marshal(body)
 		if err != nil {

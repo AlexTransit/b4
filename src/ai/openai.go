@@ -86,8 +86,8 @@ type openAIRequest struct {
 	StreamOptions *struct {
 		IncludeUsage bool `json:"include_usage"`
 	} `json:"stream_options,omitempty"`
-	MaxTokens   int     `json:"max_tokens,omitempty"`
-	Temperature float64 `json:"temperature,omitempty"`
+	MaxTokens   int      `json:"max_tokens,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
 }
 
 type openAIChunk struct {
@@ -124,7 +124,8 @@ func (p *openAIProvider) Stream(ctx context.Context, req Request) (<-chan Chunk,
 			MaxTokens: clampMaxTokens(req, 1024),
 		}
 		if !omitTemperature {
-			body.Temperature = clampTemperature(req)
+			t := clampTemperature(req)
+			body.Temperature = &t
 		}
 		raw, err := json.Marshal(body)
 		if err != nil {
