@@ -100,7 +100,11 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
   const provider = ai?.provider ?? "";
   const keyRef = (ai?.api_key_ref || provider || "").trim();
 
-  const { status, loading: statusLoading, refresh: refreshStatus } = useAiStatus();
+  const {
+    status,
+    loading: statusLoading,
+    refresh: refreshStatus,
+  } = useAiStatus();
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [pendingKey, setPendingKey] = useState("");
   const [savingKey, setSavingKey] = useState(false);
@@ -350,7 +354,7 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
               );
             }}
             renderInput={(params) => (
-              <TextField
+              <B4TextField
                 {...params}
                 label={t("settings.Ai.model")}
                 placeholder={
