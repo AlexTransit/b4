@@ -40,7 +40,7 @@ func BuildFakeUDPFromOriginalV4(orig []byte, fakeLen int, ttl uint8, payload []b
 		return nil, false
 	}
 	ihl := int((orig[0] & 0x0f) << 2)
-	if len(orig) < ihl+8 {
+	if ihl < 20 || len(orig) < ihl+8 {
 		return nil, false
 	}
 	out := make([]byte, 20+8+fakeLen)
@@ -66,7 +66,7 @@ func IPv4FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 		return nil, false
 	}
 	ihl := int((orig[0] & 0x0f) << 2)
-	if len(orig) < ihl+8 {
+	if ihl < 20 || len(orig) < ihl+8 {
 		return nil, false
 	}
 	total := int(binary.BigEndian.Uint16(orig[2:4]))

@@ -52,7 +52,7 @@ func BuildFakeUDPFromOriginalV6(orig []byte, fakeLen int, hopLimit uint8, payloa
 	}
 
 	ipv6HdrLen := 40
-	if len(orig) < ipv6HdrLen+8 {
+	if len(orig) < ipv6HdrLen+8 || orig[6] != 17 {
 		return nil, false
 	}
 
@@ -83,7 +83,7 @@ func IPv6FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 	}
 
 	ipv6HdrLen := 40
-	if len(orig) < ipv6HdrLen+8 {
+	if len(orig) < ipv6HdrLen+8 || orig[6] != 17 {
 		return nil, false
 	}
 
