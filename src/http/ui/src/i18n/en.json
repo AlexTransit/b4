@@ -374,6 +374,7 @@
       "statusChecking": "Checking…",
       "statusDisabled": "Disabled",
       "statusNotReady": "Not ready",
+      "statusUnsaved": "Unsaved changes",
       "refreshStatus": "Refresh"
     },
     "Checker": {

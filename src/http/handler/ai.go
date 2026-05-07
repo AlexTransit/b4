@@ -42,8 +42,12 @@ func (api *API) handleAIModels(w http.ResponseWriter, r *http.Request) {
 	if endpoint == "" && provider == cfg.Provider {
 		endpoint = cfg.Endpoint
 	}
+	apiKeyRef := ""
+	if provider == cfg.Provider {
+		apiKeyRef = cfg.APIKeyRef
+	}
 
-	p, err := mgr.ProviderFor(provider, endpoint)
+	p, err := mgr.ProviderFor(provider, endpoint, apiKeyRef)
 	if err != nil {
 		status := http.StatusBadRequest
 		if errors.Is(err, ai.ErrMissingAPIKey) {

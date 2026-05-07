@@ -138,7 +138,7 @@ func TestProviderForOverride(t *testing.T) {
 	}, filepath.Join(dir, "config.json"))
 	m.Secrets().Set("openai", "sk-y")
 
-	p, err := m.ProviderFor(ProviderOpenAI, "https://custom-openai.example/v1")
+	p, err := m.ProviderFor(ProviderOpenAI, "https://custom-openai.example/v1", "")
 	if err != nil {
 		t.Fatalf("ProviderFor: %v", err)
 	}

@@ -370,6 +370,7 @@
       "statusChecking": "Проверка…",
       "statusDisabled": "Выключено",
       "statusNotReady": "Не готово",
+      "statusUnsaved": "Не сохранено",
       "refreshStatus": "Обновить"
     },
     "Checker": {

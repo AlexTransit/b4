@@ -125,8 +125,8 @@ func (m *Manager) Provider() (Provider, error) {
 	return m.buildProvider(cfg.Provider, cfg.Endpoint, cfg.APIKeyRef, cfg.Model)
 }
 
-func (m *Manager) ProviderFor(provider, endpoint string) (Provider, error) {
-	return m.buildProvider(provider, endpoint, "", "")
+func (m *Manager) ProviderFor(provider, endpoint, apiKeyRef string) (Provider, error) {
+	return m.buildProvider(provider, endpoint, apiKeyRef, "")
 }
 
 func (m *Manager) buildProvider(provider, endpoint, apiKeyRef, model string) (Provider, error) {

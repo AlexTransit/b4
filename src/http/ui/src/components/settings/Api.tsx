@@ -112,6 +112,17 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
   const requiresKey = provider === "openai" || provider === "anthropic";
   const hasKey = Boolean(status?.has_key);
 
+  const isDirty = useMemo(() => {
+    if (!status) return false;
+    return (
+      Boolean(ai?.enabled) !== Boolean(status.enabled) ||
+      (ai?.provider ?? "") !== (status.provider ?? "") ||
+      (ai?.model ?? "") !== (status.model ?? "") ||
+      (ai?.endpoint ?? "") !== (status.endpoint ?? "") ||
+      (ai?.api_key_ref ?? "") !== (status.api_key_ref ?? "")
+    );
+  }, [ai, status]);
+
   const readyChip = useMemo(() => {
     if (!ai?.enabled) {
       return (
@@ -127,6 +138,15 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
         <Chip
           size="small"
           label={t("settings.Ai.statusChecking")}
+          variant="outlined"
+        />
+      );
+    }
+    if (isDirty) {
+      return (
+        <Chip
+          size="small"
+          label={t("settings.Ai.statusUnsaved")}
           variant="outlined"
         />
       );
@@ -147,7 +167,7 @@ const AISection = ({ config, onChange }: ApiSettingsProps) => {
         label={status?.not_ready_reason || t("settings.Ai.statusNotReady")}
       />
     );
-  }, [ai?.enabled, status, statusLoading, t]);
+  }, [ai?.enabled, status, statusLoading, isDirty, t]);
 
   const handleProviderChange = (value: string) => {
     onChange("system.ai.provider", value);
