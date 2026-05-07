@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
-import { Box, Container, Paper, ToggleButton, ToggleButtonGroup } from "@mui/material";
+import {
+  Box,
+  Container,
+  Paper,
+  ToggleButton,
+  ToggleButtonGroup,
+} from "@mui/material";
 import { DashboardIcon, LogsIcon } from "@b4.icons";
 import { AddSniModal } from "./AddSniModal";
 import { AggregatedView } from "./views/AggregatedView";
 import { RawView } from "./views/RawView";
-import {
-  useDomainActions,
-  clearAsnLookupCache,
-} from "@hooks/useDomainActions";
+import { useDomainActions, clearAsnLookupCache } from "@hooks/useDomainActions";
 import { useIpActions } from "@hooks/useIpActions";
 import {
   generateDomainVariants,
@@ -28,9 +31,14 @@ interface RipeNetworkInfo {
   prefix: string;
 }
 
-async function resolveAsn(ip: string, token: string): Promise<{ id: string; name: string } | null> {
+async function resolveAsn(
+  ip: string,
+  token: string,
+): Promise<{ id: string; name: string } | null> {
   if (token) {
-    const response = await fetch(`/api/integration/ipinfo?ip=${encodeURIComponent(ip)}`);
+    const response = await fetch(
+      `/api/integration/ipinfo?ip=${encodeURIComponent(ip)}`,
+    );
     if (response.ok) {
       const data = (await response.json()) as { org?: string };
       const match = data.org ? /AS(\d+)/.exec(data.org) : null;
@@ -38,7 +46,9 @@ async function resolveAsn(ip: string, token: string): Promise<{ id: string; name
     }
   }
 
-  const response = await fetch(`/api/integration/ripestat?ip=${encodeURIComponent(ip)}`);
+  const response = await fetch(
+    `/api/integration/ripestat?ip=${encodeURIComponent(ip)}`,
+  );
   if (!response.ok) return null;
   const data = (await response.json()) as { data: RipeNetworkInfo };
   const asnId = data.data?.asns?.[0];
@@ -46,9 +56,13 @@ async function resolveAsn(ip: string, token: string): Promise<{ id: string; name
 }
 
 async function fetchAsnPrefixes(asnId: string): Promise<string[] | null> {
-  const response = await fetch(`/api/integration/ripestat/asn?asn=${encodeURIComponent(asnId)}`);
+  const response = await fetch(
+    `/api/integration/ripestat/asn?asn=${encodeURIComponent(asnId)}`,
+  );
   if (!response.ok) return null;
-  const data = (await response.json()) as { data: { prefixes: Array<{ prefix: string }> } };
+  const data = (await response.json()) as {
+    data: { prefixes: Array<{ prefix: string }> };
+  };
   return data.data.prefixes.map((p) => p.prefix);
 }
 
@@ -90,7 +104,9 @@ export function ConnectionsPage() {
   const [ipInfoToken, setIpInfoToken] = useState<string>("");
   const [devicesEnabled, setDevicesEnabled] = useState<boolean>(false);
   const [deviceMap, setDeviceMap] = useState<Record<string, string>>({});
-  const [configDeviceNames, setConfigDeviceNames] = useState<Record<string, string>>({});
+  const [configDeviceNames, setConfigDeviceNames] = useState<
+    Record<string, string>
+  >({});
   const [enrichingIps, setEnrichingIps] = useState<Set<string>>(new Set());
   const [asnVersion, setAsnVersion] = useState(0);
 
@@ -112,7 +128,7 @@ export function ConnectionsPage() {
       .then((data) => {
         const map: Record<string, string> = {};
         for (const d of data.devices || []) {
-          const normalized = d.mac.toUpperCase().replace(/-/g, ":");
+          const normalized = d.mac.toUpperCase().replaceAll("-", ":");
           map[normalized] = d.alias || d.vendor || "";
         }
         for (const [mac, name] of Object.entries(configDeviceNames)) {
@@ -134,7 +150,11 @@ export function ConnectionsPage() {
         if (data.system?.api?.ipinfo_token) {
           setIpInfoToken(data.system.api.ipinfo_token);
         }
-        setDevicesEnabled(data.queue?.devices?.enabled || data.queue?.devices?.vendor_lookup || false);
+        setDevicesEnabled(
+          data.queue?.devices?.enabled ||
+            data.queue?.devices?.vendor_lookup ||
+            false,
+        );
         const names: Record<string, string> = {};
         for (const d of data.queue?.devices?.devices || []) {
           if (d.mac && d.name) {
@@ -159,50 +179,61 @@ export function ConnectionsPage() {
     };
   }, [fetchSets]);
 
-  const handleEnrichIp = useCallback(async (ip: string) => {
-    const cleanIp = stripPort(ip);
-    setEnrichingIps((prev) => new Set(prev).add(cleanIp));
-    try {
-      const asn = await resolveAsn(cleanIp, ipInfoToken);
-      if (!asn) {
-        showError(t("connections.table.enrichNoAsn"));
-        return;
-      }
-      const prefixes = await fetchAsnPrefixes(asn.id);
-      if (!prefixes) {
+  const handleEnrichIp = useCallback(
+    async (ip: string) => {
+      const cleanIp = stripPort(ip);
+      setEnrichingIps((prev) => new Set(prev).add(cleanIp));
+      try {
+        const asn = await resolveAsn(cleanIp, ipInfoToken);
+        if (!asn) {
+          showError(t("connections.table.enrichNoAsn"));
+          return;
+        }
+        const prefixes = await fetchAsnPrefixes(asn.id);
+        if (!prefixes) {
+          showError(t("connections.table.enrichFailed"));
+          return;
+        }
+        await asnStorage.addAsn(asn.id, asn.name, prefixes);
+        clearAsnLookupCache();
+        setAsnVersion((v) => v + 1);
+        showSuccess(
+          t("connections.table.enrichSuccess", {
+            asn: asn.name,
+            count: prefixes.length,
+          }),
+        );
+      } catch {
         showError(t("connections.table.enrichFailed"));
-        return;
+      } finally {
+        setEnrichingIps((prev) => {
+          const next = new Set(prev);
+          next.delete(cleanIp);
+          return next;
+        });
       }
-      await asnStorage.addAsn(asn.id, asn.name, prefixes);
-      clearAsnLookupCache();
-      setAsnVersion((v) => v + 1);
-      showSuccess(t("connections.table.enrichSuccess", { asn: asn.name, count: prefixes.length }));
-    } catch {
-      showError(t("connections.table.enrichFailed"));
-    } finally {
-      setEnrichingIps((prev) => {
-        const next = new Set(prev);
-        next.delete(cleanIp);
-        return next;
-      });
-    }
-  }, [ipInfoToken, showSuccess, showError, t]);
+    },
+    [ipInfoToken, showSuccess, showError, t],
+  );
 
-  const handleDeleteAsn = useCallback((asnId: string) => {
-    void (async () => {
-      await asnStorage.deleteAsn(asnId);
-      clearAsnLookupCache();
-      setAsnVersion((v) => v + 1);
-      showSuccess(t("connections.table.asnDeleted", { asn: asnId }));
-    })();
-  }, [showSuccess, t]);
+  const handleDeleteAsn = useCallback(
+    (asnId: string) => {
+      void (async () => {
+        await asnStorage.deleteAsn(asnId);
+        clearAsnLookupCache();
+        setAsnVersion((v) => v + 1);
+        showSuccess(t("connections.table.asnDeleted", { asn: asnId }));
+      })();
+    },
+    [showSuccess, t],
+  );
 
   const handleIpClick = useCallback(
     (ip: string) => {
       const variants = generateIpVariants(ip);
       openIpModal(ip, variants);
     },
-    [openIpModal]
+    [openIpModal],
   );
 
   const handleDomainClick = useCallback(
@@ -210,7 +241,7 @@ export function ConnectionsPage() {
       const variants = generateDomainVariants(domain);
       openModal(domain, variants);
     },
-    [openModal]
+    [openModal],
   );
 
   const handleHotkeysDown = useCallback(
@@ -232,16 +263,21 @@ export function ConnectionsPage() {
       } else if (e.key === "p" || e.key === "Pause") {
         e.preventDefault();
         setPauseDomains(!pauseDomains);
-        showSuccess(pauseDomains ? t("connections.page.resumed") : t("connections.page.paused"));
+        showSuccess(
+          pauseDomains
+            ? t("connections.page.resumed")
+            : t("connections.page.paused"),
+        );
       }
     },
     [
       clearDomains,
-      pauseDomains,
-      setPauseDomains,
       resetDomainsBadge,
       showSuccess,
-    ]
+      t,
+      setPauseDomains,
+      pauseDomains,
+    ],
   );
 
   useEffect(() => {
@@ -333,7 +369,9 @@ export function ConnectionsPage() {
             enrichingIps={enrichingIps}
             onAddDomain={handleDomainClick}
             onAddIp={handleIpClick}
-            onEnrichAsn={(ip) => { void handleEnrichIp(ip); }}
+            onEnrichAsn={(ip) => {
+              void handleEnrichIp(ip);
+            }}
             onDeleteAsn={handleDeleteAsn}
           />
         ) : (

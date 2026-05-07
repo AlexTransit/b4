@@ -10,7 +10,8 @@ import {
   MAX_GROUPS,
 } from "./connections-types";
 
-const ctx: DedicatedWorkerGlobalScope = self as unknown as DedicatedWorkerGlobalScope;
+const ctx: DedicatedWorkerGlobalScope =
+  globalThis as unknown as DedicatedWorkerGlobalScope;
 
 let bucketCount = DEFAULT_BUCKETS;
 let snapshotInterval = 500;
@@ -36,7 +37,18 @@ function parseLine(line: string): {
 } | null {
   const tokens = line.trim().split(",");
   if (tokens.length < 7) return null;
-  const [rawTs, protocol, hostSet, domain, source, ipSet, destination, sourceAlias, tls, flags] = tokens;
+  const [
+    rawTs,
+    protocol,
+    hostSet,
+    domain,
+    source,
+    ipSet,
+    destination,
+    sourceAlias,
+    tls,
+    flags,
+  ] = tokens;
   const cleanTs = rawTs.replaceAll(" [INFO]", "").trim().split(".")[0];
   const ts = Date.parse(cleanTs.replaceAll("/", "-")) || Date.now();
   if (protocol !== "TCP" && protocol !== "UDP") return null;
@@ -64,20 +76,26 @@ function bucketIndex(ts: number, now: number): number {
   return bucketCount - 1 - offset;
 }
 
-function rotateBuckets(g: { buckets: number[]; lastSeen: number }, now: number): void {
+function rotateBuckets(
+  g: { buckets: number[]; lastSeen: number },
+  now: number,
+): void {
   const shift = Math.floor((now - g.lastSeen) / BUCKET_SIZE_MS);
   if (shift <= 0) return;
   if (shift >= bucketCount) {
     for (let i = 0; i < bucketCount; i++) g.buckets[i] = 0;
     return;
   }
-  for (let i = 0; i < bucketCount - shift; i++) g.buckets[i] = g.buckets[i + shift];
+  for (let i = 0; i < bucketCount - shift; i++)
+    g.buckets[i] = g.buckets[i + shift];
   for (let i = bucketCount - shift; i < bucketCount; i++) g.buckets[i] = 0;
 }
 
 function evictIfNeeded(): void {
   if (groups.size <= MAX_GROUPS) return;
-  const entries = Array.from(groups.entries()).sort((a, b) => a[1].lastSeen - b[1].lastSeen);
+  const entries = Array.from(groups.entries()).sort(
+    (a, b) => a[1].lastSeen - b[1].lastSeen,
+  );
   const toRemove = groups.size - MAX_GROUPS;
   for (let i = 0; i < toRemove; i++) groups.delete(entries[i][0]);
 }
@@ -130,7 +148,13 @@ function ingest(lines: string[]): void {
 
     let d = devices.get(mac);
     if (!d) {
-      d = { mac, packets: 0, groups: 0, lastSeen: p.timestamp, buckets: new Array(bucketCount).fill(0) };
+      d = {
+        mac,
+        packets: 0,
+        groups: 0,
+        lastSeen: p.timestamp,
+        buckets: new Array(bucketCount).fill(0),
+      };
       devices.set(mac, d);
     }
     rotateBuckets(d, now);
