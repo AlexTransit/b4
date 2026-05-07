@@ -119,7 +119,7 @@ type UDPConfig struct {
 	FakeSeqLength   int    `json:"fake_seq_length"`
 	FakeLen         int    `json:"fake_len"`
 	FakingStrategy  string `json:"faking_strategy"`
-	FakePayloadFile string `json:"fake_payload_file"` // capture filename (e.g. "captures/quic_google_com.bin"); empty = zero fill
+	FakePayloadFile string `json:"fake_payload_file"` // "" = zero fill, "@quic_initial" = generate fresh QUIC Initial per packet, "@preset:quic1"/"@preset:quic2" = bundled presets, otherwise capture filename relative to config dir (e.g. "captures/quic_youtube_com.bin")
 	FakePayloadData []byte `json:"-"`
 	DPortFilter     string `json:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
 	FilterQUIC      string `json:"filter_quic"`
