@@ -98,6 +98,14 @@ func TestValidate_PortOutOfRange(t *testing.T) {
 			c.System.Socks5.Enabled = true
 			c.System.Socks5.Port = 70000
 		}, "system.socks5.port"},
+		{"mtproto enabled with port 0", func(c *Config) {
+			c.System.MTProto.Enabled = true
+			c.System.MTProto.Port = 0
+		}, "system.mtproto.port"},
+		{"socks5 enabled with port 0", func(c *Config) {
+			c.System.Socks5.Enabled = true
+			c.System.Socks5.Port = 0
+		}, "system.socks5.port"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

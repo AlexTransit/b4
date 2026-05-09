@@ -264,14 +264,14 @@ func (c *Config) checkPortCollisions(v *validator) {
 	if c.System.WebServer.Port > 0 && c.System.WebServer.Port <= 65535 {
 		refs = append(refs, portRef{"system.web_server.port", c.System.WebServer.Port})
 	}
-	if c.System.Socks5.Enabled && c.System.Socks5.Port > 0 {
+	if c.System.Socks5.Enabled {
 		if c.System.Socks5.Port < 1 || c.System.Socks5.Port > 65535 {
 			v.add("system.socks5.port", "out_of_range", "port must be between 1 and 65535", portRangeParams)
 		} else {
 			refs = append(refs, portRef{"system.socks5.port", c.System.Socks5.Port})
 		}
 	}
-	if c.System.MTProto.Enabled && c.System.MTProto.Port > 0 {
+	if c.System.MTProto.Enabled {
 		if c.System.MTProto.Port < 1 || c.System.MTProto.Port > 65535 {
 			v.add("system.mtproto.port", "out_of_range", "port must be between 1 and 65535", portRangeParams)
 		} else {
