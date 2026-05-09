@@ -44,6 +44,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { B4Dialog, B4Section } from "@b4.elements";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { reportSaveError } from "@utils";
 
 import { SetCompare } from "./Compare";
 import { SetCard } from "./SetCard";
@@ -279,7 +280,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
         setDeleteDialog({ open: false, setId: null });
         onRefresh();
       } else {
-        showError(result.error || t("sets.manager.failedToDelete"));
+        reportSaveError(result.error, showError, t, "sets.manager.failedToDelete");
       }
     })();
   };
@@ -291,7 +292,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
         showSuccess(t("sets.manager.setDuplicated"));
         onRefresh();
       } else {
-        showError(result.error || t("sets.manager.failedToDuplicate"));
+        reportSaveError(result.error, showError, t, "sets.manager.failedToDuplicate");
       }
     })();
   };
@@ -331,7 +332,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
         handleExitSelectionMode();
         onRefresh();
       } else {
-        showError(result.error || t("sets.manager.failedToDeleteSets"));
+        reportSaveError(result.error, showError, t, "sets.manager.failedToDeleteSets");
       }
     })();
   };
@@ -343,7 +344,7 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
       if (result.success) {
         onRefresh();
       } else {
-        showError(result.error || t("sets.manager.failedToUpdate"));
+        reportSaveError(result.error, showError, t, "sets.manager.failedToUpdate");
       }
     })();
   };

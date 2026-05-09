@@ -39,10 +39,20 @@ export const apiClient = new QueryClient({
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: unknown;
+}
+
+export interface FieldError {
+  path: string;
+  code: string;
+  message: string;
+  params?: Record<string, unknown>;
 }
 
 export class ApiError extends Error {
+  public code?: string;
+  public fields?: FieldError[];
+
   constructor(
     public url: string,
     public status: number,
@@ -52,6 +62,19 @@ export class ApiError extends Error {
     const detail = ApiError.extractDetail(body);
     super(detail ? `${status}: ${detail}` : `${status} ${statusText}`);
     this.name = "B4ApiError";
+    if (body && typeof body === "object") {
+      const b = body as { code?: unknown; fields?: unknown };
+      if (typeof b.code === "string") this.code = b.code;
+      if (Array.isArray(b.fields)) {
+        this.fields = b.fields.filter(
+          (f): f is FieldError =>
+            !!f &&
+            typeof f === "object" &&
+            typeof (f as FieldError).path === "string" &&
+            typeof (f as FieldError).message === "string",
+        );
+      }
+    }
   }
 
   private static extractDetail(body: unknown): string | undefined {

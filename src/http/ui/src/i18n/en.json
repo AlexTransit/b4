@@ -1629,5 +1629,18 @@
       "error": "Last Error",
       "actions": "Actions"
     }
+  },
+  "errors": {
+    "port_in_use": "Port {{port}} is already used by {{conflict}}",
+    "port_in_use_system": "Port {{port}} on {{bind}} is already in use",
+    "out_of_range": "Value is out of allowed range",
+    "required": "This field is required",
+    "tls_pair_required": "Both TLS certificate and key must be specified together",
+    "file_not_found": "File not found: {{path}}",
+    "geosite_path_missing": "Geosite path must be configured to use geosite categories",
+    "geoip_path_missing": "Geoip path must be configured to use geoip categories",
+    "invalid_routing_mode": "Set \"{{set}}\": unknown routing mode \"{{mode}}\"",
+    "socks5_loop": "Set \"{{set}}\": upstream proxy points to b4's own SOCKS5 server (loop)",
+    "mark_conflict": "Mark value {{mark}} conflicts with reserved bits"
   }
 }

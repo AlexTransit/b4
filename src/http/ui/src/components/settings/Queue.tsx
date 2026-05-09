@@ -2,13 +2,11 @@ import { useTranslation } from "react-i18next";
 import { NetworkIcon } from "@b4.icons";
 import { B4FormGroup, B4Section, B4TextField, B4Slider } from "@b4.elements";
 import { B4Config } from "@models/config";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface QueueSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: number | boolean | string | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 export const QueueSettings = ({ config, onChange }: QueueSettingsProps) => {

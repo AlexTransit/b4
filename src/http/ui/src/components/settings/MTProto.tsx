@@ -28,13 +28,11 @@ import {
 } from "@b4.elements";
 import { copyText } from "@utils";
 import { B4Config } from "@models/config";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface MTProtoSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: number | boolean | string | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
@@ -274,7 +272,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
             {t("settings.MTProto.shareLink")}
           </Button>
         </Box>
-
       </B4FormGroup>
       <B4Dialog
         open={shareOpen}

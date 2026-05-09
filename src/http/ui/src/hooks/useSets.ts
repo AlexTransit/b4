@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { B4SetConfig } from "@models/config";
-import { ApiError, ApiResponse } from "@api/apiClient";
+import { ApiResponse } from "@api/apiClient";
 import { setsApi } from "@b4.sets";
 
 export function useSets() {
@@ -13,11 +13,7 @@ export function useSets() {
         const data = await setsApi.createSet(set);
         return { success: true, data };
       } catch (e) {
-        if (e instanceof ApiError) {
-          const msg = JSON.stringify(e.body ?? e.message);
-          return { success: false, error: msg };
-        }
-        return { success: false, error: String(e) };
+        return { success: false, error: e };
       } finally {
         setLoading(false);
       }
@@ -32,11 +28,7 @@ export function useSets() {
         const data = await setsApi.updateSet(set.id, set);
         return { success: true, data };
       } catch (e) {
-        if (e instanceof ApiError) {
-          const msg = JSON.stringify(e.body ?? e.message);
-          return { success: false, error: msg };
-        }
-        return { success: false, error: String(e) };
+        return { success: false, error: e };
       } finally {
         setLoading(false);
       }
@@ -51,11 +43,7 @@ export function useSets() {
         await setsApi.deleteSet(id);
         return { success: true };
       } catch (e) {
-        if (e instanceof ApiError) {
-          const msg = JSON.stringify(e.body ?? e.message);
-          return { success: false, error: msg };
-        }
-        return { success: false, error: String(e) };
+        return { success: false, error: e };
       } finally {
         setLoading(false);
       }
@@ -70,11 +58,7 @@ export function useSets() {
         await setsApi.deleteSets(ids);
         return { success: true };
       } catch (e) {
-        if (e instanceof ApiError) {
-          const msg = JSON.stringify(e.body ?? e.message);
-          return { success: false, error: msg };
-        }
-        return { success: false, error: String(e) };
+        return { success: false, error: e };
       } finally {
         setLoading(false);
       }
@@ -97,11 +81,7 @@ export function useSets() {
         await setsApi.reorderSets(setIds);
         return { success: true };
       } catch (e) {
-        if (e instanceof ApiError) {
-          const msg = JSON.stringify(e.body ?? e.message);
-          return { success: false, error: msg };
-        }
-        return { success: false, error: String(e) };
+        return { success: false, error: e };
       } finally {
         setLoading(false);
       }
@@ -115,13 +95,7 @@ export function useSets() {
         await setsApi.addDomainToSet(setId, domain);
         return { success: true };
       } catch (e) {
-        if (e instanceof ApiError) {
-          return {
-            success: false,
-            error: JSON.stringify(e.body ?? e.message),
-          };
-        }
-        return { success: false, error: String(e) };
+        return { success: false, error: e };
       }
     },
     []

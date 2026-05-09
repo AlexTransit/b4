@@ -46,9 +46,11 @@ import { BackupSettings } from "./Backup";
 import { WebServerSettings } from "./WebServer";
 
 import { B4Alert, B4Dialog, B4Tab, B4Tabs } from "@b4.elements";
-import { configApi } from "@b4.settings";
+import { configApi, SettingsPropHandlerType } from "@b4.settings";
+import { reportSaveError } from "@utils";
 import { colors, spacing } from "@design";
-import { B4Config, B4SetConfig } from "@models/config";
+
+import { B4Config } from "@models/config";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -160,7 +162,7 @@ export function SettingsPage() {
     TABS.GENERAL;
 
   // Handle tab change
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_: React.SyntheticEvent, newValue: TABS) => {
     const category = settingCategories.find((cat) => cat.id === newValue);
     if (category) {
       navigate(`/settings/${category.path}`)?.catch(() => {});
@@ -270,9 +272,7 @@ export function SettingsPage() {
         requiresRestart ? t("core.configSavedRestart") : t("core.configSaved"),
       );
     } catch (error) {
-      showError(
-        error instanceof Error ? error.message : t("core.configSaveError"),
-      );
+      reportSaveError(error, showError, t);
     } finally {
       setSaving(false);
       await loadConfig();
@@ -288,17 +288,7 @@ export function SettingsPage() {
     }
   };
 
-  const handleChange = (
-    field: string,
-    value:
-      | string
-      | number
-      | boolean
-      | string[]
-      | B4SetConfig[]
-      | null
-      | undefined,
-  ) => {
+  const handleChange = (field: string, value: SettingsPropHandlerType) => {
     setConfig((prev) => {
       if (!prev) return prev;
 

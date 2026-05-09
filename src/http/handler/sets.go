@@ -134,7 +134,7 @@ func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
 		Domain string `json:"domain"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		writeAPIError(w, ErrInvalidJSON())
 		return
 	}
 
@@ -145,7 +145,7 @@ func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
 			set.Targets.DomainsToMatch = append(set.Targets.DomainsToMatch, req.Domain)
 
 			if err := api.saveAndPushConfig(api.getCfg()); err != nil {
-				http.Error(w, "Failed to save", http.StatusInternalServerError)
+				writeAPIError(w, err)
 				return
 			}
 
@@ -159,7 +159,7 @@ func (api *API) handleSetDomains(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	http.Error(w, "Set not found", http.StatusNotFound)
+	writeAPIError(w, ErrNotFound("Set not found"))
 }
 
 // GET /api/sets - list all, POST /api/sets - create new
@@ -178,7 +178,7 @@ func (api *API) handleSets(w http.ResponseWriter, r *http.Request) {
 func (api *API) handleSetById(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Set ID required", http.StatusBadRequest)
+		writeAPIError(w, ErrBadRequest("Set ID required"))
 		return
 	}
 
@@ -220,7 +220,7 @@ func (api *API) listSets(w http.ResponseWriter) {
 func (api *API) getSet(w http.ResponseWriter, id string) {
 	set := api.getCfg().GetSetById(id)
 	if set == nil {
-		http.Error(w, "Set not found", http.StatusNotFound)
+		writeAPIError(w, ErrNotFound("Set not found"))
 		return
 	}
 	setJsonHeader(w)
@@ -238,7 +238,7 @@ func (api *API) getSet(w http.ResponseWriter, id string) {
 func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 	var set config.SetConfig
 	if err := json.NewDecoder(r.Body).Decode(&set); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		writeAPIError(w, ErrInvalidJSON())
 		return
 	}
 
@@ -255,7 +255,7 @@ func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 
 	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after creating set: %v", err)
-		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		writeAPIError(w, err)
 		return
 	}
 
@@ -282,7 +282,7 @@ func (api *API) createSet(w http.ResponseWriter, r *http.Request) {
 func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 	var updated config.SetConfig
 	if err := json.NewDecoder(r.Body).Decode(&updated); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		writeAPIError(w, ErrInvalidJSON())
 		return
 	}
 
@@ -301,7 +301,7 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 	}
 
 	if !found {
-		http.Error(w, "Set not found", http.StatusNotFound)
+		writeAPIError(w, ErrNotFound("Set not found"))
 		return
 	}
 
@@ -309,7 +309,7 @@ func (api *API) updateSet(w http.ResponseWriter, r *http.Request, id string) {
 
 	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after updating set: %v", err)
-		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		writeAPIError(w, err)
 		return
 	}
 
@@ -344,7 +344,7 @@ func (api *API) deleteSet(w http.ResponseWriter, id string) {
 	}
 
 	if !found {
-		http.Error(w, "Set not found", http.StatusNotFound)
+		writeAPIError(w, ErrNotFound("Set not found"))
 		return
 	}
 
@@ -352,7 +352,7 @@ func (api *API) deleteSet(w http.ResponseWriter, id string) {
 
 	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after deleting set: %v", err)
-		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		writeAPIError(w, err)
 		return
 	}
 
@@ -385,7 +385,7 @@ func (api *API) handleReorderSets(w http.ResponseWriter, r *http.Request) {
 		SetIds []string `json:"set_ids"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		writeAPIError(w, ErrInvalidJSON())
 		return
 	}
 
@@ -403,14 +403,14 @@ func (api *API) handleReorderSets(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(reordered) != len(api.getCfg().Sets) {
-		http.Error(w, "Invalid set IDs", http.StatusBadRequest)
+		writeAPIError(w, ErrBadRequest("Invalid set IDs"))
 		return
 	}
 
 	api.getCfg().Sets = reordered
 
 	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
-		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		writeAPIError(w, err)
 		return
 	}
 
@@ -491,12 +491,12 @@ func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
 		Ids []string `json:"ids"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		writeAPIError(w, ErrInvalidJSON())
 		return
 	}
 
 	if len(req.Ids) == 0 {
-		http.Error(w, "No set IDs provided", http.StatusBadRequest)
+		writeAPIError(w, ErrBadRequest("No set IDs provided"))
 		return
 	}
 
@@ -516,7 +516,7 @@ func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
 
 	deleted := len(api.getCfg().Sets) - len(filtered)
 	if deleted == 0 {
-		http.Error(w, "No matching sets found", http.StatusNotFound)
+		writeAPIError(w, ErrNotFound("No matching sets found"))
 		return
 	}
 
@@ -524,7 +524,7 @@ func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
 
 	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
 		log.Errorf("Failed to save config after batch deleting sets: %v", err)
-		http.Error(w, "Failed to save", http.StatusInternalServerError)
+		writeAPIError(w, err)
 		return
 	}
 
