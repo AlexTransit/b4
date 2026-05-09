@@ -404,7 +404,7 @@ func addProxyTProxyRuleNft(chain string, v6 bool, setName string, mark uint32, p
 	emit := func(src string) {
 		args := []string{"add", "rule", "inet", routeNftTable, chain}
 		if src != "" {
-			args = append(args, "iifname", src)
+			args = append(args, "iifname", fmt.Sprintf("%q", src))
 		}
 		if v6 {
 			args = append(args,
