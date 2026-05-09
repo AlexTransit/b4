@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Trans, useTranslation } from "react-i18next";
+import i18n, { setLanguage } from "../../i18n";
 
 import {
   ApiIcon,
@@ -90,7 +91,7 @@ enum TABS {
 
 export function SettingsPage() {
   const { showError, showSuccess } = useSnackbar();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [config, setConfig] = useState<B4Config | null>(null);
   const [originalConfig, setOriginalConfig] = useState<B4Config | null>(null);
   const [loading, setLoading] = useState(true);
@@ -240,21 +241,25 @@ export function SettingsPage() {
       const data = await configApi.get();
       setConfig(data);
       setOriginalConfig(structuredClone(data));
-      const lang = data.system.web_server.language;
-      if (lang && lang !== i18n.language) {
-        void i18n.changeLanguage(lang);
-        localStorage.setItem("b4-language", lang);
-      }
+      return data;
     } catch (error) {
       console.error("Error loading configuration:", error);
-      showErrorRef.current(t("core.configLoadError"));
+      showErrorRef.current(i18n.t("core.configLoadError"));
+      return null;
     } finally {
       setLoading(false);
     }
-  }, [i18n, t]);
+  }, []);
 
   useEffect(() => {
-    loadConfig().catch(() => {});
+    let bootstrapped = false;
+    loadConfig()
+      .then((data) => {
+        if (bootstrapped || !data) return;
+        bootstrapped = true;
+        setLanguage(data.system.web_server.language ?? "en");
+      })
+      .catch(() => {});
   }, [loadConfig]);
 
   const { refresh: refreshAiStatus } = useAiStatus();
