@@ -1,4 +1,5 @@
 import { useTranslation } from "react-i18next";
+import { setLanguage } from "../../i18n";
 import { ApiIcon } from "@b4.icons";
 import {
   B4Alert,
@@ -24,13 +25,12 @@ export const WebServerSettings = ({
   config,
   onChange,
 }: WebServerSettingsProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const handleLanguageChange = (e: { target: { value: string | number } }) => {
     const lang = String(e.target.value);
     onChange("system.web_server.language", lang);
-    void i18n.changeLanguage(lang);
-    localStorage.setItem("b4-language", lang);
+    setLanguage(lang);
   };
 
   return (
