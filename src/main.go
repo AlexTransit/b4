@@ -244,19 +244,20 @@ func runB4(cmd *cobra.Command, args []string) error {
 		return log.Errorf("failed to start web server: %w", err)
 	}
 
-	// Start SOCKS5 server if configured
+	// Start SOCKS5 server if configured.
 	socks5Server := socks5.NewServer(&cfg)
 	socks5Server.SetIPBlockCache(pool.GetIPBlockCache())
 	if err := socks5Server.Start(); err != nil {
 		metrics.RecordEvent("error", fmt.Sprintf("Failed to start SOCKS5 server: %v", err))
-		return log.Errorf("failed to start SOCKS5 server: %w", err)
+		log.Errorf("SOCKS5 server did not start: %v (b4 continues without it; fix in Settings or config)", err)
 	}
 	handler.SetSocks5Server(socks5Server)
 
+	// Start MTProto server if configured.
 	mtprotoServer := mtproto.NewServer(&cfg)
 	if err := mtprotoServer.Start(); err != nil {
 		metrics.RecordEvent("error", fmt.Sprintf("Failed to start MTProto server: %v", err))
-		return log.Errorf("failed to start MTProto server: %w", err)
+		log.Errorf("MTProto server did not start: %v (b4 continues without it; fix in Settings or config)", err)
 	}
 
 	wd := watchdog.New(&cfgPtr, discoveryRT, func(c *config.Config) error {

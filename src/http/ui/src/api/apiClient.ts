@@ -39,10 +39,32 @@ export const apiClient = new QueryClient({
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: unknown;
+}
+
+export interface FieldError {
+  path: string;
+  code: string;
+  message: string;
+  params?: Record<string, unknown>;
+}
+
+function isFieldError(value: unknown): value is FieldError {
+  if (!value || typeof value !== "object") return false;
+  const f = value as Record<string, unknown>;
+  if (typeof f.path !== "string") return false;
+  if (typeof f.code !== "string") return false;
+  if (typeof f.message !== "string") return false;
+  if (f.params !== undefined && (typeof f.params !== "object" || Array.isArray(f.params))) {
+    return false;
+  }
+  return true;
 }
 
 export class ApiError extends Error {
+  public code?: string;
+  public fields?: FieldError[];
+
   constructor(
     public url: string,
     public status: number,
@@ -52,6 +74,13 @@ export class ApiError extends Error {
     const detail = ApiError.extractDetail(body);
     super(detail ? `${status}: ${detail}` : `${status} ${statusText}`);
     this.name = "B4ApiError";
+    if (body && typeof body === "object") {
+      const b = body as { code?: unknown; fields?: unknown };
+      if (typeof b.code === "string") this.code = b.code;
+      if (Array.isArray(b.fields)) {
+        this.fields = b.fields.filter((f) => isFieldError(f));
+      }
+    }
   }
 
   private static extractDetail(body: unknown): string | undefined {

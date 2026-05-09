@@ -154,7 +154,7 @@ export const BackupSettings = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".tar.gz,.tgz"
+                  accept=".gz,.tgz,application/gzip,application/x-gzip"
                   style={{ display: "none" }}
                   onChange={handleFileSelect}
                 />

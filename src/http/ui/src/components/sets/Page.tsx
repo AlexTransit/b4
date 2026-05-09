@@ -1,6 +1,7 @@
 import { useSnackbar } from "@context/SnackbarProvider";
 import { colors } from "@design";
 import { useSets } from "@hooks/useSets";
+import { reportSaveError } from "@utils";
 import { B4Config, B4SetConfig } from "@models/config";
 import { createDefaultSet } from "@models/defaults";
 import {
@@ -80,7 +81,7 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
           await navigate(`/sets/${result.data.id}`, { replace: true });
         }
       } else {
-        showError(result.error || t("core.configSaveError"));
+        reportSaveError(result.error, showError, t);
       }
     })();
   };

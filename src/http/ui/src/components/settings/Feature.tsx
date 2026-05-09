@@ -11,13 +11,11 @@ import {
   B4Badge,
 } from "@b4.elements";
 import { Box, Typography } from "@mui/material";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface FeatureSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: boolean | string | number | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {

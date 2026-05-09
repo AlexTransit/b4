@@ -1091,13 +1091,15 @@
       "rejectModeInfo": "<strong>Режим Reject:</strong> Совпавшие UDP-пакеты будут отброшены, а клиенту будет отправлен ICMP Port Unreachable, что вызовет мгновенный переход на TCP без ожидания таймаутов.",
       "dropModeInfo": "<strong>Режим Drop:</strong> Совпавшие UDP-пакеты будут отброшены, вынуждая приложение переключиться на TCP (напр., QUIC → HTTPS).",
       "fakeHeader": "Настройка фейковых пакетов",
-      "fakingStrategy": "Стратегия фейка",
+      "evasionHeader": "Защита от сервера",
+      "evasionTechnique": "Метод маскировки",
+      "fakingStrategy": "Метод маскировки",
       "strategyNone": "Нет",
-      "strategyNoneDesc": "Без стратегии фейка",
+      "strategyNoneDesc": "Отправлять фейковые пакеты как есть",
       "strategyTtl": "TTL",
-      "strategyTtlDesc": "Использовать низкий TTL для истечения пакетов",
+      "strategyTtlDesc": "Низкий TTL чтобы фейки не дошли до сервера",
       "strategyChecksum": "Checksum",
-      "strategyChecksumDesc": "Повредить контрольную сумму UDP",
+      "strategyChecksumDesc": "Неверная UDP checksum чтобы сервер отбросил фейки",
       "fakeCount": "Количество фейковых пакетов",
       "fakeCountHelper": "Количество фейковых пакетов перед реальным",
       "fakeSize": "Размер фейкового пакета",
@@ -1627,5 +1629,18 @@
       "error": "Последняя ошибка",
       "actions": "Действия"
     }
+  },
+  "errors": {
+    "port_in_use": "Порт {{port}} уже используется в {{conflict}}",
+    "port_in_use_system": "Порт {{port}} на {{bind}} уже занят",
+    "out_of_range": "Значение вне допустимого диапазона",
+    "required": "Поле обязательно для заполнения",
+    "tls_pair_required": "TLS-сертификат и ключ должны быть указаны вместе",
+    "file_not_found": "Файл не найден: {{path}}",
+    "geosite_path_missing": "Для использования категорий geosite необходимо указать путь к geosite",
+    "geoip_path_missing": "Для использования категорий geoip необходимо указать путь к geoip",
+    "invalid_routing_mode": "Сет \"{{set}}\": неизвестный режим маршрутизации \"{{mode}}\"",
+    "socks5_loop": "Сет \"{{set}}\": upstream-прокси указывает на собственный SOCKS5-сервер b4 (петля)",
+    "mark_conflict": "Значение mark {{mark}} конфликтует с зарезервированными битами"
   }
 }

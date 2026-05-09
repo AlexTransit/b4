@@ -1,14 +1,18 @@
 import { useTranslation } from "react-i18next";
 import { ApiIcon } from "@b4.icons";
-import { B4Alert, B4FormGroup, B4Section, B4Select, B4TextField } from "@b4.elements";
+import {
+  B4Alert,
+  B4FormGroup,
+  B4Section,
+  B4Select,
+  B4TextField,
+} from "@b4.elements";
 import { B4Config } from "@models/config";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface WebServerSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: number | boolean | string | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 const LANGUAGES = [
