@@ -35,16 +35,17 @@ func udpChecksumIPv4(pkt []byte) {
 	binary.BigEndian.PutUint16(pkt[udpo+6:udpo+8], c)
 }
 
-func BuildFakeUDPFromOriginalV4(orig []byte, fakeLen int, ttl uint8) ([]byte, bool) {
+func BuildFakeUDPFromOriginalV4(orig []byte, fakeLen int, ttl uint8, payload []byte) ([]byte, bool) {
 	if len(orig) < 20 || orig[0]>>4 != 4 {
 		return nil, false
 	}
 	ihl := int((orig[0] & 0x0f) << 2)
-	if len(orig) < ihl+8 {
+	if ihl < 20 || len(orig) < ihl+8 {
 		return nil, false
 	}
 	out := make([]byte, 20+8+fakeLen)
 	copy(out, orig[:20])
+	out[0] = (out[0] & 0xF0) | 0x05
 	out[8] = ttl
 	id := binary.BigEndian.Uint16(out[4:6])
 	binary.BigEndian.PutUint16(out[4:6], id+1)
@@ -52,8 +53,8 @@ func BuildFakeUDPFromOriginalV4(orig []byte, fakeLen int, ttl uint8) ([]byte, bo
 	binary.BigEndian.PutUint16(out[2:4], uint16(20+8+fakeLen))
 	copy(out[20:], orig[ihl:ihl+8])
 	binary.BigEndian.PutUint16(out[20+4:20+6], uint16(8+fakeLen))
-	for i := 0; i < fakeLen; i++ {
-		out[28+i] = 0
+	if len(payload) > 0 {
+		copy(out[28:28+fakeLen], payload)
 	}
 	FixIPv4Checksum(out[:20])
 	udpChecksumIPv4(out)
@@ -65,7 +66,7 @@ func IPv4FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 		return nil, false
 	}
 	ihl := int((orig[0] & 0x0f) << 2)
-	if len(orig) < ihl+8 {
+	if ihl < 20 || len(orig) < ihl+8 {
 		return nil, false
 	}
 	total := int(binary.BigEndian.Uint16(orig[2:4]))
@@ -91,6 +92,7 @@ func IPv4FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 	id := binary.BigEndian.Uint16(orig[4:6])
 	ip1 := make([]byte, 20+firstDataAligned)
 	copy(ip1, orig[:20])
+	ip1[0] = (ip1[0] & 0xF0) | 0x05
 	binary.BigEndian.PutUint16(ip1[4:6], id)
 	ip1[6] = 0x20
 	ip1[7] = 0x00
@@ -101,6 +103,7 @@ func IPv4FragmentUDP(orig []byte, split int) ([][]byte, bool) {
 	offsetUnits := firstDataAligned / 8
 	ip2 := make([]byte, 20+len(ip2Data))
 	copy(ip2, orig[:20])
+	ip2[0] = (ip2[0] & 0xF0) | 0x05
 	binary.BigEndian.PutUint16(ip2[4:6], id)
 	ip2[6] = byte(offsetUnits>>8) & 0x1F
 	ip2[7] = byte(offsetUnits)

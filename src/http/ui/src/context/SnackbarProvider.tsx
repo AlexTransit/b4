@@ -1,12 +1,12 @@
 // src/http/ui/src/context/SnackbarContext.tsx
-import { createContext, use, useMemo, useState, useCallback, ReactNode } from "react";
+import { createContext, use, useEffect, useMemo, useRef, useState, useCallback, ReactNode } from "react";
 import { Snackbar } from "@mui/material";
 import { B4Alert } from "@b4.elements";
 
 type Severity = "error" | "warning" | "info" | "success";
 
-interface SnackbarState {
-  open: boolean;
+interface SnackbarItem {
+  key: number;
   message: string;
   severity: Severity;
 }
@@ -22,15 +22,16 @@ const SnackbarContext = createContext<SnackbarContextType | null>(null);
 export function SnackbarProvider({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const [state, setState] = useState<SnackbarState>({
-    open: false,
-    message: "",
-    severity: "info",
-  });
+  const [queue, setQueue] = useState<SnackbarItem[]>([]);
+  const [open, setOpen] = useState(false);
+  const keyRef = useRef(0);
+
+  const current = queue[0];
 
   const showSnackbar = useCallback(
     (message: string, severity: Severity = "info") => {
-      setState({ open: true, message, severity });
+      keyRef.current += 1;
+      setQueue((q) => [...q, { key: keyRef.current, message, severity }]);
     },
     [],
   );
@@ -44,21 +45,35 @@ export function SnackbarProvider({
     [showSnackbar],
   );
 
-  const handleClose = useCallback(() => {
-    setState((prev) => ({ ...prev, open: false }));
+  useEffect(() => {
+    if (current) setOpen(true);
+  }, [current]);
+
+  const handleClose = useCallback(
+    (_event?: unknown, reason?: string) => {
+      if (reason === "clickaway") return;
+      setOpen(false);
+    },
+    [],
+  );
+
+  const handleExited = useCallback(() => {
+    setQueue((q) => q.slice(1));
   }, []);
 
   return (
     <SnackbarContext value={useMemo(() => ({ showSnackbar, showError, showSuccess }), [showSnackbar, showError, showSuccess])}>
       {children}
       <Snackbar
-        open={state.open}
-        autoHideDuration={6000}
+        key={current?.key}
+        open={open && !!current}
+        autoHideDuration={current?.severity === "error" ? 8000 : 4000}
         onClose={handleClose}
+        slotProps={{ transition: { onExited: handleExited } }}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       >
-        <B4Alert noWrapper onClose={handleClose} severity={state.severity}>
-          {state.message}
+        <B4Alert noWrapper onClose={handleClose} severity={current?.severity ?? "info"}>
+          {current?.message ?? ""}
         </B4Alert>
       </Snackbar>
     </SnackbarContext>

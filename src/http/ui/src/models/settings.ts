@@ -1,3 +1,16 @@
+import { B4SetConfig } from "@b4.sets";
+import { Device } from "./config";
+
+export type SettingsPropHandlerType =
+  | string
+  | number
+  | boolean
+  | string[]
+  | B4SetConfig[]
+  | Device[]
+  | null
+  | undefined;
+
 export interface GeodatSource {
   name: string;
   geosite_url: string;

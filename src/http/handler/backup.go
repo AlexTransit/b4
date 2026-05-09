@@ -55,7 +55,7 @@ func (api *API) handleBackup(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		if shouldExcludeFromBackup(path, info) {
+		if shouldExcludeFromBackup(info) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -202,7 +202,7 @@ func (api *API) handleRestore(w http.ResponseWriter, r *http.Request) {
 }
 
 // shouldExcludeFromBackup returns true for files that should not be included in the backup.
-func shouldExcludeFromBackup(path string, info os.FileInfo) bool {
+func shouldExcludeFromBackup(info os.FileInfo) bool {
 	name := info.Name()
 
 	// Exclude geodat files (.dat)

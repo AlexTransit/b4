@@ -119,7 +119,11 @@ func (w *Worker) dropAndInjectQUIC(cfg *config.SetConfig, raw []byte, dst net.IP
 	}
 	if udpCfg.FakeSeqLength > 0 {
 		for i := 0; i < udpCfg.FakeSeqLength; i++ {
-			fake, ok := sock.BuildFakeUDPFromOriginalV4(raw, udpCfg.FakeLen, cfg.Faking.TTL)
+			payload := udpCfg.FakePayloadData
+			if udpCfg.FakePayloadFile == config.FakePayloadAutoQUIC {
+				payload = sock.BuildQUICInitial(udpCfg.FakeLen)
+			}
+			fake, ok := sock.BuildFakeUDPFromOriginalV4(raw, udpCfg.FakeLen, cfg.Faking.TTL, payload)
 			if ok {
 				if udpCfg.FakingStrategy == "checksum" {
 					ipHdrLen := int((fake[0] & 0x0F) * 4)
@@ -136,14 +140,19 @@ func (w *Worker) dropAndInjectQUIC(cfg *config.SetConfig, raw []byte, dst net.IP
 		}
 	}
 
-	splitPos := 24
 	ipHdrLen := int((raw[0] & 0x0F) * 4)
+	var realPayload []byte
 	if len(raw) >= ipHdrLen+8 {
-		quicPayload := raw[ipHdrLen+8:]
-		sniOff, sniLen := quic.LocateSNIOffset(quicPayload)
-		if sniOff > 0 && sniLen > 0 {
-			splitPos = sniOff + sniLen/2
-		}
+		realPayload = raw[ipHdrLen+8:]
+	}
+	if !quic.LooksLikeQUIC(realPayload) {
+		_ = w.sock.SendIPv4(raw, dst)
+		return
+	}
+
+	splitPos := 24
+	if sniOff, sniLen := quic.LocateSNIOffset(realPayload); sniOff > 0 && sniLen > 0 {
+		splitPos = sniOff + sniLen/2
 	}
 
 	frags, ok := sock.IPv4FragmentUDP(raw, splitPos)

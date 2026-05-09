@@ -33,7 +33,7 @@ func buildMinimalIPv4UDPPacket(payloadSize int) []byte {
 }
 
 func TestBuildFakeUDPFromOriginalV4_TooShort(t *testing.T) {
-	_, ok := BuildFakeUDPFromOriginalV4(make([]byte, 10), 100, 3)
+	_, ok := BuildFakeUDPFromOriginalV4(make([]byte, 10), 100, 3, nil)
 	if ok {
 		t.Error("expected false for short packet")
 	}
@@ -42,7 +42,7 @@ func TestBuildFakeUDPFromOriginalV4_TooShort(t *testing.T) {
 func TestBuildFakeUDPFromOriginalV4_NotIPv4(t *testing.T) {
 	pkt := make([]byte, 50)
 	pkt[0] = 0x60
-	_, ok := BuildFakeUDPFromOriginalV4(pkt, 100, 3)
+	_, ok := BuildFakeUDPFromOriginalV4(pkt, 100, 3, nil)
 	if ok {
 		t.Error("expected false for non-IPv4")
 	}
@@ -50,7 +50,7 @@ func TestBuildFakeUDPFromOriginalV4_NotIPv4(t *testing.T) {
 
 func TestBuildFakeUDPFromOriginalV4_Valid(t *testing.T) {
 	pkt := buildMinimalIPv4UDPPacket(20)
-	result, ok := BuildFakeUDPFromOriginalV4(pkt, 50, 3)
+	result, ok := BuildFakeUDPFromOriginalV4(pkt, 50, 3, nil)
 	if !ok {
 		t.Fatal("expected success")
 	}

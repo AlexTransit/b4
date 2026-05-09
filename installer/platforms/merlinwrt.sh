@@ -116,6 +116,7 @@ _merlinwrt_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
     command_exists iptables || rec_missing="${rec_missing} iptables"
+    command_exists ipset || rec_missing="${rec_missing} ipset"
     command_exists nohup || rec_missing="${rec_missing} coreutils-nohup"
 
     # Check SSL support packages

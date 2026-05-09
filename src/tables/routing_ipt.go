@@ -188,17 +188,10 @@ func (b *routeIptBackend) addMasqueradeRule(chain string, mark uint32, iface str
 	markHex := fmt.Sprintf("0x%x/0x%x", mark, mark)
 	ctMask := fmt.Sprintf("0x%x/0x%x", hostRouteCTMark, hostRouteCTMark)
 
-	runLogged("routing: add masquerade rule (host)",
+	runLogged("routing: add masquerade rule",
 		cmd, "-w", "-t", "nat", "-A", chain,
 		"-m", "mark", "--mark", markHex,
 		"-m", "connmark", "--mark", ctMask,
-		"-o", iface,
-		"-j", "MASQUERADE",
-	)
-
-	runLogged("routing: add masquerade rule (forwarded)",
-		cmd, "-w", "-t", "nat", "-A", chain,
-		"-m", "mark", "--mark", markHex,
 		"-o", iface,
 		"-j", "MASQUERADE",
 	)

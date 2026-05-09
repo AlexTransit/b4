@@ -11,6 +11,7 @@ import { CloseIcon, AddIcon, NetworkIcon } from "@b4.icons";
 import { B4Badge } from "@common/B4Badge";
 import { ProtocolChip } from "@common/ProtocolChip";
 import { colors } from "@design";
+import { stripPort } from "@utils";
 import { Sparkline } from "./Sparkline";
 import type { EnrichedGroup } from "@hooks/useConnectionGroups";
 import { useTranslation } from "react-i18next";
@@ -45,7 +46,7 @@ export const DetailPane = memo<Props>(
       group.deviceName ||
       group.mac ||
       t("connections.aggregated.unknownDevice");
-    const matched = !!group.hostSet || !!group.ipSet;
+
     const duration = Math.max(
       0,
       Math.floor((group.lastSeen - group.firstSeen) / 1000),
@@ -178,7 +179,7 @@ export const DetailPane = memo<Props>(
             </Stack>
             <Stack spacing={0.5}>
               {group.destIps.map((ip) => {
-                const base = ip.split(":")[0].replaceAll(/[[\]]/g, "");
+                const base = stripPort(ip);
                 const isEnriching = enrichingIps.has(base);
                 const showAsn = group.asnName && ip === group.destIp;
                 return (
@@ -253,7 +254,7 @@ export const DetailPane = memo<Props>(
                           label={group.asnName}
                           onDelete={
                             group.asnId
-                              ? () => onDeleteAsn(group.asnId)
+                              ? () => onDeleteAsn(group.asnId!)
                               : undefined
                           }
                           sx={{

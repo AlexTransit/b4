@@ -12,6 +12,7 @@ import { useTranslation, Trans } from "react-i18next";
 
 import { B4SetConfig } from "@models/config";
 import { createDefaultSet } from "@models/defaults";
+import { copyText } from "@utils";
 
 type Obj = Record<string, unknown>;
 
@@ -95,6 +96,8 @@ function buildExportJson(config: B4SetConfig): Record<string, unknown> {
     delete result.targets.source_devices;
   }
 
+  delete result.escalate;
+
   return result;
 }
 
@@ -163,6 +166,9 @@ export const ImportExportSettings = ({
       if (!frag.seq_overlap_pattern) {
         frag.seq_overlap_pattern = [];
       }
+      if (typeof frag.seq_overlap_length !== "number") {
+        frag.seq_overlap_length = 0;
+      }
       delete frag.overlap;
     }
 
@@ -192,7 +198,7 @@ export const ImportExportSettings = ({
       const defaults = createDefaultSet(0);
       const fullConfig = mergeWithDefaults(
         configFields,
-        defaults as unknown as Record<string, unknown>,
+        defaults,
       ) as Record<string, unknown>;
 
       const parsed = migrateSetConfig(fullConfig);
@@ -230,31 +236,10 @@ export const ImportExportSettings = ({
     importJson(jsonValue);
   };
 
-  const handleCopy = () => {
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(jsonValue).then(
-        () => showSuccess(t("sets.importExport.copiedToClipboard")),
-        () => fallbackCopy(jsonValue),
-      );
-    } else {
-      fallbackCopy(jsonValue);
-    }
-  };
-
-  const fallbackCopy = (text: string) => {
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    textarea.select();
-    try {
-      document.execCommand("copy");
-      showSuccess(t("sets.importExport.copiedToClipboard"));
-    } catch {
-      showError(t("sets.importExport.copyFailed"));
-    }
-    textarea.remove();
+  const handleCopy = async () => {
+    const ok = await copyText(jsonValue);
+    if (ok) showSuccess(t("sets.importExport.copiedToClipboard"));
+    else showError(t("sets.importExport.copyFailed"));
   };
 
   return (
@@ -289,7 +274,7 @@ export const ImportExportSettings = ({
           <Button
             variant="outlined"
             startIcon={<CopyIcon />}
-            onClick={handleCopy}
+            onClick={() => void handleCopy()}
           >
             {t("sets.importExport.copyJson")}
           </Button>

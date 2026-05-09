@@ -2,6 +2,7 @@ package nfq
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math/rand"
 	"net"
 	"time"
@@ -37,18 +38,41 @@ func (w *Worker) HandleIncoming(q *nfqueue.Nfqueue, id uint32, v byte, raw []byt
 			w.connTracker.RecordServerResponse(dstStr, dport, srcStr, sport, pktTTL, hasOpts)
 		}
 
-		if isRst && incomingSet.TCP.RSTProtection.Enabled {
+		rstProtOn := incomingSet.TCP.RSTProtection.Enabled
+		canEscalate := incomingSet.Escalate.To != ""
+		if isRst && (rstProtOn || canEscalate) {
 			tolerance := incomingSet.TCP.RSTProtection.TTLTolerance
 			if tolerance <= 0 {
 				tolerance = 3
 			}
-			if drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, hasOpts, hasACK, tolerance); drop {
-				log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
-				metrics.GetMetricsCollector().RecordRSTDrop()
-				if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
-					log.Tracef("failed to drop RST packet %d: %v", id, err)
+			drop, reason := w.connTracker.CheckRST(dstStr, dport, srcStr, sport, pktTTL, hasOpts, hasACK, tolerance)
+			if drop {
+				if canEscalate && w.destState != nil {
+					outKey := fmt.Sprintf(connKeyFormat, dstStr, dport, srcStr, sport)
+					host, _, _ := w.tlsCache.Lookup(outKey)
+					window := time.Duration(incomingSet.Escalate.RstWindowSec) * time.Second
+					ttl := time.Duration(incomingSet.Escalate.TtlSec) * time.Second
+					if host != "" && w.destState.RecordRSTKill(host, incomingSet.Escalate.RstThreshold, window) {
+						cfg := w.getConfig()
+						if next := cfg.GetSetById(incomingSet.Escalate.To); next != nil && next.Enabled {
+							if w.destState.SetEscalation(host, next.Id, ttl) {
+								metrics.GetMetricsCollector().RecordEscalation()
+								log.Warnf("RST-kill escalation for %s: %s -> %s (%s)", host, incomingSet.Name, next.Name, reason)
+								registerEscalatedRoute(cfg, next, src)
+							} else {
+								log.Warnf("escalation hop cap reached for %s (chain stopped at %s)", host, incomingSet.Name)
+							}
+						}
+					}
 				}
-				return 0
+				if rstProtOn {
+					log.Warnf("RST protection: dropped RST from %s:%d — %s", srcStr, sport, reason)
+					metrics.GetMetricsCollector().RecordRSTDrop()
+					if err := q.SetVerdict(id, nfqueue.NfDrop); err != nil {
+						log.Tracef("failed to drop RST packet %d: %v", id, err)
+					}
+					return 0
+				}
 			}
 		}
 	}

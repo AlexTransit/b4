@@ -1,11 +1,11 @@
 import { Grid, Box, Typography } from "@mui/material";
 import {
-  B4Alert,
   B4Select,
   B4FormHeader,
   B4TextField,
   B4PlusButton,
   B4ChipList,
+  B4Hint,
 } from "@b4.elements";
 import { colors } from "@design";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +14,8 @@ import { useTranslation } from "react-i18next";
 interface SeqOverlapPatternFieldsProps {
   pattern: string[];
   onChange: (pattern: string[]) => void;
+  length: number;
+  onLengthChange: (length: number) => void;
 }
 
 const normalizeByte = (b: string): string => {
@@ -24,6 +26,8 @@ const normalizeByte = (b: string): string => {
 export const SeqOverlapPatternFields = ({
   pattern,
   onChange,
+  length,
+  onLengthChange,
 }: SeqOverlapPatternFieldsProps) => {
   const { t } = useTranslation();
   const [customMode, setCustomMode] = useState(false);
@@ -33,7 +37,11 @@ export const SeqOverlapPatternFields = ({
   const patternKey = normalizedPattern.join(",");
 
   const SEQ_OVERLAP_PRESETS = [
-    { label: t("sets.tcp.splitting.disorder.presetNone"), value: "none", pattern: [] },
+    {
+      label: t("sets.tcp.splitting.disorder.presetNone"),
+      value: "none",
+      pattern: [],
+    },
     {
       label: t("sets.tcp.splitting.disorder.presetTls12"),
       value: "tls12",
@@ -54,8 +62,16 @@ export const SeqOverlapPatternFields = ({
       value: "http_get",
       pattern: ["0x47", "0x45", "0x54", "0x20", "0x2F"],
     },
-    { label: t("sets.tcp.splitting.disorder.presetZeros"), value: "zeros", pattern: ["0x00"] },
-    { label: t("sets.tcp.splitting.disorder.presetCustom"), value: "custom", pattern: [] },
+    {
+      label: t("sets.tcp.splitting.disorder.presetZeros"),
+      value: "zeros",
+      pattern: ["0x00"],
+    },
+    {
+      label: t("sets.tcp.splitting.disorder.presetCustom"),
+      value: "custom",
+      pattern: [],
+    },
   ];
 
   const getCurrentPreset = () => {
@@ -130,10 +146,6 @@ export const SeqOverlapPatternFields = ({
     <>
       <B4FormHeader label={t("sets.tcp.splitting.disorder.seqOverlapHeader")} />
 
-      <B4Alert sx={{ m: 0 }}>
-        {t("sets.tcp.splitting.disorder.seqOverlapAlert")}
-      </B4Alert>
-
       <Grid size={{ xs: 12, md: 6 }}>
         <B4Select
           label={t("sets.tcp.splitting.disorder.overlapPattern")}
@@ -144,6 +156,32 @@ export const SeqOverlapPatternFields = ({
           }))}
           onChange={(e) => handlePresetChange(e.target.value as string)}
           helperText={t("sets.tcp.splitting.disorder.overlapPatternHelper")}
+          aiTopic="fragmentation.seq_overlap_pattern"
+          aiContext={{
+            available: SEQ_OVERLAP_PRESETS.map((p) => p.value),
+            current_pattern: normalizedPattern,
+          }}
+        />
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4Hint>{t("sets.tcp.splitting.disorder.seqOverlapAlert")}</B4Hint>
+      </Grid>
+      <Grid size={{ xs: 12, md: 6 }}>
+        <B4TextField
+          label={t("sets.tcp.splitting.disorder.seqOverlapLength")}
+          type="number"
+          value={length === 0 ? "" : String(length)}
+          onChange={(e) => {
+            const v = Number.parseInt(e.target.value, 10);
+            onLengthChange(Number.isNaN(v) || v < 0 ? 0 : v);
+          }}
+          placeholder="0"
+          helperText={t("sets.tcp.splitting.disorder.seqOverlapLengthHelper")}
+          aiTopic="fragmentation.seq_overlap_length"
+          aiContext={{
+            current_length: length,
+            pattern_set: pattern.length > 0,
+          }}
         />
       </Grid>
       {normalizedPattern.length > 0 && (
@@ -181,8 +219,16 @@ export const SeqOverlapPatternFields = ({
                   border: `2px dashed ${colors.secondary}`,
                 }}
               >
-                [{normalizedPattern.join(" ")}] (fake, seq-
-                {normalizedPattern.length})
+                {(() => {
+                  const effectiveLen =
+                    length > 0 ? length : normalizedPattern.length;
+                  const shown = Array.from(
+                    { length: Math.min(effectiveLen, 16) },
+                    (_, i) => normalizedPattern[i % normalizedPattern.length],
+                  );
+                  const ellipsis = effectiveLen > shown.length ? " ..." : "";
+                  return `[${shown.join(" ")}${ellipsis}] (${effectiveLen}B, seq-${effectiveLen})`;
+                })()}
               </Box>
               <Typography sx={{ mx: 1 }}>+</Typography>
               <Box
@@ -215,7 +261,9 @@ export const SeqOverlapPatternFields = ({
                 value={newByte}
                 onChange={(e) => setNewByte(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
-                placeholder={t("sets.tcp.splitting.disorder.addBytePlaceholder")}
+                placeholder={t(
+                  "sets.tcp.splitting.disorder.addBytePlaceholder",
+                )}
                 size="small"
               />
               <B4PlusButton

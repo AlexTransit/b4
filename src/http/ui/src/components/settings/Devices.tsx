@@ -29,6 +29,7 @@ import {
   B4TooltipButton,
   B4Badge,
   B4InlineEdit,
+  B4Hint,
 } from "@b4.elements";
 import { useDevices, DevicesSettingsProps } from "@b4.devices";
 import { sortDevices } from "@utils";
@@ -61,7 +62,10 @@ const splitIPv6 = (ip: string): { head: string[]; tail: string[] } | null => {
   };
 };
 
-const extractEmbeddedIPv4 = (head: string[], tail: string[]): number[] | null | undefined => {
+const extractEmbeddedIPv4 = (
+  head: string[],
+  tail: string[],
+): number[] | null | undefined => {
   const last = tail.length ? tail.at(-1) : head.at(-1);
   if (!last?.includes(".")) return undefined;
   const v4 = parseIPv4(last);
@@ -120,13 +124,7 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
   const enabled = config.queue.devices?.enabled || false;
   const vendorLookup = config.queue.devices?.vendor_lookup || false;
   const wisb = config.queue.devices?.wisb || false;
-  const {
-    devices,
-    loading,
-    available,
-    source,
-    loadDevices,
-  } = useDevices();
+  const { devices, loading, available, source, loadDevices } = useDevices();
 
   useEffect(() => {
     loadDevices().catch(() => {});
@@ -137,21 +135,24 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
 
   const updateDevice = (mac: string, update: Partial<Device>) => {
     const current = [...configDevices];
-    const idx = current.findIndex((d) => d.mac.toUpperCase() === mac.toUpperCase());
+    const idx = current.findIndex(
+      (d) => d.mac.toUpperCase() === mac.toUpperCase(),
+    );
     if (idx === -1) {
       current.push({ mac: mac.toUpperCase(), selected: false, ...update });
     } else {
       current[idx] = { ...current[idx], ...update };
     }
     const cleaned = current.filter(
-      (d) => d.selected || d.is_manual || (d.mss_clamp && d.mss_clamp > 0) || d.name
+      (d) =>
+        d.selected || d.is_manual || (d.mss_clamp && d.mss_clamp > 0) || d.name,
     );
     onChange("queue.devices.devices", cleaned);
   };
 
   const handleToggle = (mac: string) => {
     const existing = findConfigDevice(mac);
-    updateDevice(mac, { selected: !(existing?.selected) });
+    updateDevice(mac, { selected: !existing?.selected });
   };
 
   const handleSelectAll = (selectAll: boolean) => {
@@ -169,7 +170,8 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
       }
     }
     const cleaned = updated.filter(
-      (d) => d.selected || d.is_manual || (d.mss_clamp && d.mss_clamp > 0) || d.name
+      (d) =>
+        d.selected || d.is_manual || (d.mss_clamp && d.mss_clamp > 0) || d.name,
     );
     onChange("queue.devices.devices", cleaned);
   };
@@ -179,27 +181,33 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
     if (!ip) return;
     const mac = generateSyntheticMAC(ip);
     if (!mac) return;
-    if (configDevices.some((d) => d.mac.toUpperCase() === mac.toUpperCase())) return;
-    const updated = [...configDevices, {
-      mac: mac.toUpperCase(),
-      ip,
-      name: manualName.trim() || undefined,
-      selected: false,
-      is_manual: true,
-    }];
+    if (configDevices.some((d) => d.mac.toUpperCase() === mac.toUpperCase()))
+      return;
+    const updated = [
+      ...configDevices,
+      {
+        mac: mac.toUpperCase(),
+        ip,
+        name: manualName.trim() || undefined,
+        selected: false,
+        is_manual: true,
+      },
+    ];
     onChange("queue.devices.devices", updated);
     setManualIp("");
     setManualName("");
   };
 
   const handleRemoveManualDevice = (mac: string) => {
-    onChange("queue.devices.devices", configDevices.filter(
-      (d) => d.mac.toUpperCase() !== mac.toUpperCase()
-    ));
+    onChange(
+      "queue.devices.devices",
+      configDevices.filter((d) => d.mac.toUpperCase() !== mac.toUpperCase()),
+    );
   };
 
   const isSelected = (mac: string) => findConfigDevice(mac)?.selected || false;
-  const allSelected = devices.length > 0 && devices.every((d) => isSelected(d.mac));
+  const allSelected =
+    devices.length > 0 && devices.every((d) => isSelected(d.mac));
   const someSelected = devices.some((d) => isSelected(d.mac)) && !allSelected;
   const manualDevices = configDevices.filter((d) => d.is_manual);
 
@@ -245,7 +253,9 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
               checked={wisb}
               onChange={(checked) => onChange("queue.devices.wisb", checked)}
               description={
-                wisb ? t("settings.Devices.invertBlacklist") : t("settings.Devices.invertWhitelist")
+                wisb
+                  ? t("settings.Devices.invertBlacklist")
+                  : t("settings.Devices.invertWhitelist")
               }
               disabled={!enabled}
             />
@@ -360,8 +370,15 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                               }}
                             >
                               {device.is_manual ? (
-                                <Typography variant="caption" color="text.secondary">—</Typography>
-                              ) : device.mac}
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
+                                  —
+                                </Typography>
+                              ) : (
+                                device.mac
+                              )}
                             </TableCell>
                             <TableCell
                               sx={{
@@ -369,17 +386,33 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                                 fontSize: "0.85rem",
                               }}
                             >
-                              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                              <Box
+                                sx={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 0.5,
+                                }}
+                              >
                                 {device.ip}
                                 {device.is_manual && (
-                                  <Chip label={t("core.devices.manual")} size="small" variant="outlined" sx={{ fontSize: "0.7rem", height: 20 }} />
+                                  <Chip
+                                    label={t("core.devices.manual")}
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontSize: "0.7rem", height: 20 }}
+                                  />
                                 )}
                               </Box>
                             </TableCell>
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               {editingMac === device.mac ? (
                                 <B4InlineEdit
-                                  value={findConfigDevice(device.mac)?.name || device.alias || device.vendor || ""}
+                                  value={
+                                    findConfigDevice(device.mac)?.name ||
+                                    device.alias ||
+                                    device.vendor ||
+                                    ""
+                                  }
                                   onSave={(name) => {
                                     updateDevice(device.mac, { name });
                                     setEditingMac(null);
@@ -387,22 +420,45 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                                   onCancel={() => setEditingMac(null)}
                                 />
                               ) : (
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                                  {(findConfigDevice(device.mac)?.name || device.alias || device.vendor) ? (
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 0.5,
+                                  }}
+                                >
+                                  {findConfigDevice(device.mac)?.name ||
+                                  device.alias ||
+                                  device.vendor ? (
                                     <B4Badge
-                                      label={findConfigDevice(device.mac)?.name || device.alias || device.vendor || ""}
+                                      label={
+                                        findConfigDevice(device.mac)?.name ||
+                                        device.alias ||
+                                        device.vendor ||
+                                        ""
+                                      }
                                       color="primary"
-                                      variant={isSelected(device.mac) ? "filled" : "outlined"}
+                                      variant={
+                                        isSelected(device.mac)
+                                          ? "filled"
+                                          : "outlined"
+                                      }
                                     />
                                   ) : (
-                                    <Typography variant="caption" color="text.secondary">
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                    >
                                       {t("core.unknown")}
                                     </Typography>
                                   )}
                                   <IconButton
                                     size="small"
                                     onClick={() => setEditingMac(device.mac)}
-                                    sx={{ opacity: 0.6, "&:hover": { opacity: 1 } }}
+                                    sx={{
+                                      opacity: 0.6,
+                                      "&:hover": { opacity: 1 },
+                                    }}
                                   >
                                     <EditIcon sx={{ fontSize: 16 }} />
                                   </IconButton>
@@ -413,9 +469,14 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                               <TextField
                                 size="small"
                                 type="number"
-                                value={findConfigDevice(device.mac)?.mss_clamp || ""}
+                                value={
+                                  findConfigDevice(device.mac)?.mss_clamp || ""
+                                }
                                 onChange={(e) => {
-                                  const val = e.target.value === "" ? undefined : Number(e.target.value);
+                                  const val =
+                                    e.target.value === ""
+                                      ? undefined
+                                      : Number(e.target.value);
                                   updateDevice(device.mac, { mss_clamp: val });
                                 }}
                                 placeholder="off"
@@ -450,18 +511,26 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
               <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
                 {t("settings.Devices.manualDevices")}
               </Typography>
-              <B4Alert severity="info">
-                {t("settings.Devices.manualDevicesDesc")}
-              </B4Alert>
+              <B4Hint>{t("settings.Devices.manualDevicesDesc")}</B4Hint>
 
-              <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 2, mb: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 1,
+                  alignItems: "center",
+                  mt: 2,
+                  mb: 1,
+                }}
+              >
                 <TextField
                   size="small"
                   label={t("settings.Devices.manualIp")}
                   value={manualIp}
                   onChange={(e) => setManualIp(e.target.value)}
                   placeholder="192.168.1.100"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddManualDevice(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddManualDevice();
+                  }}
                   sx={{ minWidth: 160 }}
                 />
                 <TextField
@@ -470,7 +539,9 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                   value={manualName}
                   onChange={(e) => setManualName(e.target.value)}
                   placeholder={t("settings.Devices.manualNamePlaceholder")}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddManualDevice(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleAddManualDevice();
+                  }}
                   sx={{ minWidth: 160 }}
                 />
                 <Button
@@ -496,33 +567,62 @@ export const DevicesSettings = ({ config, onChange }: DevicesSettingsProps) => {
                   <Table size="small" stickyHeader>
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ bgcolor: colors.background.dark, color: colors.text.secondary }}>
+                        <TableCell
+                          sx={{
+                            bgcolor: colors.background.dark,
+                            color: colors.text.secondary,
+                          }}
+                        >
                           {t("core.devices.ip")}
                         </TableCell>
-                        <TableCell sx={{ bgcolor: colors.background.dark, color: colors.text.secondary }}>
+                        <TableCell
+                          sx={{
+                            bgcolor: colors.background.dark,
+                            color: colors.text.secondary,
+                          }}
+                        >
                           {t("core.devices.deviceName")}
                         </TableCell>
-                        <TableCell sx={{ bgcolor: colors.background.dark, width: 50 }} />
+                        <TableCell
+                          sx={{ bgcolor: colors.background.dark, width: 50 }}
+                        />
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {manualDevices.map((d) => (
                         <TableRow key={d.mac}>
-                          <TableCell sx={{ fontFamily: "monospace", fontSize: "0.85rem" }}>
+                          <TableCell
+                            sx={{
+                              fontFamily: "monospace",
+                              fontSize: "0.85rem",
+                            }}
+                          >
                             {d.ip}
                           </TableCell>
                           <TableCell>
                             {d.name ? (
-                              <B4Badge label={d.name} color="primary" variant="outlined" />
+                              <B4Badge
+                                label={d.name}
+                                color="primary"
+                                variant="outlined"
+                              />
                             ) : (
-                              <Typography variant="caption" color="text.secondary">—</Typography>
+                              <Typography
+                                variant="caption"
+                                color="text.secondary"
+                              >
+                                —
+                              </Typography>
                             )}
                           </TableCell>
                           <TableCell>
                             <IconButton
                               size="small"
                               onClick={() => handleRemoveManualDevice(d.mac)}
-                              sx={{ color: colors.text.secondary, "&:hover": { color: "error.main" } }}
+                              sx={{
+                                color: colors.text.secondary,
+                                "&:hover": { color: "error.main" },
+                              }}
                             >
                               <DeleteIcon sx={{ fontSize: 18 }} />
                             </IconButton>

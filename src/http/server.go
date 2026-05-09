@@ -5,7 +5,9 @@ import (
 	"embed"
 	"fmt"
 	"io"
+	stdlog "log"
 	stdhttp "net/http"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -19,6 +21,18 @@ import (
 
 //go:embed ui/dist/*
 var uiDist embed.FS
+
+type errLogFilter struct{ w io.Writer }
+
+func (f errLogFilter) Write(p []byte) (int, error) {
+	s := string(p)
+	if strings.Contains(s, "TLS handshake error") ||
+		strings.Contains(s, "tls: ") ||
+		strings.Contains(s, "http: URL query contains semicolon") {
+		return len(p), nil
+	}
+	return f.w.Write(p)
+}
 
 func StartServer(cfgPtr *atomic.Pointer[config.Config], pool *nfq.Pool) (*stdhttp.Server, error) {
 	cfg := cfgPtr.Load()
@@ -79,6 +93,7 @@ func StartServer(cfgPtr *atomic.Pointer[config.Config], pool *nfq.Pool) (*stdhtt
 		Addr:              addr,
 		Handler:           httpHandler,
 		ReadHeaderTimeout: 5 * time.Second,
+		ErrorLog:          stdlog.New(errLogFilter{w: os.Stderr}, "", stdlog.LstdFlags),
 	}
 
 	go func() {
@@ -104,7 +119,8 @@ func registerWebSocketEndpoints(mux *stdhttp.ServeMux) {
 	mux.HandleFunc("/api/ws/logs", ws.HandleLogsWebSocket)
 	mux.HandleFunc("/api/ws/metrics", ws.HandleMetricsWebSocket)
 	mux.HandleFunc("/api/ws/discovery", ws.HandleDiscoveryWebSocket)
-	log.Tracef("WebSocket endpoints registered: /api/ws/logs, /api/ws/metrics, /api/ws/discovery")
+	mux.HandleFunc("/api/ws/connections", ws.HandleConnectionsWebSocket)
+	log.Tracef("WebSocket endpoints registered: /api/ws/logs, /api/ws/metrics, /api/ws/discovery, /api/ws/connections")
 }
 
 // registerAPIEndpoints registers all REST API handlers

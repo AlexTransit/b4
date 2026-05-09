@@ -167,6 +167,13 @@ var DefaultSetConfig = SetConfig{
 		GeoIpCategories:   []string{},
 		SourceDevices:     []string{},
 	},
+
+	Escalate: EscalateConfig{
+		To:           "",
+		RstThreshold: 3,
+		RstWindowSec: 30,
+		TtlSec:       3600,
+	},
 }
 
 var DefaultConfig = Config{
@@ -259,6 +266,17 @@ var DefaultConfig = Config{
 		},
 		API: ApiConfig{
 			IPInfoToken: "",
+		},
+
+		AI: AIConfig{
+			Enabled:     false,
+			Provider:    "",
+			Model:       "",
+			Endpoint:    "",
+			APIKeyRef:   "",
+			MaxTokens:   1024,
+			Temperature: 0.2,
+			TimeoutSec:  120,
 		},
 
 		Timezone: "",

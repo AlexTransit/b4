@@ -45,6 +45,8 @@ func (m *Manager) SyncConfig(cfg *config.Config) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	bypassMark := proxyBypassMark(cfg)
+
 	desired := make(map[string]*config.SetConfig, len(cfg.Sets))
 	for _, set := range cfg.Sets {
 		if set == nil || !set.Enabled || !set.Routing.Enabled {
@@ -75,6 +77,7 @@ func (m *Manager) SyncConfig(cfg *config.Config) {
 			l.Upstream.Port != set.Routing.Upstream.Port ||
 			l.Upstream.Username != set.Routing.Upstream.Username ||
 			l.Upstream.Password != set.Routing.Upstream.Password ||
+			l.Upstream.BypassMark != bypassMark ||
 			l.UseDomain != set.Routing.Upstream.UseDomain ||
 			l.FailOpen != set.Routing.Upstream.FailOpen {
 			log.Infof("tproxy: restarting listener for set %q (config changed)", set.Name)
@@ -98,11 +101,12 @@ func (m *Manager) SyncConfig(cfg *config.Config) {
 			SetName:  set.Name,
 			Port:     port,
 			Upstream: socks5.ClientConfig{
-				Host:     host,
-				Port:     set.Routing.Upstream.Port,
-				Username: set.Routing.Upstream.Username,
-				Password: set.Routing.Upstream.Password,
-				Timeout:  10 * time.Second,
+				Host:       host,
+				Port:       set.Routing.Upstream.Port,
+				Username:   set.Routing.Upstream.Username,
+				Password:   set.Routing.Upstream.Password,
+				Timeout:    10 * time.Second,
+				BypassMark: bypassMark,
 			},
 			UseDomain: set.Routing.Upstream.UseDomain,
 			FailOpen:  set.Routing.Upstream.FailOpen,
@@ -140,4 +144,15 @@ func effectiveMark(set *config.SetConfig) uint32 {
 		return 0
 	}
 	return MarkForSet(set.Id, set.Routing.FWMark)
+}
+
+// proxyBypassMark returns the SO_MARK value the listener uses on its outbound
+// SOCKS5 dial so that those packets bypass b4's proxy-mode OUTPUT mark rule and
+// don't loop back into TPROXY. It mirrors routeQueueBypassMark in the tables
+// package, kept in sync via the cfg.Queue.Mark setting.
+func proxyBypassMark(cfg *config.Config) uint32 {
+	if cfg == nil || cfg.Queue.Mark == 0 {
+		return 0x8000
+	}
+	return uint32(cfg.Queue.Mark)
 }

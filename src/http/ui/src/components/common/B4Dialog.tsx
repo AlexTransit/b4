@@ -104,10 +104,9 @@ export const B4Dialog = ({
     <DialogContent
       sx={{
         bgcolor: colors.background.default,
-        p: "18px",
         display: "flex",
         flexDirection: "column",
-        gap: "10px",
+        mt: 2,
       }}
     >
       {headerAlert}
@@ -121,7 +120,7 @@ export const B4Dialog = ({
           sx={{
             p: "12px 14px",
             bgcolor: colors.background.paper,
-            gap: "8px",
+            gap: 1,
           }}
         >
           {actions}

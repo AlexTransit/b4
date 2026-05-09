@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"syscall"
@@ -323,25 +324,40 @@ func (api *API) handleUpdate(w http.ResponseWriter, r *http.Request) {
 		log.Infof("Installer downloaded, starting update process...")
 		log.Infof("Service will stop now - this is expected")
 
+		existingBin := ""
+		if exe, err := os.Executable(); err == nil {
+			if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+				exe = resolved
+			}
+			existingBin = exe
+		}
+
 		var cmd *exec.Cmd
 		if serviceManager == "systemd" {
-			args := []string{"--scope", "--unit=b4-update", installerPath, "--update", "--quiet"}
+			args := []string{"--scope", "--unit=b4-update"}
+			if existingBin != "" {
+				args = append(args, "--setenv=B4_EXISTING_BIN="+existingBin)
+			}
+			args = append(args, installerPath, "--update", "--quiet")
 			if req.Version != "" {
 				args = append(args, req.Version)
 			}
 			cmd = exec.Command("systemd-run", args...)
 		} else {
-			args := []string{installerPath, "--update", "--quiet"}
+			args := []string{"--update", "--quiet"}
 			if req.Version != "" {
 				args = append(args, req.Version)
 			}
-			cmd = exec.Command("nohup", args...)
+			cmd = exec.Command(installerPath, args...)
 			cmd.SysProcAttr = &syscall.SysProcAttr{
 				Setsid: true,
 			}
 		}
 
 		cmd.Env = append(os.Environ(), fmt.Sprintf("PATH=%s", fullPath))
+		if existingBin != "" {
+			cmd.Env = append(cmd.Env, "B4_EXISTING_BIN="+existingBin)
+		}
 
 		devNull, _ := os.Open("/dev/null")
 		logFile, _ := os.OpenFile("/tmp/b4_update.log", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)

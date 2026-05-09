@@ -1,4 +1,5 @@
 import * as ipaddr from "ipaddr.js";
+import { stripPort } from "./logs";
 
 export interface AsnInfo {
   id: string;
@@ -89,7 +90,7 @@ class AsnStorage {
   }
 
   findAsnForIp(ip: string): AsnInfo | null {
-    const cleanIp = ip.split(":")[0].replaceAll(/[[\]]/g, "");
+    const cleanIp = stripPort(ip);
 
     const cached = this.lookupCache.get(cleanIp);
     if (cached !== undefined) {

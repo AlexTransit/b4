@@ -74,6 +74,7 @@ export interface FragmentationConfig {
   tlsrec_pos_max: number;
 
   seq_overlap_pattern: string[];
+  seq_overlap_length: number;
 
   combo: ComboFragConfig;
   disorder: DisorderFragConfig;
@@ -121,11 +122,16 @@ export type UdpMode = "drop" | "reject" | "fake";
 export type UdpFilterQuicMode = "disabled" | "all" | "parse";
 export type UdpFakingStrategy = "none" | "ttl" | "checksum";
 
+export const UDP_FAKE_PAYLOAD_AUTO_QUIC = "@quic_initial";
+export const UDP_FAKE_PAYLOAD_PRESET_1 = "@preset:quic1";
+export const UDP_FAKE_PAYLOAD_PRESET_2 = "@preset:quic2";
+
 export interface UdpConfig {
   mode: UdpMode;
   fake_seq_length: number;
   fake_len: number;
   faking_strategy: UdpFakingStrategy;
+  fake_payload_file?: string;
   dport_filter: string;
   filter_quic: UdpFilterQuicMode;
   conn_bytes_limit: number;
@@ -253,6 +259,19 @@ export interface ApiConfig {
   ipinfo_token: string;
 }
 
+export type AIProvider = "" | "openai" | "anthropic" | "ollama";
+
+export interface AIConfig {
+  enabled: boolean;
+  provider: AIProvider;
+  model: string;
+  endpoint: string;
+  api_key_ref: string;
+  max_tokens: number;
+  temperature: number;
+  timeout_sec: number;
+}
+
 export interface Socks5Config {
   enabled: boolean;
   port: number;
@@ -282,6 +301,7 @@ export interface SystemConfig {
   checker: DiscoveryConfig;
   geo: GeoConfig;
   api: ApiConfig;
+  ai: AIConfig;
   timezone: string;
 }
 
@@ -304,6 +324,14 @@ export interface B4SetConfig {
   targets: TargetsConfig;
   dns: DNSConfig;
   routing: RoutingConfig;
+  escalate?: EscalateConfig;
+}
+
+export interface EscalateConfig {
+  to?: string;
+  rst_threshold?: number;
+  rst_window_sec?: number;
+  ttl_sec?: number;
 }
 
 export type ComboShuffleMode = "middle" | "full" | "reverse";

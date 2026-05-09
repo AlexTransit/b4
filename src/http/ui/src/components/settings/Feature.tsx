@@ -11,13 +11,11 @@ import {
   B4Badge,
 } from "@b4.elements";
 import { Box, Typography } from "@mui/material";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface FeatureSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: boolean | string | number | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
@@ -84,7 +82,7 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
           onChange={(e) =>
             onChange(
               "system.tables.engine",
-              e.target.value === "auto" ? "" : (e.target.value as string),
+              e.target.value === "auto" ? "" : e.target.value,
             )
           }
           options={[
@@ -105,7 +103,10 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
         />
       </B4FormGroup>
       {config.system.tables.masquerade && (
-        <B4FormGroup label={t("settings.Feature.masqueradeInterface")} columns={1}>
+        <B4FormGroup
+          label={t("settings.Feature.masqueradeInterface")}
+          columns={1}
+        >
           <Box>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
               {t("settings.Feature.masqueradeInterfaceDesc")}
@@ -136,7 +137,7 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
               </B4Alert>
             )}
             {!config.system.tables.masquerade_interface && (
-              <B4Alert severity="info" sx={{ mt: 1 }}>
+              <B4Alert severity="info" sx={{ mt: 2 }}>
                 {t("settings.Feature.masqueradeAllInterfaces")}
               </B4Alert>
             )}
@@ -170,7 +171,7 @@ export const FeatureSettings = ({ config, onChange }: FeatureSettingsProps) => {
             </B4Alert>
           )}
           {config.queue.interfaces?.length === 0 && (
-            <B4Alert severity="info" sx={{ mt: 1 }}>
+            <B4Alert severity="info" sx={{ mt: 2 }}>
               {t("settings.Feature.listenAllInterfaces")}
             </B4Alert>
           )}

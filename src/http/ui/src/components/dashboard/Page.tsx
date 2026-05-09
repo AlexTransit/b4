@@ -11,6 +11,7 @@ import { HealthBanner } from "./HealthBanner";
 import { MetricsCards } from "./MetricsCards";
 import { ActiveSets } from "./ActiveSets";
 import { DeviceActivity } from "./DeviceActivity";
+import { Escalations } from "./Escalations";
 import { UnmatchedDomains } from "./UnmatchedDomains";
 import { SimpleLineChart } from "./SimpleLineChart";
 import { colors, fonts } from "@design";
@@ -70,6 +71,16 @@ export interface Metrics {
   domain_tls: Record<string, string>;
   current_cps: number;
   current_pps: number;
+  escalations: EscalationEntry[];
+  total_escalations: number;
+}
+
+export interface EscalationEntry {
+  host: string;
+  to_set: string;
+  hops: number;
+  set_at: string;
+  expires_at: string;
 }
 
 const safeNumber = (val: number, defaultValue: number = 0): number => {
@@ -118,6 +129,8 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
       domain_tls: {},
       current_cps: 0,
       current_pps: 0,
+      escalations: [],
+      total_escalations: 0,
     };
   }
 
@@ -208,7 +221,7 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
             protocol:
               conn?.protocol === "TCP" || conn?.protocol === "UDP"
                 ? conn.protocol
-                : ("TCP" as "TCP" | "UDP"),
+                : "TCP",
             domain: String(conn?.domain ?? ""),
             source: String(conn?.source ?? ""),
             destination: String(conn?.destination ?? ""),
@@ -252,7 +265,20 @@ const normalizeMetrics = (data: null | Metrics): Metrics => {
         : {},
     current_cps: safeNumber(data.current_cps),
     current_pps: safeNumber(data.current_pps),
+    escalations: normalizeEscalations(data.escalations),
+    total_escalations: safeNumber(data.total_escalations),
   };
+};
+
+const normalizeEscalations = (raw: unknown): EscalationEntry[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((e: Partial<EscalationEntry>) => ({
+    host: String(e?.host ?? ""),
+    to_set: String(e?.to_set ?? ""),
+    hops: safeNumber(e?.hops ?? 0),
+    set_at: String(e?.set_at ?? ""),
+    expires_at: String(e?.expires_at ?? ""),
+  }));
 };
 
 export function DashboardPage() {
@@ -318,36 +344,67 @@ export function DashboardPage() {
     <Container maxWidth={false} sx={{ p: 2 }}>
       <HealthBanner metrics={metrics} connected={connected} />
 
-      <Box sx={{ mb: 1.5 }}>
-        <MetricsCards metrics={metrics} />
-      </Box>
-
-      <ActiveSets sets={sets} />
-
       <Grid container spacing={1.5} sx={{ mb: 1.5 }} alignItems="stretch">
-        <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
+        <Grid
+          size={{ xs: 12, lg: sets.length > 0 ? 6 : 12 }}
+          sx={{ display: "flex" }}
+        >
           <Box sx={{ width: "100%" }}>
-            <DeviceActivity
-              deviceDomains={metrics.device_domains}
-              domainTLS={metrics.domain_tls}
-              sets={sets}
-              targetedDomains={targetedDomains}
-              onRefreshSets={refreshSets}
-            />
+            <MetricsCards metrics={metrics} />
           </Box>
         </Grid>
-        <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
-          <Box sx={{ width: "100%" }}>
-            <UnmatchedDomains
-              topDomains={metrics.top_domains}
-              domainTLS={metrics.domain_tls}
-              sets={sets}
-              targetedDomains={targetedDomains}
-              onRefreshSets={refreshSets}
-            />
-          </Box>
-        </Grid>
+        {sets.length > 0 && (
+          <Grid size={{ xs: 12, lg: 6 }} sx={{ display: "flex" }}>
+            <Box sx={{ width: "100%" }}>
+              <ActiveSets sets={sets} />
+            </Box>
+          </Grid>
+        )}
       </Grid>
+
+      {(() => {
+        const hasDevices = Object.keys(metrics.device_domains).length > 0;
+        return (
+          <Grid container spacing={1.5} sx={{ mb: 1.5 }} alignItems="stretch">
+            {hasDevices && (
+              <Grid size={{ xs: 12, xl: 6 }} sx={{ display: "flex" }}>
+                <Box sx={{ width: "100%" }}>
+                  <DeviceActivity
+                    deviceDomains={metrics.device_domains}
+                    domainTLS={metrics.domain_tls}
+                    sets={sets}
+                    targetedDomains={targetedDomains}
+                    onRefreshSets={refreshSets}
+                  />
+                </Box>
+              </Grid>
+            )}
+            <Grid
+              size={{ xs: 12, xl: hasDevices ? 6 : 12 }}
+              sx={{ display: "flex" }}
+            >
+              <Box sx={{ width: "100%" }}>
+                <UnmatchedDomains
+                  topDomains={metrics.top_domains}
+                  domainTLS={metrics.domain_tls}
+                  sets={sets}
+                  targetedDomains={targetedDomains}
+                  onRefreshSets={refreshSets}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+        );
+      })()}
+
+      {metrics.escalations.length > 0 && (
+        <Box sx={{ mb: 1.5 }}>
+          <Escalations
+            escalations={metrics.escalations}
+            total={metrics.total_escalations}
+          />
+        </Box>
+      )}
 
       {metrics.connection_rate.length > 0 && (
         <Paper
@@ -391,9 +448,7 @@ export function DashboardPage() {
                 component="span"
                 sx={{ width: 8, height: 2, bgcolor: colors.secondary }}
               />
-              <Box component="span">
-                {t("dashboard.connectionRateLegend")}
-              </Box>
+              <Box component="span">{t("dashboard.connectionRateLegend")}</Box>
             </Box>
           </Box>
           <SimpleLineChart

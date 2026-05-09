@@ -1,14 +1,19 @@
 import { useTranslation } from "react-i18next";
+import { setLanguage } from "../../i18n";
 import { ApiIcon } from "@b4.icons";
-import { B4Alert, B4FormGroup, B4Section, B4Select, B4TextField } from "@b4.elements";
+import {
+  B4Alert,
+  B4FormGroup,
+  B4Section,
+  B4Select,
+  B4TextField,
+} from "@b4.elements";
 import { B4Config } from "@models/config";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface WebServerSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: number | boolean | string | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 const LANGUAGES = [
@@ -20,13 +25,12 @@ export const WebServerSettings = ({
   config,
   onChange,
 }: WebServerSettingsProps) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
 
   const handleLanguageChange = (e: { target: { value: string | number } }) => {
     const lang = String(e.target.value);
     onChange("system.web_server.language", lang);
-    void i18n.changeLanguage(lang);
-    localStorage.setItem("b4-language", lang);
+    setLanguage(lang);
   };
 
   return (

@@ -37,6 +37,7 @@ export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
             onChange("fragmentation.middle_sni", checked)
           }
           description={t("sets.tcp.splitting.tcpIp.smartSniSplitDesc")}
+          aiTopic="fragmentation.middle_sni"
         />
       </Grid>
 
@@ -166,6 +167,11 @@ export const TcpIpSettings = ({ config, onChange }: TcpIpSettingsProps) => {
               max={50}
               step={1}
               helperText={t("sets.tcp.splitting.tcpIp.fixedSplitPosHelper")}
+              aiTopic="fragmentation.sni_position"
+              aiContext={{
+                middle_sni: config.fragmentation.middle_sni,
+                strategy: config.fragmentation.strategy,
+              }}
             />
           </Grid>
         </Grid>

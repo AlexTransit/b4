@@ -1,7 +1,7 @@
 import { Grid, Box, Typography } from "@mui/material";
 import { colors } from "@design";
 import { B4SetConfig } from "@models/config";
-import { B4Alert, B4FormHeader } from "@b4.elements";
+import { B4Alert, B4FormHeader, B4Hint } from "@b4.elements";
 import { useTranslation, Trans } from "react-i18next";
 
 interface FirstByteSettingsProps {
@@ -15,9 +15,7 @@ export const FirstByteSettings = ({ config }: FirstByteSettingsProps) => {
     <>
       <B4FormHeader label={t("sets.tcp.splitting.firstByte.header")} />
 
-      <B4Alert severity="info" sx={{ m: 0 }}>
-        {t("sets.tcp.splitting.firstByte.alert")}
-      </B4Alert>
+      <B4Hint>{t("sets.tcp.splitting.firstByte.alert")}</B4Hint>
 
       <Grid size={{ xs: 12 }}>
         <Box
@@ -65,7 +63,8 @@ export const FirstByteSettings = ({ config }: FirstByteSettingsProps) => {
               }}
             >
               <Typography variant="caption">
-                ⏱️ {config.tcp.seg2delay_max > config.tcp.seg2delay
+                ⏱️{" "}
+                {config.tcp.seg2delay_max > config.tcp.seg2delay
                   ? `${config.tcp.seg2delay || 30}–${config.tcp.seg2delay_max}ms`
                   : `${config.tcp.seg2delay || 30}ms+`}
               </Typography>

@@ -11,6 +11,8 @@ const (
 	ConfigNone = "none"
 )
 
+const FakePayloadAutoQUIC = "@quic_initial"
+
 const (
 	RoutingModeInterface = "interface"
 	RoutingModeProxy     = "proxy"
@@ -71,12 +73,12 @@ type TCPConfig struct {
 	DropSACK       bool   `json:"drop_sack"`
 	DPortFilter    string `json:"dport_filter"` // comma separated list of ports and port ranges, e.g. "80,443,5222"
 
-	Incoming       IncomingConfig       `json:"incoming"`
-	Desync         DesyncConfig         `json:"desync"`
-	Win            WinConfig            `json:"win"`
-	Duplicate      DuplicateConfig      `json:"duplicate"`
-	IPBlockDetect  IPBlockDetectConfig  `json:"ip_block_detect"`
-	RSTProtection  RSTProtectionConfig  `json:"rst_protection"`
+	Incoming      IncomingConfig      `json:"incoming"`
+	Desync        DesyncConfig        `json:"desync"`
+	Win           WinConfig           `json:"win"`
+	Duplicate     DuplicateConfig     `json:"duplicate"`
+	IPBlockDetect IPBlockDetectConfig `json:"ip_block_detect"`
+	RSTProtection RSTProtectionConfig `json:"rst_protection"`
 }
 
 type IPBlockDetectConfig struct {
@@ -113,16 +115,18 @@ type IncomingConfig struct {
 }
 
 type UDPConfig struct {
-	Mode           string `json:"mode"`
-	FakeSeqLength  int    `json:"fake_seq_length"`
-	FakeLen        int    `json:"fake_len"`
-	FakingStrategy string `json:"faking_strategy"`
-	DPortFilter    string `json:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
-	FilterQUIC     string `json:"filter_quic"`
-	FilterSTUN     bool   `json:"filter_stun"`
-	ConnBytesLimit int    `json:"conn_bytes_limit"`
-	Seg2Delay      int    `json:"seg2delay"`
-	Seg2DelayMax   int    `json:"seg2delay_max"`
+	Mode            string `json:"mode"`
+	FakeSeqLength   int    `json:"fake_seq_length"`
+	FakeLen         int    `json:"fake_len"`
+	FakingStrategy  string `json:"faking_strategy"`
+	FakePayloadFile string `json:"fake_payload_file"` // "" = zero fill, "@quic_initial" = generate fresh QUIC Initial per packet, "@preset:quic1"/"@preset:quic2" = bundled presets, otherwise capture filename relative to config dir (e.g. "captures/quic_youtube_com.bin")
+	FakePayloadData []byte `json:"-"`
+	DPortFilter     string `json:"dport_filter"` // can be a comma separated list of ports and port ranges, e.g. "80,443,1000-2000"
+	FilterQUIC      string `json:"filter_quic"`
+	FilterSTUN      bool   `json:"filter_stun"`
+	ConnBytesLimit  int    `json:"conn_bytes_limit"`
+	Seg2Delay       int    `json:"seg2delay"`
+	Seg2DelayMax    int    `json:"seg2delay_max"`
 }
 
 type FragmentationConfig struct {
@@ -143,6 +147,7 @@ type FragmentationConfig struct {
 
 	SeqOverlapPattern []string `json:"seq_overlap_pattern"`
 	SeqOverlapBytes   []byte   `json:"-"`
+	SeqOverlapLength  int      `json:"seq_overlap_length"`
 
 	Combo    ComboFragConfig    `json:"combo"`
 	Disorder DisorderFragConfig `json:"disorder"`
@@ -194,7 +199,19 @@ type SystemConfig struct {
 	Checker   DiscoveryConfig `json:"checker"`
 	Geo       GeoDatConfig    `json:"geo"`
 	API       ApiConfig       `json:"api"`
+	AI        AIConfig        `json:"ai"`
 	Timezone  string          `json:"timezone"`
+}
+
+type AIConfig struct {
+	Enabled     bool    `json:"enabled"`
+	Provider    string  `json:"provider"`
+	Model       string  `json:"model"`
+	Endpoint    string  `json:"endpoint"`
+	APIKeyRef   string  `json:"api_key_ref"`
+	MaxTokens   int     `json:"max_tokens"`
+	Temperature float64 `json:"temperature"`
+	TimeoutSec  int     `json:"timeout_sec"`
 }
 
 type MTProtoConfig struct {
@@ -276,6 +293,14 @@ type SetConfig struct {
 	TCPPortRanges []PortRange         `json:"-"`
 	UDPPortRanges []PortRange         `json:"-"`
 	Routing       RoutingConfig       `json:"routing"`
+	Escalate      EscalateConfig      `json:"escalate"`
+}
+
+type EscalateConfig struct {
+	To           string `json:"to"`              // ID of next set to use after this set is detected as blocked for a destination
+	RstThreshold int    `json:"rst_threshold"`   // 0 -> 3
+	RstWindowSec int    `json:"rst_window_sec"`  // 0 -> 30
+	TtlSec       int    `json:"ttl_sec"`         // 0 -> 3600
 }
 
 type GeoDatConfig struct {
@@ -346,7 +371,6 @@ type MSSClampConfig struct {
 	Enabled bool `json:"enabled"`
 	Size    int  `json:"size"` // MSS value in bytes (e.g., 88)
 }
-
 
 type RoutingConfig struct {
 	Enabled          bool                `json:"enabled"`

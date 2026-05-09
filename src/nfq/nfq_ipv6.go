@@ -19,7 +19,11 @@ func (w *Worker) dropAndInjectQUICV6(cfg *config.SetConfig, raw []byte, dst net.
 
 	if cfg.UDP.FakeSeqLength > 0 {
 		for i := 0; i < cfg.UDP.FakeSeqLength; i++ {
-			fake, ok := sock.BuildFakeUDPFromOriginalV6(raw, cfg.UDP.FakeLen, cfg.Faking.TTL)
+			payload := cfg.UDP.FakePayloadData
+			if cfg.UDP.FakePayloadFile == config.FakePayloadAutoQUIC {
+				payload = sock.BuildQUICInitial(cfg.UDP.FakeLen)
+			}
+			fake, ok := sock.BuildFakeUDPFromOriginalV6(raw, cfg.UDP.FakeLen, cfg.Faking.TTL, payload)
 			if ok {
 				if cfg.UDP.FakingStrategy == "checksum" {
 					ipv6HdrLen := 40
@@ -36,15 +40,19 @@ func (w *Worker) dropAndInjectQUICV6(cfg *config.SetConfig, raw []byte, dst net.
 		}
 	}
 
-	// Try to locate SNI within encrypted QUIC payload
-	splitPos := 24 // fallback
 	ipv6HdrLen := 40
+	var realPayload []byte
 	if len(raw) >= ipv6HdrLen+8 {
-		quicPayload := raw[ipv6HdrLen+8:] // skip IPv6 + UDP headers
-		sniOff, sniLen := quic.LocateSNIOffset(quicPayload)
-		if sniOff > 0 && sniLen > 0 {
-			splitPos = sniOff + sniLen/2
-		}
+		realPayload = raw[ipv6HdrLen+8:]
+	}
+	if !quic.LooksLikeQUIC(realPayload) {
+		_ = w.sock.SendIPv6(raw, dst)
+		return
+	}
+
+	splitPos := 24
+	if sniOff, sniLen := quic.LocateSNIOffset(realPayload); sniOff > 0 && sniLen > 0 {
+		splitPos = sniOff + sniLen/2
 	}
 
 	frags, ok := sock.IPv6FragmentUDP(raw, splitPos)

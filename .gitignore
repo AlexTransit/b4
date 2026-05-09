@@ -36,7 +36,6 @@ src/tools/docs/
 src/embed
 
 src/b4
-*.bin
 
 out/
 vendor/
@@ -44,3 +43,4 @@ vendor/
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
 tspu-docs/
+.claude/

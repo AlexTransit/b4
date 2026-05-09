@@ -42,13 +42,15 @@ export const BackupSettings = () => {
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
       URL.revokeObjectURL(url);
 
       showSuccess(t("settings.Backup.downloadSuccess"));
     } catch (error) {
       showError(
-        error instanceof Error ? error.message : t("settings.Backup.downloadFailed"),
+        error instanceof Error
+          ? error.message
+          : t("settings.Backup.downloadFailed"),
       );
     } finally {
       setDownloading(false);
@@ -86,7 +88,9 @@ export const BackupSettings = () => {
       setShowRestartDialog(true);
     } catch (error) {
       showError(
-        error instanceof Error ? error.message : t("settings.Backup.restoreFailed"),
+        error instanceof Error
+          ? error.message
+          : t("settings.Backup.restoreFailed"),
       );
     } finally {
       setRestoring(false);
@@ -105,9 +109,7 @@ export const BackupSettings = () => {
 
   return (
     <Stack spacing={3}>
-      <B4Alert icon={<BackupIcon />}>
-        {t("settings.Backup.alert")}
-      </B4Alert>
+      <B4Alert icon={<BackupIcon />}>{t("settings.Backup.alert")}</B4Alert>
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }}>
@@ -129,7 +131,9 @@ export const BackupSettings = () => {
                   }}
                   disabled={downloading}
                 >
-                  {downloading ? t("settings.Backup.generating") : t("settings.Backup.downloadButton")}
+                  {downloading
+                    ? t("settings.Backup.generating")
+                    : t("settings.Backup.downloadButton")}
                 </Button>
               </Box>
             </Stack>
@@ -150,7 +154,7 @@ export const BackupSettings = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".tar.gz,.tgz"
+                  accept=".gz,.tgz,application/gzip,application/x-gzip"
                   style={{ display: "none" }}
                   onChange={handleFileSelect}
                 />
@@ -160,7 +164,9 @@ export const BackupSettings = () => {
                   onClick={() => fileInputRef.current?.click()}
                   disabled={restoring}
                 >
-                  {restoring ? t("settings.Backup.restoring") : t("settings.Backup.restoreButton")}
+                  {restoring
+                    ? t("settings.Backup.restoring")
+                    : t("settings.Backup.restoreButton")}
                 </Button>
               </Box>
             </Stack>

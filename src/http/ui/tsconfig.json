@@ -12,6 +12,7 @@
     "skipLibCheck": true,
     "noImplicitAny": true,
     "paths": {
+      "@/*": ["./src/*"],
       "@design": ["./src/design/index.ts"],
       "@hooks/*": ["./src/hooks/*"],
       "@utils": ["./src/utils/index.ts"],

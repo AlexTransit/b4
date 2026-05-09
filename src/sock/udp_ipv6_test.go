@@ -39,7 +39,7 @@ func TestUdpChecksumIPv6_TooShort(t *testing.T) {
 }
 
 func TestBuildFakeUDPFromOriginalV6_TooShort(t *testing.T) {
-	_, ok := BuildFakeUDPFromOriginalV6(make([]byte, 40), 100, 3)
+	_, ok := BuildFakeUDPFromOriginalV6(make([]byte, 40), 100, 3, nil)
 	if ok {
 		t.Error("expected false")
 	}
@@ -48,7 +48,7 @@ func TestBuildFakeUDPFromOriginalV6_TooShort(t *testing.T) {
 func TestBuildFakeUDPFromOriginalV6_NotIPv6(t *testing.T) {
 	pkt := make([]byte, 60)
 	pkt[0] = 0x45
-	_, ok := BuildFakeUDPFromOriginalV6(pkt, 100, 3)
+	_, ok := BuildFakeUDPFromOriginalV6(pkt, 100, 3, nil)
 	if ok {
 		t.Error("expected false")
 	}
@@ -56,7 +56,7 @@ func TestBuildFakeUDPFromOriginalV6_NotIPv6(t *testing.T) {
 
 func TestBuildFakeUDPFromOriginalV6_Valid(t *testing.T) {
 	pkt := buildMinimalIPv6UDPPacket(20)
-	result, ok := BuildFakeUDPFromOriginalV6(pkt, 50, 5)
+	result, ok := BuildFakeUDPFromOriginalV6(pkt, 50, 5, nil)
 	if !ok {
 		t.Fatal("expected success")
 	}

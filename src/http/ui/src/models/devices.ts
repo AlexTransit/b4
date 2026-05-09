@@ -1,4 +1,4 @@
-import { B4Config, Device } from "@b4.settings";
+import { B4Config, SettingsPropHandlerType } from "@b4.settings";
 
 export interface DeviceInfo {
   mac: string;
@@ -18,8 +18,5 @@ export interface DevicesResponse {
 
 export interface DevicesSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: boolean | string | string[] | number | Device[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }

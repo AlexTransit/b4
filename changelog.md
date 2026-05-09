@@ -1,5 +1,38 @@
 # B4 - Bye Bye Big Bro
 
+## [1.61.3] - 2026-05-09
+
+- ADDED: **Custom payload for UDP fake packets** - new "Fake Packet Payload" picker in the UDP fake settings of each set. Choose a captured `.bin` (uploaded in Settings → Payloads, or auto-captured from live QUIC traffic) to use as the body of fake UDP packets. Empty = zero fill (previous behavior). The Settings → Payloads upload form now has an explicit TLS/QUIC protocol selector.
+- ADDED: **Auto-generated QUIC Initial payload** - new "(auto: QUIC Initial)" option in the UDP Fake Packet Payload picker. b4 generates a fresh randomized QUIC Initial packet for every fake, with random connection IDs each time, so no upload is needed and the bytes can't be fingerprinted by repetition. Recommended packet size for this mode is 1200 bytes. Works with any Faking Strategy (None / TTL / Checksum).
+- ADDED: **Bundled QUIC presets** - two ready-to-try options ("QUIC preset 1" and "QUIC preset 2") in the UDP Fake Packet Payload picker. Pick one if the auto option does not work for your provider; if neither helps, upload your own `.bin`.
+- ADDED: **MTProto relay setup helper** — new "?" button next to the DC Relay field in Settings → MTProto Proxy. Opens a popup with the current Telegram data center list and ready-to-copy commands for the VPS, so nothing has to be calculated or guessed by hand.
+- ADDED: **Single-instance enforcement** — b4 now refuses to start if another b4 process is already running on the same host, exiting with a clear message and the existing PID.
+- ADDED: **Sequence overlap length for fragmentation** - new "Overlap Length" field for Combo and Disorder splitting. b4 prepends the configured number of pattern bytes to one of the real fragments with its TCP sequence number shifted back by the same amount, in addition to (or instead of) the existing fake-packet overlap.
+- ADDED: **AI field explanations (experimental)** - small AI buttons next to some fields open a popup that explains what the field does. Work in progress: only a few fields are covered and answers can be wrong or incomplete. Not recommended to rely on yet.
+- IMPROVED: **Web UI error messages** - when saving a configuration or a set fails, the Web UI now shows a clear reason (for example, a port is already in use).
+- FIXED: **Upstream SOCKS5 routing failed on BusyBox routers** — sets routed through an upstream SOCKS5 proxy were missed by the 1.49.0 fix and still hit the `BusyBox` table-ID limit. Now kept within the safe range too.
+- FIXED: **QUIC blocking sometimes does not work for YouTube on phones** - newer Chrome versions on Android use a QUIC variant b4 didn't recognize, so "block all QUIC" let those packets through and YouTube kept working in the browser. b4 now recognizes any QUIC packet, current or future.
+- FIXED: **Routing fails on MikroTik containers when interface names contain dashes** - interface names with dashes were rejected by `nft`. b4 now quotes interface names in routing rules, so any name works.
+- FIXED: **Interface routing did not work on MikroTik container bridges** - when several container interfaces shared one bridge with a single upstream gateway, the per-set default route was added without a gateway and traffic went nowhere. b4 now reuses the system gateway when it is reachable through the chosen interface.
+- FIXED: **Backup file could not be selected in Safari on macOS** - the file picker greyed out the downloaded `.tar.gz` backup file. Selecting the backup now works in Safari.
+- FIXED: **Voice calls, screen share and gaming could break in UDP fake mode** - b4 was splitting all matched UDP packets, which could disrupt voice, screen share and gaming traffic. Only QUIC packets are split now; the rest pass through untouched.
+
+## [1.60.1] - 2026-05-02
+
+- ADDED: **Per-set strategy escalation** - each set now has an "Escalation" tab with an "Escalate to" dropdown. Pick another set as the failover target: if the current set keeps failing for a destination, b4 switches that destination to the chosen set on the next connection. Tracking is per-hostname, so a problem with one site does not affect others that happen to share the same server IP. How quickly to escalate and how long to keep the switch are configurable per set (defaults: an hour, then retry). Lets you chain several strategies instead of giving up after the first one fails.
+- ADDED: **Share MTProto proxy connection** - new "Share connection link" button in Settings > MTProto Proxy. Opens a dialog with a `tg://` connection link, a QR code (scan with your phone camera to add the proxy to Telegram), and Copy / Open in Telegram / Share buttons.
+- FIXED: **Service crashed at startup on routers without `ipset`** - "Enable Packet Duplication" could prevent b4 from starting on routers where `ipset` is not installed (some Keenetic / Merlin setups). b4 now logs a warning and keeps running. For full-connection duplication, install ipset (Keenetic / Entware: `opkg install ipset`).
+- FIXED: **"Update" button in Web UI didn't actually update b4** - on some setups clicking "Update" did nothing and the version stayed the same after restart.
+- FIXED: **IPv6 addresses on the Traffic page were cut off** - when adding an IPv6 address from the Traffic page, the address was shown as just `2a01` and the suggested CIDRs included the port number. Adding to a set, IPInfo lookup, and ASN enrichment now work for IPv6 too.
+
+## [1.50.1] - 2026-04-29
+
+- FIXED: **Upstream SOCKS5 routing didn't actually proxy** — when a set was configured to route through a SOCKS5 server (local or remote), traffic was silently going direct instead of through the proxy. Connections from the same machine running B4 now reach the upstream proxy correctly.
+- FIXED: **Duplicate masquerade rule when routing is enabled with IPv6** — on `nftables` setups with both IPv4 and IPv6 enabled, the per-set NAT chain ended up with two byte-identical `masquerade` rules. The rule is now scoped per address family (`meta nfproto ipv4` / `ipv6`), matching the split already used for the mark rules.
+- IMPROVED: **Error log keeps history across restarts** - the error log was wiped on every B4 start, so any trace of a crash was lost as soon as B4 auto-restarted.
+- CHANGED: **"Connections" page renamed to "Traffic"** - clearer name for the page that shows live network activity. Old `/connections` links still work and redirect to the new page.
+- IMPROVED: **Traffic page works at any log level** — previously, raising the log level above `Info` made the Traffic page stop updating. The UI now gets traffic events through a separate channel, so you can keep the log level on `Warn` or `Error` to quiet down system logs without losing the live traffic view. Opening the Traffic page also instantly shows the last few hundred recent events instead of waiting for new traffic.
+
 ## [1.50.0] - 2026-04-27
 
 - IMPROVED: **Refreshed UI** — the whole web UI has been redesigned: cleaner typography, tighter spacing, calmer colour palette, larger and easier-to-read numbers, and better keyboard accessibility throughout.

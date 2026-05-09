@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { Trans, useTranslation } from "react-i18next";
+import i18n, { setLanguage } from "../../i18n";
 
 import {
   ApiIcon,
@@ -29,6 +30,7 @@ import {
   WarningIcon,
 } from "@b4.icons";
 import { useSnackbar } from "@context/SnackbarProvider";
+import { useAiStatus } from "@context/AiStatusProvider";
 import { ApiSettings } from "./Api";
 import { CaptureSettings } from "./Capture";
 import { ControlSettings } from "./Control";
@@ -45,9 +47,11 @@ import { BackupSettings } from "./Backup";
 import { WebServerSettings } from "./WebServer";
 
 import { B4Alert, B4Dialog, B4Tab, B4Tabs } from "@b4.elements";
-import { configApi } from "@b4.settings";
+import { configApi, SettingsPropHandlerType } from "@b4.settings";
+import { reportSaveError } from "@utils";
 import { colors, spacing } from "@design";
-import { B4Config, B4SetConfig } from "@models/config";
+
+import { B4Config } from "@models/config";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -87,7 +91,7 @@ enum TABS {
 
 export function SettingsPage() {
   const { showError, showSuccess } = useSnackbar();
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [config, setConfig] = useState<B4Config | null>(null);
   const [originalConfig, setOriginalConfig] = useState<B4Config | null>(null);
   const [loading, setLoading] = useState(true);
@@ -159,10 +163,8 @@ export function SettingsPage() {
     TABS.GENERAL;
 
   // Handle tab change
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    const category = settingCategories.find(
-      (cat) => cat.id === (newValue as TABS),
-    );
+  const handleTabChange = (_: React.SyntheticEvent, newValue: TABS) => {
+    const category = settingCategories.find((cat) => cat.id === newValue);
     if (category) {
       navigate(`/settings/${category.path}`)?.catch(() => {});
     }
@@ -218,7 +220,9 @@ export function SettingsPage() {
       // API
       [TABS.API]:
         JSON.stringify(config.system.api) !==
-        JSON.stringify(originalConfig.system.api),
+          JSON.stringify(originalConfig.system.api) ||
+        JSON.stringify(config.system.ai) !==
+          JSON.stringify(originalConfig.system.ai),
 
       // PAYLOADS
       [TABS.PAYLOADS]: false,
@@ -237,22 +241,28 @@ export function SettingsPage() {
       const data = await configApi.get();
       setConfig(data);
       setOriginalConfig(structuredClone(data));
-      const lang = data.system.web_server.language;
-      if (lang && lang !== i18n.language) {
-        void i18n.changeLanguage(lang);
-        localStorage.setItem("b4-language", lang);
-      }
+      return data;
     } catch (error) {
       console.error("Error loading configuration:", error);
-      showErrorRef.current(t("core.configLoadError"));
+      showErrorRef.current(i18n.t("core.configLoadError"));
+      return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadConfig().catch(() => {});
+    let bootstrapped = false;
+    loadConfig()
+      .then((data) => {
+        if (bootstrapped || !data) return;
+        bootstrapped = true;
+        setLanguage(data.system.web_server.language ?? "en");
+      })
+      .catch(() => {});
   }, [loadConfig]);
+
+  const { refresh: refreshAiStatus } = useAiStatus();
 
   const saveConfig = async () => {
     if (!config) return;
@@ -264,15 +274,14 @@ export function SettingsPage() {
 
       const requiresRestart = categoryHasChanges[0];
       showSuccess(
-        requiresRestart
-          ? t("core.configSavedRestart")
-          : t("core.configSaved"),
+        requiresRestart ? t("core.configSavedRestart") : t("core.configSaved"),
       );
     } catch (error) {
-      showError(error instanceof Error ? error.message : t("core.configSaveError"));
+      reportSaveError(error, showError, t);
     } finally {
       setSaving(false);
       await loadConfig();
+      void refreshAiStatus();
     }
   };
 
@@ -284,25 +293,17 @@ export function SettingsPage() {
     }
   };
 
-  const handleChange = (
-    field: string,
-    value:
-      | string
-      | number
-      | boolean
-      | string[]
-      | B4SetConfig[]
-      | null
-      | undefined,
-  ) => {
-    if (!config) return;
+  const handleChange = (field: string, value: SettingsPropHandlerType) => {
+    setConfig((prev) => {
+      if (!prev) return prev;
 
-    const keys = field.split(".");
+      const keys = field.split(".");
 
-    if (keys.length === 1) {
-      setConfig({ ...config, [field]: value });
-    } else {
-      const newConfig = { ...config };
+      if (keys.length === 1) {
+        return { ...prev, [field]: value };
+      }
+
+      const newConfig = { ...prev };
       let current: Record<string, unknown> = newConfig;
 
       for (let i = 0; i < keys.length - 1; i++) {
@@ -311,8 +312,8 @@ export function SettingsPage() {
       }
 
       current[keys.at(-1)!] = value;
-      setConfig(newConfig);
-    }
+      return newConfig;
+    });
   };
 
   if (loading || !config) {
@@ -383,7 +384,10 @@ export function SettingsPage() {
             <Stack direction="row" spacing={1}>
               {categoryHasChanges[TABS.GENERAL] && (
                 <B4Alert severity="warning" sx={{ py: 0, px: spacing.sm }}>
-                  <Trans i18nKey="core.coreRestartWarning" components={{ strong: <strong /> }} />
+                  <Trans
+                    i18nKey="core.coreRestartWarning"
+                    components={{ strong: <strong /> }}
+                  />
                 </B4Alert>
               )}
               <Button
@@ -526,7 +530,9 @@ export function SettingsPage() {
         onClose={() => setShowResetDialog(false)}
         actions={
           <>
-            <Button onClick={() => setShowResetDialog(false)}>{t("core.cancel")}</Button>
+            <Button onClick={() => setShowResetDialog(false)}>
+              {t("core.cancel")}
+            </Button>
             <Box sx={{ flex: 1 }} />
             <Button onClick={resetChanges} variant="contained">
               {t("core.discard")}
@@ -535,9 +541,7 @@ export function SettingsPage() {
         }
       >
         <DialogContent>
-          <DialogContentText>
-            {t("core.discardConfirm")}
-          </DialogContentText>
+          <DialogContentText>{t("core.discardConfirm")}</DialogContentText>
         </DialogContent>
       </B4Dialog>
     </Container>

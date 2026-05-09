@@ -3,23 +3,12 @@ package log
 import (
 	"fmt"
 	"sync"
-	"sync/atomic"
 )
 
 var (
-	discoveryActive atomic.Bool
-
 	discoveryHub     *DiscoveryLogHub
 	discoveryHubOnce sync.Once
 )
-
-func IsDiscoveryActive() bool {
-	return discoveryActive.Load()
-}
-
-func SetDiscoveryActive(active bool) {
-	discoveryActive.Store(active)
-}
 
 type DiscoveryLogHub struct {
 	mu        sync.RWMutex
@@ -49,7 +38,6 @@ func (h *DiscoveryLogHub) Unsubscribe(ch chan string) {
 	for i, l := range h.listeners {
 		if l == ch {
 			h.listeners = append(h.listeners[:i], h.listeners[i+1:]...)
-			close(ch)
 			return
 		}
 	}

@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Tooltip,
   IconButton,
+  Chip,
 } from "@mui/material";
 import {
   CaptureIcon,
@@ -21,9 +22,16 @@ import {
   UploadIcon,
 } from "@b4.icons";
 import { useSnackbar } from "@context/SnackbarProvider";
-import { B4Dialog, B4TextField, B4Section, B4Alert } from "@b4.elements";
+import {
+  B4Dialog,
+  B4TextField,
+  B4Section,
+  B4Alert,
+  B4Select,
+} from "@b4.elements";
 import { useCaptures, Capture } from "@b4.capture";
 import { colors, radius } from "@design";
+import { copyText } from "@utils";
 
 export const CaptureSettings = () => {
   const { t } = useTranslation();
@@ -54,12 +62,44 @@ export const CaptureSettings = () => {
     if (!uploadForm.domain && uploadForm.file) {
       setUploadForm((prev) => {
         let name = (prev.file?.name ?? "").replace(/\.bin$/i, "");
-        const proto = name.startsWith("quic_") ? "quic" : "tls";
         name = name.replace(/^(tls|quic)_/, "").replaceAll("_", ".");
-        return { ...prev, domain: name, protocol: proto };
+        return { ...prev, domain: name };
       });
     }
   }, [uploadForm.domain, uploadForm.file]);
+
+  const detectPayloadProtocol = async (
+    file: File,
+  ): Promise<"tls" | "quic" | null> => {
+    try {
+      const buf = await file.slice(0, 5).arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      if (bytes.length < 2) return null;
+      if (bytes[0] === 0x16 && bytes[1] === 0x03) return "tls";
+      if ((bytes[0] & 0xf0) === 0xc0) return "quic";
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleFileChange = async (file: File | null) => {
+    if (!file) {
+      setUploadForm((prev) => ({ ...prev, file: null }));
+      return;
+    }
+    setUploadForm((prev) => ({ ...prev, file }));
+    let protocol = await detectPayloadProtocol(file);
+    if (!protocol) {
+      const name = file.name.toLowerCase();
+      if (name.startsWith("quic_")) protocol = "quic";
+      else if (name.startsWith("tls_")) protocol = "tls";
+    }
+    if (!protocol) return;
+    setUploadForm((prev) =>
+      prev.file === file ? { ...prev, protocol } : prev,
+    );
+  };
 
   const generateCapture = async () => {
     if (!probeForm.domain) return;
@@ -119,15 +159,16 @@ export const CaptureSettings = () => {
       showSuccess(
         t("settings.Capture.uploadedSuccess", { domain: uploadForm.domain }),
       );
-      setUploadForm({ domain: "", file: null });
+      setUploadForm({ domain: "", protocol: "tls", file: null });
     } catch {
       showError(t("settings.Capture.uploadFailed"));
     }
   };
 
-  const copyHex = (hexData: string) => {
-    void navigator.clipboard.writeText(hexData);
-    showSuccess(t("settings.Capture.hexCopied"));
+  const copyHex = async (hexData: string) => {
+    const ok = await copyText(hexData);
+    if (ok) showSuccess(t("settings.Capture.hexCopied"));
+    else showError(t("settings.Capture.hexCopyFailed"));
   };
 
   return (
@@ -164,6 +205,22 @@ export const CaptureSettings = () => {
                 helperText={t("settings.Capture.nameDomainHelp")}
                 disabled={loading}
               />
+              <B4Select
+                label={t("settings.Capture.protocol")}
+                value={uploadForm.protocol}
+                options={[
+                  { value: "tls", label: t("settings.Capture.protocolTls") },
+                  { value: "quic", label: t("settings.Capture.protocolQuic") },
+                ]}
+                onChange={(e) =>
+                  setUploadForm({
+                    ...uploadForm,
+                    protocol: String(e.target.value),
+                  })
+                }
+                helperText={t("settings.Capture.protocolHelp")}
+                disabled={loading}
+              />
               <Stack direction="row" spacing={1} alignItems="center">
                 <Button
                   component="label"
@@ -181,7 +238,7 @@ export const CaptureSettings = () => {
                     accept=".bin,application/octet-stream"
                     onChange={(e) => {
                       const file = e.target.files?.[0] || null;
-                      setUploadForm({ ...uploadForm, file });
+                      void handleFileChange(file);
                     }}
                   />
                 </Button>
@@ -220,7 +277,7 @@ export const CaptureSettings = () => {
                 onChange={(e: { target: { value: string } }) =>
                   setProbeForm({ domain: e.target.value.toLowerCase() })
                 }
-                onKeyPress={(e: { key: string }) => {
+                onKeyDown={(e: { key: string }) => {
                   if (e.key === "Enter" && !loading && probeForm.domain) {
                     void generateCapture();
                   }
@@ -334,7 +391,7 @@ export const CaptureSettings = () => {
             variant="contained"
             onClick={() => {
               if (hexDialog.capture?.hex_data) {
-                copyHex(hexDialog.capture.hex_data);
+                void copyHex(hexDialog.capture.hex_data);
               }
               setHexDialog({ open: false, capture: null });
             }}
@@ -428,7 +485,31 @@ const CaptureCard = ({
             {capture.size.toLocaleString()} bytes
           </Typography>
         </Box>
-        <CaptureIcon sx={{ color: colors.secondary, fontSize: 20, ml: 1 }} />
+        <Chip
+          label={capture.protocol.toUpperCase()}
+          size="small"
+          sx={{
+            ml: 1,
+            height: 20,
+            fontSize: "0.65rem",
+            fontWeight: 700,
+            letterSpacing: "0.05em",
+            bgcolor:
+              capture.protocol === "quic"
+                ? colors.accent.secondary
+                : `${colors.state.info}26`,
+            color:
+              capture.protocol === "quic"
+                ? colors.secondary
+                : colors.state.info,
+            border: `1px solid ${
+              capture.protocol === "quic"
+                ? colors.border.strong
+                : `${colors.state.info}66`
+            }`,
+            "& .MuiChip-label": { px: 0.75 },
+          }}
+        />
       </Stack>
 
       {/* Timestamp */}

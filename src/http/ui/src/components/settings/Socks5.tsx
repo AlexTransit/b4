@@ -8,13 +8,11 @@ import {
   B4Alert,
 } from "@b4.elements";
 import { B4Config } from "@models/config";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface Socks5SettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: number | boolean | string | string[],
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 export const Socks5Settings = ({ config, onChange }: Socks5SettingsProps) => {
@@ -73,9 +71,7 @@ export const Socks5Settings = ({ config, onChange }: Socks5SettingsProps) => {
           autoComplete="new-password"
         />
         {config.system.socks5?.enabled && (
-          <B4Alert severity="info">
-            {t("settings.Socks5.restartNote")}
-          </B4Alert>
+          <B4Alert severity="info">{t("settings.Socks5.restartNote")}</B4Alert>
         )}
       </B4FormGroup>
     </B4Section>

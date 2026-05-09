@@ -1,6 +1,7 @@
 import { useSnackbar } from "@context/SnackbarProvider";
 import { colors } from "@design";
 import { useSets } from "@hooks/useSets";
+import { reportSaveError } from "@utils";
 import { B4Config, B4SetConfig } from "@models/config";
 import { createDefaultSet } from "@models/defaults";
 import {
@@ -14,6 +15,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import { SetEditorPage } from "./Editor";
 import { SetStats, SetWithStats, SetsManager } from "./Manager";
 
@@ -80,7 +82,7 @@ function SetEditorRoute({ config, onRefresh }: Readonly<SetEditorRouteProps>) {
           await navigate(`/sets/${result.data.id}`, { replace: true });
         }
       } else {
-        showError(result.error || t("core.configSaveError"));
+        reportSaveError(result.error, showError, t);
       }
     })();
   };
@@ -122,14 +124,14 @@ export function SetsPage() {
       };
       setConfig(data);
     } catch {
-      showError(t("core.configLoadError"));
+      showError(i18n.t("core.configLoadError"));
     } finally {
       if (!initialLoadDone.current) {
         setLoading(false);
         initialLoadDone.current = true;
       }
     }
-  }, [showError, t]);
+  }, [showError]);
 
   useEffect(() => {
     loadConfig().catch(() => {});

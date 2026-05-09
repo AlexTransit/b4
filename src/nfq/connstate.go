@@ -103,16 +103,40 @@ type IPBlockCache interface {
 	AddBlocked(dstIPPort string)
 }
 
-type ipBlockTracker struct {
-	mu      sync.RWMutex
-	conns   map[string]*ipBlockEntry
-	blocked map[string]time.Time
+type destStateTracker struct {
+	mu          sync.RWMutex
+	conns       map[string]*ipBlockEntry
+	blocked     map[string]time.Time
+	escalations map[string]*escalationEntry
+	rstKills    map[string]*rstKillEntry
+}
+
+type escalationEntry struct {
+	setId string
+	setAt time.Time
+	hops  int
+	ttl   time.Duration
+}
+
+type rstKillEntry struct {
+	count   int
+	firstAt time.Time
+	window  time.Duration
 }
 
 const maxIPBlockEntries = 10000
 const maxIPBlockCacheEntries = 5000
+const maxEscalationCacheEntries = 5000
+const maxRSTKillEntries = 5000
 
-func (t *ipBlockTracker) RecordClientHello(connKey, host string) (int, time.Time) {
+const RSTKillThreshold = 3
+const RSTKillWindow = 30 * time.Second
+
+const EscalationTTL = time.Hour
+
+const MaxEscalationHops = 8
+
+func (t *destStateTracker) RecordClientHello(connKey, host string) (int, time.Time) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -137,7 +161,7 @@ func (t *ipBlockTracker) RecordClientHello(connKey, host string) (int, time.Time
 	return entry.retransmits, entry.firstSeen
 }
 
-func (t *ipBlockTracker) HasRSTSent(connKey string) bool {
+func (t *destStateTracker) HasRSTSent(connKey string) bool {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	if entry, ok := t.conns[connKey]; ok {
@@ -146,7 +170,7 @@ func (t *ipBlockTracker) HasRSTSent(connKey string) bool {
 	return false
 }
 
-func (t *ipBlockTracker) MarkRSTSent(connKey string) {
+func (t *destStateTracker) MarkRSTSent(connKey string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if entry, ok := t.conns[connKey]; ok {
@@ -154,7 +178,7 @@ func (t *ipBlockTracker) MarkRSTSent(connKey string) {
 	}
 }
 
-func (t *ipBlockTracker) IsBlocked(dstIPPort string) bool {
+func (t *destStateTracker) IsBlocked(dstIPPort string) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	_, ok := t.blocked[dstIPPort]
@@ -164,7 +188,7 @@ func (t *ipBlockTracker) IsBlocked(dstIPPort string) bool {
 	return ok
 }
 
-func (t *ipBlockTracker) AddBlocked(dstIPPort string) {
+func (t *destStateTracker) AddBlocked(dstIPPort string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if len(t.blocked) >= maxIPBlockCacheEntries {
@@ -178,7 +202,7 @@ func (t *ipBlockTracker) AddBlocked(dstIPPort string) {
 	t.blocked[dstIPPort] = time.Now()
 }
 
-func (t *ipBlockTracker) Cleanup(cacheTTL time.Duration) {
+func (t *destStateTracker) Cleanup(cacheTTL time.Duration) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	now := time.Now()
@@ -194,12 +218,160 @@ func (t *ipBlockTracker) Cleanup(cacheTTL time.Duration) {
 			}
 		}
 	}
+	for k, v := range t.escalations {
+		if now.Sub(v.setAt) > v.ttl {
+			delete(t.escalations, k)
+		}
+	}
+	for k, v := range t.rstKills {
+		if now.Sub(v.firstAt) > v.window {
+			delete(t.rstKills, k)
+		}
+	}
+}
+
+func (t *destStateTracker) GetEscalation(host string) (setId string, hops int, ok bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	e, exists := t.escalations[host]
+	if !exists {
+		return "", 0, false
+	}
+	if time.Since(e.setAt) > e.ttl {
+		return "", 0, false
+	}
+	return e.setId, e.hops, true
+}
+
+func (t *destStateTracker) SetEscalation(host, setId string, ttl time.Duration) bool {
+	if ttl <= 0 {
+		ttl = EscalationTTL
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if len(t.escalations) >= maxEscalationCacheEntries {
+		now := time.Now()
+		var oldestKey string
+		var oldestTime time.Time
+		for k, v := range t.escalations {
+			if now.Sub(v.setAt) > v.ttl {
+				delete(t.escalations, k)
+			} else if oldestTime.IsZero() || v.setAt.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.setAt
+			}
+		}
+		if len(t.escalations) >= maxEscalationCacheEntries && oldestKey != "" {
+			delete(t.escalations, oldestKey)
+		}
+	}
+	prev := t.escalations[host]
+	if prev != nil && time.Since(prev.setAt) > prev.ttl {
+		delete(t.escalations, host)
+		prev = nil
+	}
+	hops := 1
+	if prev != nil {
+		hops = prev.hops + 1
+	}
+	if hops > MaxEscalationHops {
+		return false
+	}
+	t.escalations[host] = &escalationEntry{
+		setId: setId,
+		setAt: time.Now(),
+		hops:  hops,
+		ttl:   ttl,
+	}
+	return true
+}
+
+type EscalationSnapshot struct {
+	Host      string
+	SetId     string
+	Hops      int
+	SetAt     time.Time
+	ExpiresAt time.Time
+}
+
+func (t *destStateTracker) ListEscalations() []EscalationSnapshot {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	now := time.Now()
+	out := make([]EscalationSnapshot, 0, len(t.escalations))
+	for host, e := range t.escalations {
+		if now.Sub(e.setAt) > e.ttl {
+			continue
+		}
+		out = append(out, EscalationSnapshot{
+			Host:      host,
+			SetId:     e.setId,
+			Hops:      e.hops,
+			SetAt:     e.setAt,
+			ExpiresAt: e.setAt.Add(e.ttl),
+		})
+	}
+	return out
+}
+
+func (t *destStateTracker) ClearEscalation(host string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.escalations, host)
+}
+
+func (t *destStateTracker) ResetEscalations() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.escalations = make(map[string]*escalationEntry)
+	t.rstKills = make(map[string]*rstKillEntry)
+}
+
+func (t *destStateTracker) RecordRSTKill(host string, threshold int, window time.Duration) bool {
+	if threshold <= 0 {
+		threshold = RSTKillThreshold
+	}
+	if window <= 0 {
+		window = RSTKillWindow
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	if len(t.rstKills) >= maxRSTKillEntries {
+		now := time.Now()
+		var oldestKey string
+		var oldestTime time.Time
+		for k, v := range t.rstKills {
+			if now.Sub(v.firstAt) > v.window {
+				delete(t.rstKills, k)
+			} else if oldestTime.IsZero() || v.firstAt.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.firstAt
+			}
+		}
+		if len(t.rstKills) >= maxRSTKillEntries && oldestKey != "" {
+			delete(t.rstKills, oldestKey)
+		}
+	}
+
+	now := time.Now()
+	entry, exists := t.rstKills[host]
+	if !exists || now.Sub(entry.firstAt) > entry.window {
+		t.rstKills[host] = &rstKillEntry{count: 1, firstAt: now, window: window}
+		return false
+	}
+	entry.count++
+	if entry.count >= threshold {
+		delete(t.rstKills, host)
+		return true
+	}
+	return false
 }
 
 type runtimeState struct {
 	tlsCache  *tlsInfoCache
 	connState *connStateTracker
-	ipBlocker *ipBlockTracker
+	destState *destStateTracker
 }
 
 func newRuntimeState() *runtimeState {
@@ -210,9 +382,11 @@ func newRuntimeState() *runtimeState {
 		connState: &connStateTracker{
 			conns: make(map[string]*connInfo),
 		},
-		ipBlocker: &ipBlockTracker{
-			conns:   make(map[string]*ipBlockEntry),
-			blocked: make(map[string]time.Time),
+		destState: &destStateTracker{
+			conns:       make(map[string]*ipBlockEntry),
+			blocked:     make(map[string]time.Time),
+			escalations: make(map[string]*escalationEntry),
+			rstKills:    make(map[string]*rstKillEntry),
 		},
 	}
 }
@@ -221,7 +395,6 @@ func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfi
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	// If at capacity, evict oldest entries before adding
 	if len(t.conns) >= maxConnStateEntries {
 		now := time.Now()
 		var oldestKey string
@@ -234,7 +407,6 @@ func (t *connStateTracker) RegisterOutgoing(connKey string, set *config.SetConfi
 				oldestTime = v.lastSeen
 			}
 		}
-		// If still at capacity after removing stale entries, evict the oldest
 		if len(t.conns) >= maxConnStateEntries && oldestKey != "" {
 			delete(t.conns, oldestKey)
 		}

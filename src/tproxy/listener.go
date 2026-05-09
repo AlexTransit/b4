@@ -16,6 +16,12 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+func markedDialer(timeout time.Duration, bypassMark uint32) net.Dialer {
+	d := net.Dialer{Timeout: timeout}
+	socks5.ApplyBypassMark(&d, bypassMark)
+	return d
+}
+
 type DomainResolver interface {
 	DomainFor(ip net.IP) string
 }
@@ -164,12 +170,22 @@ func (l *Listener) handle(client net.Conn) {
 	origIP := tcpAddr.IP
 	origPort := tcpAddr.Port
 
-	targetHost := origIP.String()
-	if l.UseDomain && l.Resolver != nil {
-		if d := l.Resolver.DomainFor(origIP); d != "" {
-			targetHost = d
-		}
+	domain := ""
+	if l.Resolver != nil {
+		domain = l.Resolver.DomainFor(origIP)
 	}
+	targetHost := origIP.String()
+	if l.UseDomain && domain != "" {
+		targetHost = domain
+	}
+
+	src := ""
+	if r := client.RemoteAddr(); r != nil {
+		src = r.String()
+	}
+	log.LogConnectionStr("TCP", l.SetName, domain, src, "",
+		net.JoinHostPort(origIP.String(), fmt.Sprintf("%d", origPort)),
+		"", "", "proxy")
 
 	dialCtx, cancel := context.WithTimeout(l.ctx, 15*time.Second)
 	upstream, err := socks5.DialUpstream(dialCtx, l.Upstream, targetHost, origPort)
@@ -179,7 +195,13 @@ func (l *Listener) handle(client net.Conn) {
 		if !l.FailOpen {
 			return
 		}
-		direct, derr := net.DialTimeout("tcp", net.JoinHostPort(origIP.String(), fmt.Sprintf("%d", origPort)), 10*time.Second)
+		// Fail-open direct dial must also carry the bypass mark, otherwise
+		// the OUTPUT mark rule will catch it (daddr is in our set) and
+		// re-redirect it to ourselves — infinite loop.
+		failoverDialer := markedDialer(10*time.Second, l.Upstream.BypassMark)
+		failoverCtx, failoverCancel := context.WithTimeout(l.ctx, 10*time.Second)
+		direct, derr := failoverDialer.DialContext(failoverCtx, "tcp", net.JoinHostPort(origIP.String(), fmt.Sprintf("%d", origPort)))
+		failoverCancel()
 		if derr != nil {
 			log.Tracef("tproxy: fail-open direct dial failed: %v", derr)
 			return

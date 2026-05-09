@@ -1,5 +1,5 @@
 import { Box, Grid, MenuItem, Typography } from "@mui/material";
-import { B4Alert, B4Badge, B4Switch, B4TextField } from "@b4.elements";
+import { B4Alert, B4Badge, B4Hint, B4Switch, B4TextField } from "@b4.elements";
 import { B4SetConfig, RoutingMode } from "@models/config";
 import { colors } from "@design";
 import { useTranslation } from "react-i18next";
@@ -86,9 +86,7 @@ export const TrafficRouting = ({
               <MenuItem value="interface">
                 {t("sets.routing.modeInterface")}
               </MenuItem>
-              <MenuItem value="proxy">
-                {t("sets.routing.modeProxy")}
-              </MenuItem>
+              <MenuItem value="proxy">{t("sets.routing.modeProxy")}</MenuItem>
             </B4TextField>
           </Grid>
 
@@ -193,13 +191,11 @@ export const TrafficRouting = ({
             </Box>
           </Grid>
 
-          <Grid size={{ xs: 12 }}>
-            <B4Alert severity="info">
-              {isProxy
-                ? t("sets.routing.howItWorksProxy")
-                : t("sets.routing.howItWorks")}
-            </B4Alert>
-          </Grid>
+          <B4Hint>
+            {isProxy
+              ? t("sets.routing.howItWorksProxy")
+              : t("sets.routing.howItWorks")}
+          </B4Hint>
 
           <Grid size={{ xs: 12 }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -251,9 +247,9 @@ export const TrafficRouting = ({
               </B4Alert>
             )}
 
-            <B4Alert severity="info" sx={{ mt: 2 }}>
+            <B4Hint sx={{ mt: 2 }}>
               {isProxy ? t("sets.routing.infoProxy") : t("sets.routing.info")}
-            </B4Alert>
+            </B4Hint>
           </Grid>
 
           {!isProxy && (
@@ -364,9 +360,7 @@ export const TrafficRouting = ({
                 )}
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <B4Alert severity="info">
-                  {t("sets.routing.proxyManipulationNote")}
-                </B4Alert>
+                <B4Hint>{t("sets.routing.proxyManipulationNote")}</B4Hint>
               </Grid>
             </>
           )}

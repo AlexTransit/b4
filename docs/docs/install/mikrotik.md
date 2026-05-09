@@ -114,6 +114,16 @@ After the image has been pulled:
 /container start [find tag~"b4"]
 ```
 
+:::info DNS hijacking
+If your ISP intercepts DNS (port 53 redirection), public resolvers inside the container will not help. Set up DoH on MikroTik and point the container at the bridge gateway instead of public DNS:
+
+```routeros
+/ip dns set use-doh-server=https://cloudflare-dns.com/dns-query verify-doh-cert=yes
+```
+
+Then change the container DNS to `dns=192.168.210.1` (the bridge gateway).
+:::
+
 ## Step 7: Add clients
 
 Add devices to the `b4users` address list:
@@ -126,6 +136,14 @@ Add devices to the `b4users` address list:
 ## Web interface
 
 After the container starts: `http://192.168.210.10:7000`
+
+:::tip Reduce disk wear
+USB flash and SD cards have a limited number of write cycles. Move b4 logs to RAM in the web interface:
+
+**Settings -> Logging Configuration -> Log file path:** `/tmp/log/b4/errors.log`
+
+Logs are lost on reboot, but storage lasts longer.
+:::
 
 ## Update
 

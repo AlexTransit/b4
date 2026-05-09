@@ -4,25 +4,24 @@ import { useTranslation } from "react-i18next";
 import { LogsIcon } from "@b4.icons";
 import { B4Section, B4Select, B4Switch, B4TextField } from "@b4.elements";
 import { B4Config, LogLevel } from "@models/config";
+import { SettingsPropHandlerType } from "@models/settings";
 
 interface LoggingSettingsProps {
   config: B4Config;
-  onChange: (
-    field: string,
-    value: number | boolean | string | string[]
-  ) => void;
+  onChange: (field: string, value: SettingsPropHandlerType) => void;
 }
 
 // Timezone list is locale-independent, compute once at module level
 const ZONE_ENTRIES: { value: string; label: string }[] = (() => {
   try {
     return Intl.supportedValuesOf("timeZone").map((tz) => {
-      const offset = new Intl.DateTimeFormat("en", {
-        timeZone: tz,
-        timeZoneName: "shortOffset",
-      })
-        .formatToParts()
-        .find((p) => p.type === "timeZoneName")?.value ?? "";
+      const offset =
+        new Intl.DateTimeFormat("en", {
+          timeZone: tz,
+          timeZoneName: "shortOffset",
+        })
+          .formatToParts()
+          .find((p) => p.type === "timeZoneName")?.value ?? "";
       return { value: tz, label: `${tz} (${offset})` };
     });
   } catch {
@@ -34,7 +33,10 @@ export const LoggingSettings = ({ config, onChange }: LoggingSettingsProps) => {
   const { t } = useTranslation();
 
   const TIMEZONES = useMemo(
-    () => [{ value: "", label: t("settings.Logging.timezoneAuto") }, ...ZONE_ENTRIES],
+    () => [
+      { value: "", label: t("settings.Logging.timezoneAuto") },
+      ...ZONE_ENTRIES,
+    ],
     [t],
   );
 

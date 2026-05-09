@@ -3,6 +3,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -46,7 +47,7 @@ func (a *API) handleConfigReset(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.saveAndPushConfig(&newCfg); err != nil {
 		log.Errorf("Failed to reset config: %v", err)
-		http.Error(w, "Failed to reset config", http.StatusInternalServerError)
+		writeAPIError(w, ErrInternal("Failed to reset config"))
 		return
 	}
 
@@ -246,7 +247,7 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(&newConfig); err != nil {
 		log.Errorf("Failed to decode config update: %v", err)
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		writeAPIError(w, ErrInvalidJSON())
 		return
 	}
 
@@ -315,7 +316,7 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 
 	if err := a.saveAndPushConfig(&newConfig); err != nil {
 		log.Errorf("Failed to update config: %v", err)
-		http.Error(w, "Failed to update config", http.StatusInternalServerError)
+		writeAPIError(w, err)
 		return
 	}
 
@@ -344,13 +345,22 @@ func (a *API) updateConfig(w http.ResponseWriter, r *http.Request) {
 func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 
 	if err := newCfg.Validate(); err != nil {
-		return log.Errorf("Invalid configuration: %v", err)
+		var ve *config.ValidationError
+		if errors.As(err, &ve) {
+			log.Errorf("Invalid configuration: %v", err)
+			return fromValidationError(ve)
+		}
+		return ErrInternal("Invalid configuration: " + err.Error())
+	}
+
+	if fields := preflightConfig(newCfg, a.getCfg()); len(fields) > 0 {
+		return ErrValidation("Some ports are unavailable", fields...)
 	}
 
 	if globalPool != nil {
 		err := globalPool.UpdateConfig(newCfg)
 		if err != nil {
-			return fmt.Errorf("failed to update global pool config: %v", err)
+			return ErrInternal(fmt.Sprintf("failed to update global pool config: %v", err))
 		}
 	}
 
@@ -375,6 +385,9 @@ func (a *API) saveAndPushConfig(newCfg *config.Config) error {
 	a.cfgPtr.Store(newCfg)
 	if routingSyncFunc != nil {
 		routingSyncFunc(newCfg)
+	}
+	if globalAIManager != nil {
+		globalAIManager.Update(newCfg.System.AI)
 	}
 
 	return nil

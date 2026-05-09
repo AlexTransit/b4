@@ -12,7 +12,6 @@ import (
 	"github.com/daniellavrushin/b4/geodat"
 	"github.com/daniellavrushin/b4/log"
 	"github.com/daniellavrushin/b4/tlsgen"
-	"github.com/daniellavrushin/b4/utils"
 )
 
 func (c *Config) SaveToFile(path string) error {
@@ -134,174 +133,6 @@ func (c *Config) DiscoveryInjectedMark() uint {
 		return c.System.Checker.DiscoveryInjectedMark
 	}
 	return c.MainInjectedMark() + 2
-}
-
-func (c *Config) Validate() error {
-	c.System.WebServer.IsEnabled = c.System.WebServer.Port > 0 && c.System.WebServer.Port <= 65535
-
-	hasCert := c.System.WebServer.TLSCert != ""
-	hasKey := c.System.WebServer.TLSKey != ""
-	if hasCert != hasKey {
-		return fmt.Errorf("both tls_cert and tls_key must be specified together")
-	}
-	if hasCert {
-		if _, err := os.Stat(c.System.WebServer.TLSCert); err != nil {
-			return fmt.Errorf("TLS certificate file not found: %s", c.System.WebServer.TLSCert)
-		}
-		if _, err := os.Stat(c.System.WebServer.TLSKey); err != nil {
-			return fmt.Errorf("TLS key file not found: %s", c.System.WebServer.TLSKey)
-		}
-	}
-
-	if c.Queue.TCPConnBytesLimit < DefaultConfig.Queue.TCPConnBytesLimit {
-		c.Queue.TCPConnBytesLimit = DefaultConfig.Queue.TCPConnBytesLimit
-	} else if c.Queue.TCPConnBytesLimit > 100 {
-		c.Queue.TCPConnBytesLimit = 100
-	}
-	if c.Queue.UDPConnBytesLimit < DefaultConfig.Queue.UDPConnBytesLimit {
-		c.Queue.UDPConnBytesLimit = DefaultConfig.Queue.UDPConnBytesLimit
-	} else if c.Queue.UDPConnBytesLimit > 30 {
-		c.Queue.UDPConnBytesLimit = 30
-	}
-
-	for _, set := range c.Sets {
-		if set.Routing.Table < 0 {
-			set.Routing.Table = 0
-		}
-		if set.Routing.IPTTLSeconds <= 0 {
-			set.Routing.IPTTLSeconds = DefaultSetConfig.Routing.IPTTLSeconds
-		}
-		switch set.Routing.Mode {
-		case "":
-			set.Routing.Mode = RoutingModeInterface
-		case RoutingModeProxy, RoutingModeInterface:
-		default:
-			return fmt.Errorf("set %q: unknown routing mode %q", set.Name, set.Routing.Mode)
-		}
-		set.Routing.EgressInterface = sanitizeIfaceName(set.Routing.EgressInterface)
-		for i, src := range set.Routing.SourceInterfaces {
-			set.Routing.SourceInterfaces[i] = sanitizeIfaceName(src)
-		}
-
-		if set.Routing.Enabled && set.Routing.Mode == RoutingModeProxy {
-			if set.Routing.Upstream.Port < 1 || set.Routing.Upstream.Port > 65535 {
-				return fmt.Errorf("set %q: upstream proxy port must be 1-65535", set.Name)
-			}
-			h := strings.ToLower(strings.TrimSpace(set.Routing.Upstream.Host))
-			if h == "" {
-				h = "127.0.0.1"
-			}
-			if c.System.Socks5.Enabled && set.Routing.Upstream.Port == c.System.Socks5.Port {
-				if h == "127.0.0.1" || h == "::1" || h == "localhost" || h == "0.0.0.0" {
-					return fmt.Errorf("set %q: upstream proxy points to b4's own SOCKS5 server (loop)", set.Name)
-				}
-			}
-		}
-
-		if len(set.Fragmentation.SeqOverlapPattern) > 0 {
-			set.Fragmentation.SeqOverlapBytes = make([]byte, len(set.Fragmentation.SeqOverlapPattern))
-			for i, s := range set.Fragmentation.SeqOverlapPattern {
-				s = strings.TrimPrefix(s, "0x")
-				b, _ := strconv.ParseUint(s, 16, 8)
-				set.Fragmentation.SeqOverlapBytes[i] = byte(b)
-			}
-		}
-
-		if set.TCP.Duplicate.Enabled {
-			if set.TCP.Duplicate.Count < 1 {
-				set.TCP.Duplicate.Count = 1
-			}
-			if set.TCP.Duplicate.Count > 10 {
-				set.TCP.Duplicate.Count = 10
-			}
-			if len(set.Targets.IPs) == 0 && len(set.Targets.GeoIpCategories) == 0 {
-				log.Warnf("Set '%s' has duplication enabled but no IP targets configured", set.Name)
-			}
-		}
-
-		if set.TCP.ConnBytesLimit > c.Queue.TCPConnBytesLimit {
-			set.TCP.ConnBytesLimit = c.Queue.TCPConnBytesLimit
-		}
-		if set.UDP.ConnBytesLimit > c.Queue.UDPConnBytesLimit {
-			set.UDP.ConnBytesLimit = c.Queue.UDPConnBytesLimit
-		}
-
-		if len(set.Targets.GeoSiteCategories) > 0 && c.System.Geo.GeoSitePath == "" {
-			return fmt.Errorf("--geosite must be specified when using --geo-categories")
-		}
-
-		if len(set.Targets.GeoIpCategories) > 0 && c.System.Geo.GeoIpPath == "" {
-			return fmt.Errorf("--geoip must be specified when using --geoip-categories")
-		}
-	}
-
-	// Validate global MSS clamp
-	if c.Queue.MSSClamp.Enabled {
-		if c.Queue.MSSClamp.Size < 10 {
-			c.Queue.MSSClamp.Size = 10
-		}
-		if c.Queue.MSSClamp.Size > 1460 {
-			c.Queue.MSSClamp.Size = 1460
-		}
-	}
-
-	for i := range c.Queue.Devices.Devices {
-		d := &c.Queue.Devices.Devices[i]
-		d.MAC = strings.ToUpper(strings.TrimSpace(d.MAC))
-		if d.MSSClamp > 0 {
-			if d.MSSClamp < 10 {
-				d.MSSClamp = 10
-			}
-			if d.MSSClamp > 1460 {
-				d.MSSClamp = 1460
-			}
-		}
-	}
-
-	if c.Queue.Threads < 1 {
-		return fmt.Errorf("threads must be at least 1")
-	}
-
-	if c.Queue.StartNum < 0 || c.Queue.StartNum > 65535 {
-		return fmt.Errorf("queue-num must be between 0 and 65535")
-	}
-
-	c.Queue.Mark = c.MainInjectedMark()
-
-	maxMark := uint(^uint32(0))
-	if c.Queue.Mark > maxMark {
-		return fmt.Errorf("mark value 0x%x exceeds uint32 max", c.Queue.Mark)
-	}
-	if c.Queue.Mark > maxMark-2 && c.System.Checker.DiscoveryFlowMark == 0 {
-		return fmt.Errorf("mark value 0x%x is too high for auto-derived discovery marks", c.Queue.Mark)
-	}
-
-	c.System.Checker.DiscoveryFlowMark = c.DiscoveryFlowMark()
-	c.System.Checker.DiscoveryInjectedMark = c.DiscoveryInjectedMark()
-
-	if c.System.Checker.DiscoveryFlowMark > maxMark || c.System.Checker.DiscoveryInjectedMark > maxMark {
-		return fmt.Errorf("discovery mark values exceed uint32 max")
-	}
-	if c.Queue.Mark == c.System.Checker.DiscoveryFlowMark ||
-		c.Queue.Mark == c.System.Checker.DiscoveryInjectedMark ||
-		c.System.Checker.DiscoveryFlowMark == c.System.Checker.DiscoveryInjectedMark {
-		return fmt.Errorf("queue marks must be unique: mark, discovery_flow_mark, discovery_injected_mark")
-	}
-
-	for _, set := range c.Sets {
-		if set.Id == "" {
-			return fmt.Errorf("each set must have a unique non-empty ID")
-		}
-
-		set.UDP.DPortFilter = utils.ValidatePorts(set.UDP.DPortFilter)
-		set.TCP.DPortFilter = utils.ValidatePorts(set.TCP.DPortFilter)
-	}
-
-	c.LoadCapturePayloads()
-	c.BuildTCPPortMap()
-	c.BuildSetPortRanges()
-
-	return nil
 }
 
 func (c *Config) LogString() string {
@@ -817,6 +648,32 @@ func (c *Config) Clone() *Config {
 	return &clone
 }
 
+func safeCapturePath(configDir, name string) (string, error) {
+	if name == "" {
+		return "", fmt.Errorf("empty path")
+	}
+	if filepath.IsAbs(name) {
+		return "", fmt.Errorf("absolute path not allowed")
+	}
+	configAbs, err := filepath.Abs(configDir)
+	if err != nil {
+		return "", err
+	}
+	capturesAbs := filepath.Join(configAbs, "captures")
+	candidate := filepath.Clean(filepath.Join(configAbs, name))
+	rel, err := filepath.Rel(capturesAbs, candidate)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("path escapes captures directory")
+	}
+	if !strings.HasSuffix(strings.ToLower(candidate), ".bin") {
+		return "", fmt.Errorf("only .bin files are allowed")
+	}
+	return candidate, nil
+}
+
 func (c *Config) LoadCapturePayloads() {
 	capturesDir := ""
 	if c.ConfigPath != "" {
@@ -839,7 +696,12 @@ func (c *Config) LoadCapturePayloads() {
 				set.Faking.PayloadData = nil
 				continue
 			}
-			capturePath := filepath.Join(capturesDir, set.Faking.PayloadFile)
+			capturePath, err := safeCapturePath(capturesDir, set.Faking.PayloadFile)
+			if err != nil {
+				log.Errorf("Rejected capture payload %q: %v", set.Faking.PayloadFile, err)
+				set.Faking.PayloadData = nil
+				continue
+			}
 			data, err := os.ReadFile(capturePath)
 			if err != nil {
 				log.Errorf("Failed to load capture file %s: %v", set.Faking.PayloadFile, err)
@@ -863,6 +725,30 @@ func (c *Config) LoadCapturePayloads() {
 			log.Tracef("Generated domain payload for %s (%d bytes)", set.Faking.PayloadDomain, len(data))
 		default:
 			set.Faking.PayloadData = nil
+		}
+
+		set.UDP.FakePayloadData = nil
+		switch set.UDP.FakePayloadFile {
+		case "", FakePayloadAutoQUIC:
+		case FakePayloadPreset1:
+			set.UDP.FakePayloadData = FakeQUIC1
+		case FakePayloadPreset2:
+			set.UDP.FakePayloadData = FakeQUIC2
+		default:
+			if capturesDir != "" {
+				payloadPath, err := safeCapturePath(capturesDir, set.UDP.FakePayloadFile)
+				if err != nil {
+					log.Errorf("Rejected UDP fake payload %q: %v", set.UDP.FakePayloadFile, err)
+					break
+				}
+				data, err := os.ReadFile(payloadPath)
+				if err != nil {
+					log.Errorf("Failed to load UDP fake payload %s: %v", set.UDP.FakePayloadFile, err)
+				} else {
+					set.UDP.FakePayloadData = data
+					log.Tracef("Loaded UDP fake payload %s (%d bytes)", set.UDP.FakePayloadFile, len(data))
+				}
+			}
 		}
 	}
 }
@@ -922,6 +808,57 @@ func mergeAndNormalizePorts(ports []string) []string {
 		}
 	}
 	return result
+}
+
+func (c *Config) sanitizeEscalation() {
+	byID := make(map[string]*SetConfig, len(c.Sets))
+	for _, s := range c.Sets {
+		if s.Id != "" {
+			byID[s.Id] = s
+		}
+	}
+
+	for _, s := range c.Sets {
+		if s.Escalate.To == "" {
+			continue
+		}
+		if s.Escalate.To == s.Id {
+			log.Warnf("Set %q (id=%s): escalate.to references self, clearing", s.Name, s.Id)
+			s.Escalate.To = ""
+			continue
+		}
+		target, ok := byID[s.Escalate.To]
+		if !ok {
+			log.Warnf("Set %q (id=%s): escalate.to %q not found, clearing", s.Name, s.Id, s.Escalate.To)
+			s.Escalate.To = ""
+			continue
+		}
+		if !target.Enabled {
+			log.Warnf("Set %q (id=%s): escalate.to %q (id=%s) is disabled, clearing", s.Name, s.Id, target.Name, target.Id)
+			s.Escalate.To = ""
+			continue
+		}
+	}
+
+	for _, s := range c.Sets {
+		if s.Escalate.To == "" {
+			continue
+		}
+		seen := map[string]bool{s.Id: true}
+		cur := s
+		for cur.Escalate.To != "" {
+			if seen[cur.Escalate.To] {
+				log.Warnf("Set %q (id=%s): escalate.to chain has a cycle at %q (id=%s), breaking", s.Name, s.Id, cur.Name, cur.Id)
+				cur.Escalate.To = ""
+				break
+			}
+			seen[cur.Escalate.To] = true
+			cur = byID[cur.Escalate.To]
+			if cur == nil {
+				break
+			}
+		}
+	}
 }
 
 // sanitizeIfaceName strips any characters not valid in a Linux interface name.

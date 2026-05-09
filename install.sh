@@ -888,10 +888,10 @@ platform_generic_linux_match() {
 
     [ -f /etc/openwrt_release ] && return 1
     [ -f /etc/merlinwrt_release ] && return 1
-    [ -d /jffs ] && [ -d /opt/etc/init.d ] && return 1  # Merlin with Entware
-    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1   # Padavan
-    [ -d /var/run/ndm ] && return 1                      # Keenetic NDMS
-    command_exists ndmc && return 1                       # Keenetic NDMS
+    [ -d /jffs ] && [ -d /opt/etc/init.d ] && return 1 # Merlin with Entware
+    [ -d /etc/storage ] && [ -d /etc_ro ] && return 1  # Padavan
+    [ -d /var/run/ndm ] && return 1                    # Keenetic NDMS
+    command_exists ndmc && return 1                    # Keenetic NDMS
     command_exists nvram && nvram get firmver 2>/dev/null | grep -qi "merlin" && return 1
     [ -f /proc/device-tree/model ] && grep -qi "keenetic" /proc/device-tree/model 2>/dev/null && return 1
 
@@ -1001,6 +1001,10 @@ _generic_linux_check_recommended() {
         else
             rec_missing="${rec_missing} iptables"
         fi
+    fi
+
+    if command_exists iptables && ! _nft_functional && ! command_exists ipset; then
+        rec_missing="${rec_missing} ipset"
     fi
 
     if [ -n "$rec_missing" ]; then
@@ -1118,6 +1122,7 @@ _keenetic_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
     command_exists iptables || rec_missing="${rec_missing} iptables"
+    command_exists ipset || rec_missing="${rec_missing} ipset"
     command_exists nohup || rec_missing="${rec_missing} coreutils-nohup"
 
     if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
@@ -1250,6 +1255,7 @@ _merlinwrt_check_recommended() {
     rec_missing=""
     command_exists jq || rec_missing="${rec_missing} jq"
     command_exists iptables || rec_missing="${rec_missing} iptables"
+    command_exists ipset || rec_missing="${rec_missing} ipset"
     command_exists nohup || rec_missing="${rec_missing} coreutils-nohup"
 
     if ! opkg list-installed 2>/dev/null | grep -q "^ca-certificates "; then
@@ -2790,14 +2796,29 @@ action_update() {
     fi
 
     existing_bin=""
-    for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin; do
-        [ -z "$dir" ] && continue
-        if [ -f "${dir}/${BINARY_NAME}" ]; then
-            existing_bin="${dir}/${BINARY_NAME}"
-            B4_BIN_DIR="$dir"
-            break
+
+    if [ -n "$B4_EXISTING_BIN" ] && [ -f "$B4_EXISTING_BIN" ]; then
+        existing_bin="$B4_EXISTING_BIN"
+        B4_BIN_DIR=$(dirname "$B4_EXISTING_BIN")
+    fi
+    if [ -z "$existing_bin" ]; then
+        for dir in "$B4_BIN_DIR" /usr/local/bin /usr/bin /usr/sbin /opt/bin /opt/sbin /jffs/b4 /tmp/b4 /ssd/b4; do
+            [ -z "$dir" ] && continue
+            if [ -f "${dir}/${BINARY_NAME}" ]; then
+                existing_bin="${dir}/${BINARY_NAME}"
+                B4_BIN_DIR="$dir"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$existing_bin" ]; then
+        _path_bin=$(command -v "$BINARY_NAME" 2>/dev/null || true)
+        if [ -n "$_path_bin" ] && [ -f "$_path_bin" ]; then
+            existing_bin="$_path_bin"
+            B4_BIN_DIR=$(dirname "$_path_bin")
         fi
-    done
+    fi
 
     if [ -z "$existing_bin" ]; then
         log_err "B4 is not installed. Use install mode instead."
@@ -2843,7 +2864,10 @@ action_update() {
     archive_path="${TEMP_DIR}/${file_name}"
 
     log_info "Downloading ${latest_ver}..."
-    fetch_file "$download_url" "$archive_path" || { log_err "Download failed"; exit 1; }
+    fetch_file "$download_url" "$archive_path" || {
+        log_err "Download failed"
+        exit 1
+    }
 
     sha_url="${download_url}.sha256"
     _cs_ret=0
@@ -2856,7 +2880,10 @@ action_update() {
     fi
 
     cd "$TEMP_DIR"
-    tar -xzf "$archive_path" || { log_err "Extraction failed"; exit 1; }
+    tar -xzf "$archive_path" || {
+        log_err "Extraction failed"
+        exit 1
+    }
 
     if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         log_info "Stopping service..."
@@ -2870,9 +2897,12 @@ action_update() {
     cp "$existing_bin" "${existing_bin}.backup.${ts}"
 
     rm -f "$existing_bin"
-    mv "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" 2>/dev/null || \
-        cp "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" || \
-        { log_err "Failed to replace binary"; exit 1; }
+    mv "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" 2>/dev/null ||
+        cp "${TEMP_DIR}/${BINARY_NAME}" "$existing_bin" ||
+        {
+            log_err "Failed to replace binary"
+            exit 1
+        }
     chmod +x "$existing_bin"
 
     if "$existing_bin" --version >/dev/null 2>&1; then
