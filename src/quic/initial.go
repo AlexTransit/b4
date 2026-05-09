@@ -24,7 +24,8 @@ const (
 )
 
 const (
-	longHdrBit = 0x80
+	longHdrBit  = 0x80
+	longHdrMask = 0xC0
 )
 
 func IsInitial(b []byte) bool {
@@ -48,7 +49,7 @@ func IsInitial(b []byte) bool {
 }
 
 func LooksLikeQUIC(b []byte) bool {
-	if len(b) < 7 || b[0]&longHdrBit == 0 {
+	if len(b) < 7 || b[0]&longHdrMask != longHdrMask {
 		return false
 	}
 	off := 1 + 4
