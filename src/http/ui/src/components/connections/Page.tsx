@@ -19,12 +19,13 @@ import {
   stripPort,
 } from "@utils";
 import { colors } from "@design";
-import { useWebSocket } from "../../context/B4WsProvider";
+import { useWebSocket } from "@context/B4WsProvider";
 import { AddIpModal } from "./AddIpModal";
 import { B4Config, B4SetConfig } from "@models/config";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { devicesApi } from "@b4.devices";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 interface RipeNetworkInfo {
   asns: string[];
@@ -259,14 +260,14 @@ export function ConnectionsPage() {
         e.preventDefault();
         clearDomains();
         resetDomainsBadge();
-        showSuccess(t("connections.page.clearedAll"));
+        showSuccess(i18n.t("connections.page.clearedAll"));
       } else if (e.key === "p" || e.key === "Pause") {
         e.preventDefault();
         setPauseDomains(!pauseDomains);
         showSuccess(
           pauseDomains
-            ? t("connections.page.resumed")
-            : t("connections.page.paused"),
+            ? i18n.t("connections.page.resumed")
+            : i18n.t("connections.page.paused"),
         );
       }
     },
@@ -274,7 +275,6 @@ export function ConnectionsPage() {
       clearDomains,
       resetDomainsBadge,
       showSuccess,
-      t,
       setPauseDomains,
       pauseDomains,
     ],

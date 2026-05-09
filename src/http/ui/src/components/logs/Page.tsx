@@ -13,6 +13,7 @@ import { colors, fonts, glows } from "@design";
 import { useWebSocket } from "@context/B4WsProvider";
 import { useSnackbar } from "@context/SnackbarProvider";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 
 export function LogsPage() {
   const { t } = useTranslation();
@@ -67,14 +68,14 @@ export function LogsPage() {
       if ((e.ctrlKey && e.key === "x") || e.key === "Delete") {
         e.preventDefault();
         clearLogs();
-        showSuccess(t("logs.cleared"));
+        showSuccess(i18n.t("logs.cleared"));
       } else if (e.key === "p" || e.key === "Pause") {
         e.preventDefault();
         setPauseLogs(!pauseLogs);
-        showSuccess(pauseLogs ? t("logs.resumed") : t("logs.paused"));
+        showSuccess(pauseLogs ? i18n.t("logs.resumed") : i18n.t("logs.paused"));
       }
     },
-    [clearLogs, pauseLogs, setPauseLogs, showSuccess, t],
+    [clearLogs, pauseLogs, setPauseLogs, showSuccess],
   );
 
   useEffect(() => {

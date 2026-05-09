@@ -8,6 +8,7 @@ import {
   Chip,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
+import i18n from "@/i18n";
 import {
   InfoIcon,
   CheckIcon,
@@ -135,11 +136,11 @@ export const SystemInfoDialog = ({ open, onClose }: SystemInfoDialogProps) => {
       .then((r) => r.json())
       .then((json: { success: boolean; data: Diagnostics }) => {
         if (json.success) setData(json.data);
-        else setError(t("settings.SystemInfo.loadFailed"));
+        else setError(i18n.t("settings.SystemInfo.loadFailed"));
       })
-      .catch(() => setError(t("settings.SystemInfo.connectFailed")))
+      .catch(() => setError(i18n.t("settings.SystemInfo.connectFailed")))
       .finally(() => setLoading(false));
-  }, [open, t]);
+  }, [open]);
 
   const statusChip = (status: string) => {
     const isOk = status === "loaded" || status === "built-in";
