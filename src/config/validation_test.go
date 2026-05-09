@@ -138,7 +138,9 @@ func TestValidate_TLSPair(t *testing.T) {
 	t.Run("cert exists but key missing", func(t *testing.T) {
 		dir := t.TempDir()
 		certPath := filepath.Join(dir, "cert.pem")
-		os.WriteFile(certPath, []byte("dummy"), 0644)
+		if err := os.WriteFile(certPath, []byte("dummy"), 0644); err != nil {
+			t.Fatalf("failed to write cert file: %v", err)
+		}
 		cfg := NewConfig()
 		cfg.System.WebServer.TLSCert = certPath
 		cfg.System.WebServer.TLSKey = filepath.Join(dir, "missing.key")

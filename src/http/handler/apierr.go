@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/daniellavrushin/b4/config"
+	"github.com/daniellavrushin/b4/log"
 )
 
 type FieldError struct {
@@ -57,7 +58,8 @@ func writeAPIError(w http.ResponseWriter, err error) {
 		writeAPIError(w, fromValidationError(ve))
 		return
 	}
-	writeAPIError(w, ErrInternal(err.Error()))
+	log.Errorf("internal API error: %v", err)
+	writeAPIError(w, ErrInternal("Internal server error"))
 }
 
 func fromValidationError(ve *config.ValidationError) *APIError {
