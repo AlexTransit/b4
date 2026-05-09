@@ -49,6 +49,18 @@ export interface FieldError {
   params?: Record<string, unknown>;
 }
 
+function isFieldError(value: unknown): value is FieldError {
+  if (!value || typeof value !== "object") return false;
+  const f = value as Record<string, unknown>;
+  if (typeof f.path !== "string") return false;
+  if (typeof f.code !== "string") return false;
+  if (typeof f.message !== "string") return false;
+  if (f.params !== undefined && (typeof f.params !== "object" || Array.isArray(f.params))) {
+    return false;
+  }
+  return true;
+}
+
 export class ApiError extends Error {
   public code?: string;
   public fields?: FieldError[];
@@ -66,13 +78,7 @@ export class ApiError extends Error {
       const b = body as { code?: unknown; fields?: unknown };
       if (typeof b.code === "string") this.code = b.code;
       if (Array.isArray(b.fields)) {
-        this.fields = b.fields.filter(
-          (f): f is FieldError =>
-            !!f &&
-            typeof f === "object" &&
-            typeof (f as FieldError).path === "string" &&
-            typeof (f as FieldError).message === "string",
-        );
+        this.fields = b.fields.filter((f) => isFieldError(f));
       }
     }
   }

@@ -14,7 +14,8 @@ func preflightConfig(newCfg, oldCfg *config.Config) []FieldError {
 	if newCfg.System.WebServer.Port > 0 && newCfg.System.WebServer.Port <= 65535 {
 		old := oldCfg.System.WebServer
 		nw := newCfg.System.WebServer
-		if old.Port != nw.Port || old.BindAddress != nw.BindAddress {
+		oldEnabled := old.Port > 0 && old.Port <= 65535
+		if !oldEnabled || old.Port != nw.Port {
 			if f := probePort("system.web_server.port", nw.BindAddress, nw.Port); f != nil {
 				fields = append(fields, *f)
 			}
@@ -24,7 +25,7 @@ func preflightConfig(newCfg, oldCfg *config.Config) []FieldError {
 	if newCfg.System.MTProto.Enabled {
 		old := oldCfg.System.MTProto
 		nw := newCfg.System.MTProto
-		if !old.Enabled || old.Port != nw.Port || old.BindAddress != nw.BindAddress {
+		if !old.Enabled || old.Port != nw.Port {
 			if f := probePort("system.mtproto.port", nw.BindAddress, nw.Port); f != nil {
 				fields = append(fields, *f)
 			}
@@ -34,7 +35,7 @@ func preflightConfig(newCfg, oldCfg *config.Config) []FieldError {
 	if newCfg.System.Socks5.Enabled {
 		old := oldCfg.System.Socks5
 		nw := newCfg.System.Socks5
-		if !old.Enabled || old.Port != nw.Port || old.BindAddress != nw.BindAddress {
+		if !old.Enabled || old.Port != nw.Port {
 			if f := probePort("system.socks5.port", nw.BindAddress, nw.Port); f != nil {
 				fields = append(fields, *f)
 			}
