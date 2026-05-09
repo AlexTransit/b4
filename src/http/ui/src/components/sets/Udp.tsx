@@ -11,6 +11,7 @@ import {
   B4Section,
   B4Alert,
   B4FormHeader,
+  B4Hint,
 } from "@b4.elements";
 import {
   B4SetConfig,
@@ -167,6 +168,22 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
           />
         </Grid>
 
+        {willProcessUdp && (
+          <Grid size={{ xs: 12, md: 6 }}>
+            <B4Slider
+              label={t("sets.udp.connPacketsLimit")}
+              value={config.udp.conn_bytes_limit}
+              onChange={(value) => onChange("udp.conn_bytes_limit", value)}
+              min={1}
+              max={queue.udp_conn_bytes_limit}
+              step={1}
+              helperText={t("sets.udp.connPacketsMax", {
+                max: queue.udp_conn_bytes_limit,
+              })}
+            />
+          </Grid>
+        )}
+
         {/* Parse mode warning */}
         {showParseWarning && (
           <B4Alert severity="warning" icon={<WarningIcon />}>
@@ -199,35 +216,23 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 }
               />
             </Grid>
-
-            {/* Connection Packets Limit */}
             <Grid size={{ xs: 12, md: 6 }}>
-              <B4Slider
-                label={t("sets.udp.connPacketsLimit")}
-                value={config.udp.conn_bytes_limit}
-                onChange={(value) => onChange("udp.conn_bytes_limit", value)}
-                min={1}
-                max={queue.udp_conn_bytes_limit}
-                step={1}
-                helperText={t("sets.udp.connPacketsMax", {
-                  max: queue.udp_conn_bytes_limit,
-                })}
-              />
+              {/* Info about current mode */}
+              <B4Hint>
+                {(() => {
+                  const infoKeys: Record<UdpMode, string> = {
+                    fake: "sets.udp.fakeModeInfo",
+                    reject: "sets.udp.rejectModeInfo",
+                    drop: "sets.udp.dropModeInfo",
+                  };
+                  return (
+                    <Trans
+                      i18nKey={infoKeys[config.udp.mode] || infoKeys.drop}
+                    />
+                  );
+                })()}
+              </B4Hint>
             </Grid>
-
-            {/* Info about current mode */}
-            <B4Alert>
-              {(() => {
-                const infoKeys: Record<UdpMode, string> = {
-                  fake: "sets.udp.fakeModeInfo",
-                  reject: "sets.udp.rejectModeInfo",
-                  drop: "sets.udp.dropModeInfo",
-                };
-                return (
-                  <Trans i18nKey={infoKeys[config.udp.mode] || infoKeys.drop} />
-                );
-              })()}
-            </B4Alert>
           </>
         )}
 
@@ -235,22 +240,6 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
         {showFakeSettings && (
           <>
             <B4FormHeader label={t("sets.udp.fakeHeader")} />
-
-            <Grid size={{ xs: 12, md: 6 }}>
-              <B4Select
-                label={t("sets.udp.fakingStrategy")}
-                value={config.udp.faking_strategy}
-                options={UDP_FAKING_STRATEGIES}
-                onChange={(e) =>
-                  onChange("udp.faking_strategy", e.target.value)
-                }
-                helperText={
-                  UDP_FAKING_STRATEGIES.find(
-                    (o) => o.value === config.udp.faking_strategy,
-                  )?.description
-                }
-              />
-            </Grid>
 
             <Grid size={{ xs: 12, md: 6 }}>
               <B4Slider
@@ -276,7 +265,8 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 helperText={t("sets.udp.fakeSizeHelper")}
               />
             </Grid>
-            <Grid size={{ xs: 12 }}>
+
+            <Grid size={{ xs: 12, md: 6 }}>
               <B4Select
                 label={t("sets.udp.fakePayloadFile")}
                 value={config.udp.fake_payload_file ?? ""}
@@ -307,12 +297,31 @@ export const UdpSettings = ({ config, queue, onChange }: UdpSettingsProps) => {
                 }
                 helperText={t(payloadFileHelperKey)}
               />
-              <B4Alert>
+              <B4Hint>
                 <Link to="/settings/payloads">
                   {t("sets.udp.fakePayloadManage")}
                 </Link>
-              </B4Alert>
+              </B4Hint>
             </Grid>
+
+            <B4FormHeader label={t("sets.udp.evasionHeader")} />
+
+            <Grid size={{ xs: 12, md: 6 }}>
+              <B4Select
+                label={t("sets.udp.evasionTechnique")}
+                value={config.udp.faking_strategy}
+                options={UDP_FAKING_STRATEGIES}
+                onChange={(e) =>
+                  onChange("udp.faking_strategy", e.target.value)
+                }
+                helperText={
+                  UDP_FAKING_STRATEGIES.find(
+                    (o) => o.value === config.udp.faking_strategy,
+                  )?.description
+                }
+              />
+            </Grid>
+
             <Grid size={{ xs: 12, md: 6 }}>
               <B4RangeSlider
                 label={t("sets.udp.seg2delay")}
