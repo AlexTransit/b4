@@ -247,33 +247,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           disabled={!config.system.mtproto?.enabled}
           helperText={t("settings.MTProto.fakeSNIHelp")}
         />
-        <B4TextField
-          label={t("settings.MTProto.dcRelay")}
-          value={config.system.mtproto?.dc_relay || ""}
-          onChange={(e) => onChange("system.mtproto.dc_relay", e.target.value)}
-          placeholder="vps-ip:7007"
-          disabled={!config.system.mtproto?.enabled}
-          helperText={t("settings.MTProto.dcRelayHelp")}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Tooltip title={t("settings.MTProto.dcRelayHelpButton")}>
-                    <span>
-                      <IconButton
-                        size="small"
-                        onClick={openRelayHelp}
-                        disabled={!config.system.mtproto?.enabled}
-                      >
-                        <HelpOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <B4TextField
             label={t("settings.MTProto.secret")}
@@ -327,128 +300,159 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           </Button>
         </Box>
       </B4FormGroup>
-      {!dcRelay && (
-        <B4FormGroup
-          label={t("settings.MTProto.upstreamTitle")}
-          description={t("settings.MTProto.upstreamDesc")}
-          columns={2}
-        >
-          <B4Select
-            label={t("settings.MTProto.upstreamMode")}
-            value={config.system.mtproto?.upstream_mode || "auto"}
-            onChange={(e) =>
-              onChange(
-                "system.mtproto.upstream_mode",
-                String(e.target.value),
-              )
-            }
-            disabled={!config.system.mtproto?.enabled}
-            options={[
-              { value: "tcp", label: t("settings.MTProto.upstreamTcp") },
-              { value: "auto", label: t("settings.MTProto.upstreamAuto") },
-              { value: "ws", label: t("settings.MTProto.upstreamWs") },
-            ]}
-            helperText={t(
-              `settings.MTProto.upstream${upstreamDescSuffix(
-                config.system.mtproto?.upstream_mode || "auto",
-              )}Desc`,
-            )}
-          />
-          <B4Switch
-            label={t("settings.MTProto.wsFallbackTcp")}
-            checked={config.system.mtproto?.ws_fallback_tcp ?? true}
-            onChange={(checked: boolean) =>
-              onChange("system.mtproto.ws_fallback_tcp", checked)
-            }
-            description={t("settings.MTProto.wsFallbackTcpDesc")}
-            disabled={
-              !config.system.mtproto?.enabled ||
-              (config.system.mtproto?.upstream_mode || "auto") !== "auto"
-            }
-          />
-          <B4TextField
-            label={t("settings.MTProto.wsCustomDomain")}
-            value={config.system.mtproto?.ws_custom_domain || ""}
-            onChange={(e) =>
-              onChange("system.mtproto.ws_custom_domain", e.target.value)
-            }
-            placeholder="your-domain.com"
-            disabled={
-              !config.system.mtproto?.enabled ||
-              (config.system.mtproto?.upstream_mode || "auto") === "tcp"
-            }
-            helperText={t("settings.MTProto.wsCustomDomainHelp")}
-          />
-          <B4TextField
-            label={t("settings.MTProto.wsEndpointHost")}
-            value={config.system.mtproto?.ws_endpoint_host || ""}
-            onChange={(e) =>
-              onChange("system.mtproto.ws_endpoint_host", e.target.value)
-            }
-            placeholder="149.154.167.220"
-            disabled={
-              !config.system.mtproto?.enabled ||
-              (config.system.mtproto?.upstream_mode || "auto") === "tcp"
-            }
-            helperText={t("settings.MTProto.wsEndpointHostHelp")}
-          />
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={
-                wsTesting ? (
-                  <CircularProgress size={14} />
-                ) : (
-                  <NetworkPingIcon fontSize="small" />
-                )
+      {(() => {
+        const mode = config.system.mtproto?.upstream_mode || "auto";
+        const enabled = !!config.system.mtproto?.enabled;
+        const fallback = config.system.mtproto?.ws_fallback_tcp ?? true;
+        const showDcRelay =
+          !!dcRelay || mode === "tcp" || (mode === "auto" && fallback);
+        return (
+          <B4FormGroup
+            label={t("settings.MTProto.upstreamTitle")}
+            description={t("settings.MTProto.upstreamDesc")}
+            columns={2}
+          >
+            <B4Select
+              label={t("settings.MTProto.upstreamMode")}
+              value={mode}
+              onChange={(e) =>
+                onChange("system.mtproto.upstream_mode", String(e.target.value))
               }
-              onClick={() => void handleTestWS()}
-              disabled={!config.system.mtproto?.enabled || wsTesting}
-              sx={{ alignSelf: "flex-start" }}
-            >
-              {wsTesting
-                ? t("settings.MTProto.testWsRunning")
-                : t("settings.MTProto.testWs")}
-            </Button>
-            {wsTestError && (
-              <B4Alert severity="error">{wsTestError}</B4Alert>
+              disabled={!enabled}
+              options={[
+                { value: "tcp", label: t("settings.MTProto.upstreamTcp") },
+                { value: "auto", label: t("settings.MTProto.upstreamAuto") },
+                { value: "ws", label: t("settings.MTProto.upstreamWs") },
+              ]}
+              helperText={t(
+                `settings.MTProto.upstream${upstreamDescSuffix(mode)}Desc`,
+              )}
+            />
+            {mode === "auto" && (
+              <B4Switch
+                label={t("settings.MTProto.wsFallbackTcp")}
+                checked={config.system.mtproto?.ws_fallback_tcp ?? true}
+                onChange={(checked: boolean) =>
+                  onChange("system.mtproto.ws_fallback_tcp", checked)
+                }
+                description={t("settings.MTProto.wsFallbackTcpDesc")}
+                disabled={!enabled}
+              />
             )}
-            {wsResults && (
-              <Stack spacing={0.5}>
-                {wsResults.map((r) => (
-                  <Chip
-                    key={r.transport}
-                    size="small"
-                    icon={
-                      r.ok ? (
-                        <CheckIcon fontSize="small" />
-                      ) : (
-                        <CloseIcon fontSize="small" />
-                      )
-                    }
-                    color={r.ok ? "success" : "default"}
-                    variant={r.ok ? "filled" : "outlined"}
-                    label={
-                      r.ok
-                        ? `${r.transport} — ${r.latency_ms} ms`
-                        : `${r.transport} — ${r.error}`
-                    }
-                    sx={{
-                      justifyContent: "flex-start",
-                      maxWidth: "100%",
-                      "& .MuiChip-label": {
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      },
-                    }}
-                  />
-                ))}
-              </Stack>
+            {mode !== "tcp" && (
+              <B4TextField
+                label={t("settings.MTProto.wsCustomDomain")}
+                value={config.system.mtproto?.ws_custom_domain || ""}
+                onChange={(e) =>
+                  onChange("system.mtproto.ws_custom_domain", e.target.value)
+                }
+                placeholder="your-domain.com"
+                disabled={!enabled}
+                helperText={t("settings.MTProto.wsCustomDomainHelp")}
+              />
             )}
-          </Box>
-        </B4FormGroup>
-      )}
+            {mode !== "tcp" && (
+              <B4TextField
+                label={t("settings.MTProto.wsEndpointHost")}
+                value={config.system.mtproto?.ws_endpoint_host || ""}
+                onChange={(e) =>
+                  onChange("system.mtproto.ws_endpoint_host", e.target.value)
+                }
+                placeholder="149.154.167.220"
+                disabled={!enabled}
+                helperText={t("settings.MTProto.wsEndpointHostHelp")}
+              />
+            )}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={
+                  wsTesting ? (
+                    <CircularProgress size={14} />
+                  ) : (
+                    <NetworkPingIcon fontSize="small" />
+                  )
+                }
+                onClick={() => void handleTestWS()}
+                disabled={!config.system.mtproto?.enabled || wsTesting}
+                sx={{ alignSelf: "flex-start" }}
+              >
+                {wsTesting
+                  ? t("settings.MTProto.testWsRunning")
+                  : t("settings.MTProto.testWs")}
+              </Button>
+              {wsTestError && <B4Alert severity="error">{wsTestError}</B4Alert>}
+              {wsResults && (
+                <Stack spacing={0.5}>
+                  {wsResults.map((r) => (
+                    <Chip
+                      key={r.transport}
+                      size="small"
+                      icon={
+                        r.ok ? (
+                          <CheckIcon fontSize="small" />
+                        ) : (
+                          <CloseIcon fontSize="small" />
+                        )
+                      }
+                      color={r.ok ? "success" : "default"}
+                      variant={r.ok ? "filled" : "outlined"}
+                      label={
+                        r.ok
+                          ? `${r.transport} — ${r.latency_ms} ms`
+                          : `${r.transport} — ${r.error}`
+                      }
+                      sx={{
+                        justifyContent: "flex-start",
+                        maxWidth: "100%",
+                        "& .MuiChip-label": {
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        },
+                      }}
+                    />
+                  ))}
+                </Stack>
+              )}
+            </Box>
+            {showDcRelay && (
+              <B4TextField
+                label={t("settings.MTProto.dcRelay")}
+                value={config.system.mtproto?.dc_relay || ""}
+                onChange={(e) =>
+                  onChange("system.mtproto.dc_relay", e.target.value)
+                }
+                placeholder="vps-ip:7007"
+                disabled={!enabled}
+                helperText={t("settings.MTProto.dcRelayHelp")}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end" sx={{ mr: -0.5 }}>
+                        <Tooltip
+                          title={t("settings.MTProto.dcRelayHelpButton")}
+                        >
+                          <span style={{ display: "inline-flex" }}>
+                            <IconButton
+                              size="small"
+                              onClick={openRelayHelp}
+                              disabled={!enabled}
+                              sx={{ px: 0 }}
+                            >
+                              <HelpOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+          </B4FormGroup>
+        );
+      })()}
       <B4Dialog
         open={shareOpen}
         onClose={() => setShareOpen(false)}
