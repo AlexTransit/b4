@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -80,6 +81,11 @@ func (c *Config) Validate() error {
 
 	c.checkPortCollisions(v)
 	if v.hasErrors() {
+		return v.result()
+	}
+
+	if _, err := ParseMemoryLimit(c.System.MemoryLimit); err != nil {
+		v.addf("system.memory_limit", "invalid_value", map[string]any{"value": c.System.MemoryLimit}, "%v", err)
 		return v.result()
 	}
 
@@ -276,6 +282,20 @@ func (c *Config) checkPortCollisions(v *validator) {
 			v.add("system.mtproto.port", "out_of_range", "port must be between 1 and 65535", portRangeParams)
 		} else {
 			refs = append(refs, portRef{"system.mtproto.port", c.System.MTProto.Port})
+		}
+		switch c.System.MTProto.UpstreamMode {
+		case "", "tcp", "ws", "auto":
+		default:
+			v.addf("system.mtproto.upstream_mode", "invalid_value",
+				map[string]any{"value": c.System.MTProto.UpstreamMode, "allowed": []string{"tcp", "ws", "auto"}},
+				"upstream_mode must be one of tcp, ws, auto (got %q)", c.System.MTProto.UpstreamMode)
+		}
+		if h := c.System.MTProto.WSEndpointHost; h != "" {
+			if strings.HasPrefix(h, "[") || (strings.Contains(h, ":") && net.ParseIP(h) == nil) {
+				v.addf("system.mtproto.ws_endpoint_host", "invalid_host",
+					map[string]any{"value": h},
+					"ws_endpoint_host must be a host or IP without port (got %q)", h)
+			}
 		}
 	}
 	for i := 0; i < len(refs); i++ {

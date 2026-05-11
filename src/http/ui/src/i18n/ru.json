@@ -133,8 +133,8 @@
       "udpLimitHelp": "Максимум UDP пакетов на соединение для анализа (по умолчанию 8). Сеты не могут превышать это значение."
     },
     "Logging": {
-      "title": "Настройки логирования",
-      "description": "Настройка поведения и вывода логов",
+      "title": "Сервис",
+      "description": "Управление сервисом, логи, часовой пояс и лимиты процесса",
       "logLevel": "Уровень логирования",
       "logLevelHelp": "Установите детализацию логирования",
       "errorFilePath": "Путь к файлу ошибок",
@@ -150,7 +150,10 @@
       "levelDebug": "Отладка",
       "timezone": "Часовой пояс",
       "timezoneAuto": "Авто (система)",
-      "timezoneHelp": "Часовой пояс для временных меток в логах (по умолчанию: системный)"
+      "timezoneHelp": "Часовой пояс для временных меток в логах (по умолчанию: системный)",
+      "memoryLimit": "Лимит памяти",
+      "memoryLimitPlaceholder": "auto",
+      "memoryLimitHelp": "Мягкий лимит на потребление памяти b4. Принимает значения вида 128MiB, 256m, 1g. Пусто или 'auto' - половина ОЗУ системы. 'off' - без лимита."
     },
     "Feature": {
       "title": "Функции",
@@ -268,7 +271,25 @@
       "shareLinkLabel": "Ссылка для подключения",
       "shareLinkHelp": "Откройте эту ссылку на устройстве с установленным Telegram, чтобы добавить прокси.",
       "shareQrHelp": "Отсканируйте камерой телефона, чтобы открыть в Telegram.",
-      "shareOpen": "Открыть в Telegram"
+      "shareOpen": "Открыть в Telegram",
+      "upstreamTitle": "Транспорт к Telegram",
+      "upstreamDesc": "Как b4 достигает дата-центров Telegram с этого хоста. Используйте WebSocket, если ваша сеть блокирует прямой TCP к 149.154.x.x.",
+      "upstreamMode": "Режим транспорта",
+      "upstreamTcp": "Прямой TCP",
+      "upstreamTcpDesc": "Самый быстрый. Подходит, если этот хост может напрямую достучаться до 149.154.0.0/16.",
+      "upstreamAuto": "Авто (WebSocket → TCP)",
+      "upstreamAutoDesc": "Сначала WebSocket через kws*.web.telegram.org, при неудаче — прямой TCP. Рекомендуется для сетей с цензурой.",
+      "upstreamWs": "Только WebSocket",
+      "upstreamWsDesc": "Жёсткий WebSocket-транспорт через kws*.web.telegram.org. Без TCP-резерва.",
+      "wsFallbackTcp": "Разрешить TCP-резерв",
+      "wsFallbackTcpDesc": "В режиме Авто переключаться на прямой TCP, если все попытки WebSocket провалились.",
+      "wsCustomDomain": "Свой WebSocket-домен",
+      "wsCustomDomainHelp": "Опционально. Укажите базовый домен (например, your-domain.com), который проксирует WebSocket-трафик к Telegram. b4 сам подставит kws1., kws2., ... перед каждым DC. Пусто — использовать встроенный kws*.web.telegram.org.",
+      "wsEndpointHost": "IP edge-сервера Telegram (расширенное)",
+      "wsEndpointHostHelp": "IP, к которому подключаемся для встроенного kws*.web.telegram.org SNI. По умолчанию 149.154.167.220. Оставьте пустым для значения по умолчанию. Не влияет на путь через свой WebSocket-домен.",
+      "testWs": "Проверить транспорты",
+      "testWsRunning": "Проверка…",
+      "testWsHelp": "Пробует достучаться до DC 2 каждым настроенным транспортом и измеряет задержку."
     },
     "MSSClamping": {
       "title": "Глобальный MSS Clamping",

@@ -289,6 +289,10 @@ export interface MTProtoConfig {
   secret: string;
   fake_sni: string;
   dc_relay: string;
+  upstream_mode: "tcp" | "ws" | "auto";
+  ws_custom_domain: string;
+  ws_fallback_tcp: boolean;
+  ws_endpoint_host: string;
 }
 
 
@@ -303,6 +307,7 @@ export interface SystemConfig {
   api: ApiConfig;
   ai: AIConfig;
   timezone: string;
+  memory_limit?: string;
 }
 
 export interface B4Config {
