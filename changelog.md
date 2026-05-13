@@ -3,6 +3,7 @@
 ## [1.6x.x] - 2026-05-xx
 
 - ADDED: **Quick toggle for all sets** - new switch in the Sets page top bar that turns every set on or off in one click. Useful for temporarily disabling all bypass, or for isolating one set while debugging.
+- FIXED: **Geosite/geoip updates didn't take effect until the next set edit** - after downloading or uploading a new geosite or geoip file from the Web UI, b4 kept matching against the old domain and IP lists. The new file is now applied to all sets immediately.
 
 ## [1.62.1] - 2026-05-11
 
