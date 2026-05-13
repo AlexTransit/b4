@@ -18,6 +18,8 @@ type Watchdog struct {
 	stop         chan struct{}
 	stopped      chan struct{}
 	saveFunc     func(*config.Config) error
+	healing      atomic.Bool
+	healWG       sync.WaitGroup
 }
 
 func New(cfgPtr *atomic.Pointer[config.Config], discoveryRT *discovery.Runtime, saveFunc func(*config.Config) error) *Watchdog {
@@ -39,6 +41,7 @@ func (w *Watchdog) Start() {
 func (w *Watchdog) Stop() {
 	close(w.stop)
 	<-w.stopped
+	w.healWG.Wait()
 	log.Infof("[WATCHDOG] watchdog service stopped")
 }
 
@@ -186,8 +189,14 @@ func (w *Watchdog) tick() {
 	}
 	w.mu.Unlock()
 
-	if len(needsHealing) > 0 {
-		w.healBatch(needsHealing)
+	if len(needsHealing) > 0 && w.healing.CompareAndSwap(false, true) {
+		w.healWG.Add(1)
+		go func(domains []string) {
+			defer w.healWG.Done()
+			defer w.healing.Store(false)
+			log.Infof("[WATCHDOG] starting heal for %d domain(s): %v", len(domains), domains)
+			w.healBatch(domains)
+		}(needsHealing)
 	}
 }
 
