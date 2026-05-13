@@ -35,6 +35,7 @@ func (api *API) handleMTProtoTestWS(w http.ResponseWriter, r *http.Request) {
 		UpstreamMode   string  `json:"upstream_mode"`
 		WSCustomDomain *string `json:"ws_custom_domain"`
 		WSEndpointHost *string `json:"ws_endpoint_host"`
+		DCRelay        *string `json:"dc_relay"`
 		DC             int     `json:"dc"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
@@ -59,6 +60,9 @@ func (api *API) handleMTProtoTestWS(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.WSEndpointHost != nil {
 		probeCfg.WSEndpointHost = *req.WSEndpointHost
+	}
+	if req.DCRelay != nil {
+		probeCfg.DCRelay = *req.DCRelay
 	}
 	if probeCfg.UpstreamMode == "" {
 		probeCfg.UpstreamMode = "auto"

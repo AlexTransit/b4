@@ -142,7 +142,25 @@ func planTransports(cfg *config.MTProtoConfig, queueCfg config.QueueConfig, dc i
 		mode = "tcp"
 	}
 
+	hasRelay := strings.TrimSpace(cfg.DCRelay) != ""
+	relayFirst := mode == "auto" && hasRelay
+
 	var plans []transportPlan
+
+	appendTCP := func() {
+		addrs, err := ResolveDCAll(dc, queueCfg.IPv6Enabled, cfg.DCRelay)
+		if err != nil {
+			return
+		}
+		for _, a := range addrs {
+			plans = append(plans, transportPlan{kind: transportTCP, addr: a})
+		}
+	}
+
+	if mode == "tcp" || relayFirst {
+		appendTCP()
+	}
+
 	if mode == "ws" || mode == "auto" {
 		edgeIP := strings.TrimSpace(cfg.WSEndpointHost)
 		if edgeIP == "" {
@@ -169,16 +187,12 @@ func planTransports(cfg *config.MTProtoConfig, queueCfg config.QueueConfig, dc i
 		}
 	}
 
-	allowTCP := mode == "tcp" || mode == "auto" || len(plans) == 0
-	if allowTCP {
-		addr, err := ResolveDC(dc, queueCfg.IPv6Enabled, cfg.DCRelay)
-		if err != nil {
-			if len(plans) == 0 {
-				return nil, err
-			}
-		} else {
-			plans = append(plans, transportPlan{kind: transportTCP, addr: addr})
-		}
+	if mode == "auto" && !relayFirst {
+		appendTCP()
+	}
+
+	if len(plans) == 0 && mode != "ws" {
+		appendTCP()
 	}
 
 	if len(plans) == 0 {
@@ -222,32 +236,61 @@ func DialObfuscatedDC(cfg *config.MTProtoConfig, queueCfg config.QueueConfig, dc
 type TransportProbeResult struct {
 	Transport string `json:"transport"`
 	OK        bool   `json:"ok"`
+	Stage     string `json:"stage,omitempty"`
 	LatencyMs int64  `json:"latency_ms,omitempty"`
+	HoldMs    int64  `json:"hold_ms,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
+
+const probeHoldDuration = 2 * time.Second
 
 func ProbeTransports(cfg *config.MTProtoConfig, queueCfg config.QueueConfig, dc int) ([]TransportProbeResult, error) {
 	plans, err := planTransports(cfg, queueCfg, dc)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]TransportProbeResult, 0, len(plans))
-	for _, p := range plans {
-		start := time.Now()
-		conn, err := dialOne(p, queueCfg.Mark)
-		ms := time.Since(start).Milliseconds()
-		res := TransportProbeResult{Transport: p.describe()}
-		if err != nil {
-			res.OK = false
-			res.Error = err.Error()
-		} else {
-			res.OK = true
-			res.LatencyMs = ms
-			_ = conn.Close()
-		}
-		out = append(out, res)
+	out := make([]TransportProbeResult, len(plans))
+	for i, p := range plans {
+		out[i] = probeOne(p, queueCfg.Mark, dc)
 	}
 	return out, nil
+}
+
+func probeOne(p transportPlan, mark uint, dc int) TransportProbeResult {
+	res := TransportProbeResult{Transport: p.describe()}
+	dialStart := time.Now()
+	conn, err := dialOne(p, mark)
+	if err != nil {
+		res.Stage = "dial"
+		res.Error = err.Error()
+		return res
+	}
+	res.LatencyMs = time.Since(dialStart).Milliseconds()
+	defer conn.Close()
+
+	if _, err := completeObfuscation(conn, dc, connectionTagAbridged); err != nil {
+		res.Stage = "handshake"
+		res.Error = err.Error()
+		return res
+	}
+
+	_ = conn.SetReadDeadline(time.Now().Add(probeHoldDuration))
+	holdStart := time.Now()
+	buf := make([]byte, 1)
+	_, readErr := conn.Read(buf)
+	res.HoldMs = time.Since(holdStart).Milliseconds()
+
+	if readErr == nil {
+		res.OK = true
+		return res
+	}
+	if ne, ok := readErr.(net.Error); ok && ne.Timeout() {
+		res.OK = true
+		return res
+	}
+	res.Stage = "hold"
+	res.Error = "upstream closed connection: " + readErr.Error()
+	return res
 }
 
 func dialOne(p transportPlan, mark uint) (net.Conn, error) {

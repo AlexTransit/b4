@@ -3,6 +3,11 @@
 ## [1.6x.x] - 2026-05-xx
 
 - ADDED: **Quick toggle for all sets** - new switch in the Sets page top bar that turns every set on or off in one click. Useful for temporarily disabling all bypass, or for isolating one set while debugging.
+- ADDED: **"Test direct TCP" button for the MTProto proxy** - new button in Settings → MTProto Proxy next to "Test connection". Probes Telegram directly, bypassing the DC Relay. Use it to tell whether a problem is on your relay/VPS or somewhere between b4 and Telegram.
+- IMPROVED: **MTProto connection test now detects upstream drops** - the existing "Test connection" button used to only check that an IP was reachable. It now also completes the MTProto handshake and watches whether Telegram (or your relay) closes the connection right after - the failure mode users actually hit. Results show which stage broke (connect, handshake, or dropped after handshake).
+- FIXED: **Direct TCP path used internal Telegram backend addresses instead of public ones** - b4 was reading addresses from Telegram's `getProxyConfig` (a topology file for MTProxy operators) and dialling them directly. Those backends silently dropped the connection after the handshake because clients are not allowed there. b4 now uses the well-known public data center IPs for direct dialling, like real Telegram clients do.
+- FIXED: **MTProto proxy ignored the DC Relay in Auto mode** - when the upstream transport was set to "Auto" and a DC Relay was configured, b4 still went straight over WebSocket and never used the relay. The relay is now tried first in Auto mode whenever one is configured; WebSocket stays as the fallback. The mode description updates to reflect this.
+- FIXED: **MTProto media data center (DC 203) did not work through the DC Relay** - DC 203 traffic was sent to a port that does not exist on any relay setup, so loading media through the relay failed. DC 203 now reuses the DC 2 relay port (matching the existing WebSocket behaviour), and has a built-in default IP for direct TCP as well.
 - FIXED: **Geosite/geoip updates didn't take effect until the next set edit** - after downloading or uploading a new geosite or geoip file from the Web UI, b4 kept matching against the old domain and IP lists. The new file is now applied to all sets immediately.
 
 ## [1.62.1] - 2026-05-11

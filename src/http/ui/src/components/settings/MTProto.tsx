@@ -38,7 +38,9 @@ import { SettingsPropHandlerType } from "@models/settings";
 type WsProbeResult = {
   transport: string;
   ok: boolean;
+  stage?: string;
   latency_ms?: number;
+  hold_ms?: number;
   error?: string;
 };
 
@@ -66,7 +68,9 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
   const [shareHost, setShareHost] = useState("");
   const [copied, setCopied] = useState(false);
   const [relayHelpOpen, setRelayHelpOpen] = useState(false);
-  const [wsTesting, setWsTesting] = useState(false);
+  const [wsTesting, setWsTesting] = useState<null | "configured" | "direct">(
+    null,
+  );
   const [wsResults, setWsResults] = useState<WsProbeResult[] | null>(null);
   const [wsTestError, setWsTestError] = useState<string | null>(null);
 
@@ -149,8 +153,11 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
     }
   };
 
-  const handleTestWS = async () => {
-    setWsTesting(true);
+  const runProbe = async (
+    which: "configured" | "direct",
+    overrides: Record<string, unknown>,
+  ) => {
+    setWsTesting(which);
     setWsResults(null);
     setWsTestError(null);
     try {
@@ -162,6 +169,7 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           ws_custom_domain: config.system.mtproto?.ws_custom_domain || "",
           ws_endpoint_host: config.system.mtproto?.ws_endpoint_host || "",
           dc: 2,
+          ...overrides,
         }),
       });
       const data = (await res.json()) as {
@@ -177,9 +185,13 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
     } catch (e) {
       setWsTestError(String(e));
     } finally {
-      setWsTesting(false);
+      setWsTesting(null);
     }
   };
+
+  const handleTestWS = () => runProbe("configured", {});
+  const handleTestDirectTCP = () =>
+    runProbe("direct", { upstream_mode: "tcp", dc_relay: "" });
 
   const handleGenerateSecret = async () => {
     const sni = config.system.mtproto?.fake_sni || "storage.googleapis.com";
@@ -322,9 +334,13 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
                 { value: "auto", label: t("settings.MTProto.upstreamAuto") },
                 { value: "ws", label: t("settings.MTProto.upstreamWs") },
               ]}
-              helperText={t(
-                `settings.MTProto.upstream${upstreamDescSuffix(mode)}Desc`,
-              )}
+              helperText={
+                mode === "auto" && dcRelay
+                  ? t("settings.MTProto.upstreamAutoRelayDesc")
+                  : t(
+                      `settings.MTProto.upstream${upstreamDescSuffix(mode)}Desc`,
+                    )
+              }
             />
             {showDcRelay && (
               <B4TextField
@@ -385,55 +401,96 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
               />
             )}
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={
-                  wsTesting ? (
-                    <CircularProgress size={14} />
-                  ) : (
-                    <NetworkPingIcon fontSize="small" />
-                  )
-                }
-                onClick={() => void handleTestWS()}
-                disabled={!config.system.mtproto?.enabled || wsTesting}
-                sx={{ alignSelf: "flex-start" }}
-              >
-                {wsTesting
-                  ? t("settings.MTProto.testWsRunning")
-                  : t("settings.MTProto.testWs")}
-              </Button>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={
+                    wsTesting === "configured" ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <NetworkPingIcon fontSize="small" />
+                    )
+                  }
+                  onClick={() => void handleTestWS()}
+                  disabled={
+                    !config.system.mtproto?.enabled || wsTesting !== null
+                  }
+                >
+                  {wsTesting === "configured"
+                    ? t("settings.MTProto.testWsRunning")
+                    : t("settings.MTProto.testWs")}
+                </Button>
+                <Tooltip title={t("settings.MTProto.testDirectTcpHelp")}>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={
+                        wsTesting === "direct" ? (
+                          <CircularProgress size={14} />
+                        ) : undefined
+                      }
+                      onClick={() => void handleTestDirectTCP()}
+                      disabled={
+                        !config.system.mtproto?.enabled || wsTesting !== null
+                      }
+                    >
+                      {wsTesting === "direct"
+                        ? t("settings.MTProto.testWsRunning")
+                        : t("settings.MTProto.testDirectTcp")}
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Stack>
               {wsTestError && <B4Alert severity="error">{wsTestError}</B4Alert>}
               {wsResults && (
                 <Stack spacing={0.5}>
-                  {wsResults.map((r) => (
-                    <Chip
-                      key={r.transport}
-                      size="small"
-                      icon={
-                        r.ok ? (
-                          <CheckIcon fontSize="small" />
-                        ) : (
-                          <CloseIcon fontSize="small" />
-                        )
+                  {wsResults.map((r) => {
+                    let label: string;
+                    if (r.ok) {
+                      const parts = [`${r.latency_ms} ms`];
+                      if (r.hold_ms != null) {
+                        parts.push(
+                          t("settings.MTProto.testHeldMs", { ms: r.hold_ms }),
+                        );
                       }
-                      color={r.ok ? "success" : "default"}
-                      variant={r.ok ? "filled" : "outlined"}
-                      label={
-                        r.ok
-                          ? `${r.transport} — ${r.latency_ms} ms`
-                          : `${r.transport} — ${r.error}`
-                      }
-                      sx={{
-                        justifyContent: "flex-start",
-                        maxWidth: "100%",
-                        "& .MuiChip-label": {
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        },
-                      }}
-                    />
-                  ))}
+                      label = `${r.transport} — ${parts.join(", ")}`;
+                    } else {
+                      const stageLabel = r.stage
+                        ? t(`settings.MTProto.testStage_${r.stage}`, {
+                            defaultValue: r.stage,
+                          })
+                        : "";
+                      label = stageLabel
+                        ? `${r.transport} — [${stageLabel}] ${r.error}`
+                        : `${r.transport} — ${r.error}`;
+                    }
+                    return (
+                      <Chip
+                        key={r.transport}
+                        size="small"
+                        icon={
+                          r.ok ? (
+                            <CheckIcon fontSize="small" />
+                          ) : (
+                            <CloseIcon fontSize="small" />
+                          )
+                        }
+                        color={r.ok ? "success" : "default"}
+                        variant={r.ok ? "filled" : "outlined"}
+                        label={label}
+                        sx={{
+                          justifyContent: "flex-start",
+                          maxWidth: "100%",
+                          "& .MuiChip-label": {
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          },
+                        }}
+                      />
+                    );
+                  })}
                 </Stack>
               )}
             </Box>

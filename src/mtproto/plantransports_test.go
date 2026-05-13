@@ -183,6 +183,54 @@ func TestPlanTransports_DCRelay_AutoMode_WSPlansPlusRelayTCP(t *testing.T) {
 	}
 }
 
+func TestPlanTransports_DCRelay_AutoMode_RelayBeforeWS(t *testing.T) {
+	cfg := &config.MTProtoConfig{
+		UpstreamMode: "auto",
+		DCRelay:      "127.0.0.1:4443",
+	}
+	plans, err := planTransports(cfg, config.QueueConfig{IPv4Enabled: true}, 2)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(plans) == 0 || plans[0].kind != transportTCP {
+		t.Fatalf("auto + DCRelay: relay TCP must be the first plan, got %+v", plans)
+	}
+	if !strings.HasPrefix(plans[0].addr, "127.0.0.1:") {
+		t.Fatalf("auto + DCRelay: first plan must target relay, got %s", plans[0].addr)
+	}
+	if len(wsSNIs(plans)) == 0 {
+		t.Fatalf("auto + DCRelay: WS plans must still exist as fallback")
+	}
+}
+
+func TestPlanTransports_DCRelay_DC203_CollapsesToDC2Port(t *testing.T) {
+	cfg := &config.MTProtoConfig{
+		UpstreamMode: "tcp",
+		DCRelay:      "127.0.0.1:4443",
+	}
+	plans, err := planTransports(cfg, config.QueueConfig{IPv4Enabled: true}, 203)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(plans) != 1 || plans[0].kind != transportTCP {
+		t.Fatalf("expected single TCP plan, got %+v", plans)
+	}
+	if plans[0].addr != "127.0.0.1:4444" {
+		t.Fatalf("DC 203 + relay base 4443 must collapse to port 4444 (DC2 slot), got %s", plans[0].addr)
+	}
+}
+
+func TestPlanTransports_DC203_DirectTCP_HasDefaultIP(t *testing.T) {
+	cfg := &config.MTProtoConfig{UpstreamMode: "tcp"}
+	plans, err := planTransports(cfg, config.QueueConfig{IPv4Enabled: true}, 203)
+	if err != nil {
+		t.Fatalf("DC 203 must have a default TCP address: %v", err)
+	}
+	if len(plans) == 0 || plans[0].kind != transportTCP {
+		t.Fatalf("expected TCP plan for DC 203, got %+v", plans)
+	}
+}
+
 func TestPlanTransports_DCRelay_IgnoredInWSMode(t *testing.T) {
 	cfg := &config.MTProtoConfig{
 		UpstreamMode: "ws",

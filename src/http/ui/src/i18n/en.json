@@ -291,7 +291,14 @@
       "wsEndpointHostHelp": "Override the IP used when WS uses native kws*.web.telegram.org SNI. Default: 149.154.167.220. Leave empty for default. Does not affect the custom WebSocket domain path.",
       "testWs": "Test connection",
       "testWsRunning": "Testing…",
-      "testWsHelp": "Probes DC 2 over the configured transport(s) and reports latency."
+      "testWsHelp": "Probes DC 2 over the configured transport(s) and reports latency.",
+      "testDirectTcp": "Test direct TCP",
+      "testDirectTcpHelp": "Probes DC 2 over direct TCP to Telegram, bypassing the DC Relay. Use to isolate whether issues come from the relay or from Telegram itself.",
+      "testHeldMs": "held {{ms}} ms",
+      "testStage_dial": "connect failed",
+      "testStage_handshake": "handshake failed",
+      "testStage_hold": "dropped after handshake",
+      "upstreamAutoRelayDesc": "DC Relay is configured: relay TCP is tried first, WebSocket as fallback."
     },
     "MSSClamping": {
       "title": "Global MSS Clamping",
