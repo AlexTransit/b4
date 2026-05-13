@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  FormControlLabel,
   Grid,
   InputAdornment,
   List,
@@ -8,7 +9,9 @@ import {
   ListItemText,
   Paper,
   Stack,
+  Switch,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -122,8 +125,14 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
   const { t } = useTranslation();
   const { showSuccess, showError } = useSnackbar();
   const navigate = useNavigate();
-  const { deleteSet, deleteSets, duplicateSet, reorderSets, updateSet } =
-    useSets();
+  const {
+    deleteSet,
+    deleteSets,
+    duplicateSet,
+    reorderSets,
+    updateSet,
+    setEnabledForSets,
+  } = useSets();
 
   const [filterText, setFilterText] = useState("");
   const [selectionMode, setSelectionMode] = useState(false);
@@ -337,6 +346,22 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
     })();
   };
 
+  const handleToggleAll = (enabled: boolean) => {
+    if (sets.length === 0) return;
+    void (async () => {
+      const ids = sets.map((s) => s.id);
+      const result = await setEnabledForSets(ids, enabled);
+      if (result.success) {
+        showSuccess(
+          t(enabled ? "sets.manager.allEnabled" : "sets.manager.allDisabled"),
+        );
+        onRefresh();
+      } else {
+        reportSaveError(result.error, showError, t, "sets.manager.failedToToggleSets");
+      }
+    })();
+  };
+
   const handleToggleEnabled = (set: B4SetConfig, enabled: boolean) => {
     void (async () => {
       const updatedSet = { ...set, enabled };
@@ -395,6 +420,34 @@ export const SetsManager = ({ config, onRefresh }: SetsManagerProps) => {
             </Stack>
 
             <Stack direction="row" spacing={2} alignItems="center">
+              {sets.length > 0 && !selectionMode && (
+                <Tooltip title={t("sets.manager.toggleAllTooltip")}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        size="small"
+                        checked={summaryStats.enabled > 0}
+                        onChange={(_, checked) => handleToggleAll(checked)}
+                      />
+                    }
+                    label={
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: colors.text.secondary,
+                          whiteSpace: "nowrap",
+                          ml: 1,
+                        }}
+                      >
+                        {summaryStats.enabled > 0
+                          ? t("sets.manager.disableAll")
+                          : t("sets.manager.enableAll")}
+                      </Typography>
+                    }
+                    sx={{ mr: 0 }}
+                  />
+                </Tooltip>
+              )}
               <TextField
                 size="small"
                 placeholder={t("sets.manager.searchPlaceholder")}

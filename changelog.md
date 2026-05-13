@@ -1,5 +1,9 @@
 # B4 - Bye Bye Big Bro
 
+## [1.6x.x] - 2026-05-xx
+
+- ADDED: **Quick toggle for all sets** - new switch in the Sets page top bar that turns every set on or off in one click. Useful for temporarily disabling all bypass, or for isolating one set while debugging.
+
 ## [1.62.1] - 2026-05-11
 
 - ADDED: **Memory limit setting** - new "Memory Limit" field in Settings → Logging. Caps how much memory b4 may use. Leave empty for auto (half of system RAM, the previous default). Useful on routers with little RAM where other services compete for memory. Accepts values like `128MiB`, `256m`, `1g`, or `off` to disable.
