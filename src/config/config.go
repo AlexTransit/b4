@@ -235,10 +235,12 @@ var DefaultConfig = Config{
 		},
 
 		MTProto: MTProtoConfig{
-			Enabled:     false,
-			Port:        3128,
-			BindAddress: "0.0.0.0",
-			FakeSNI:     "storage.googleapis.com",
+			Enabled:        false,
+			Port:           3128,
+			BindAddress:    "0.0.0.0",
+			FakeSNI:        "storage.googleapis.com",
+			UpstreamMode:   "auto",
+			WSEndpointHost: "149.154.167.220",
 		},
 
 		Logging: Logging{
@@ -279,7 +281,8 @@ var DefaultConfig = Config{
 			TimeoutSec:  120,
 		},
 
-		Timezone: "",
+		Timezone:    "",
+		MemoryLimit: "",
 	},
 }
 

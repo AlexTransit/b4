@@ -16,11 +16,12 @@ import (
 )
 
 var dcAddressesV4 = map[int]string{
-	1: "149.154.175.50:443",
-	2: "149.154.167.51:443",
-	3: "149.154.175.100:443",
-	4: "149.154.167.91:443",
-	5: "149.154.171.5:443",
+	1:   "149.154.175.50:443",
+	2:   "149.154.167.51:443",
+	3:   "149.154.175.100:443",
+	4:   "149.154.167.91:443",
+	5:   "149.154.171.5:443",
+	203: "91.105.192.100:443",
 }
 
 var dcAddressesV6 = map[int]string{
@@ -33,7 +34,7 @@ var dcAddressesV6 = map[int]string{
 
 var (
 	dcRuntimeMu sync.RWMutex
-	dcRuntime   = map[int]string{}
+	dcRuntime   = map[int][]string{}
 )
 
 var proxyConfigURLs = []string{
@@ -77,7 +78,19 @@ func DCSnapshot() map[int]string {
 	defer dcRuntimeMu.RUnlock()
 	out := make(map[int]string, len(dcRuntime))
 	for k, v := range dcRuntime {
-		out[k] = v
+		if len(v) > 0 {
+			out[k] = v[0]
+		}
+	}
+	return out
+}
+
+func DCSnapshotAll() map[int][]string {
+	dcRuntimeMu.RLock()
+	defer dcRuntimeMu.RUnlock()
+	out := make(map[int][]string, len(dcRuntime))
+	for k, v := range dcRuntime {
+		out[k] = append([]string(nil), v...)
 	}
 	return out
 }
@@ -114,7 +127,8 @@ func RefreshDCs() error {
 	if body == nil {
 		return lastErr
 	}
-	next := map[int]string{}
+	next := map[int][]string{}
+	total := 0
 	sc := bufio.NewScanner(strings.NewReader(string(body)))
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
@@ -136,10 +150,18 @@ func RefreshDCs() error {
 		if _, _, err := net.SplitHostPort(f[2]); err != nil {
 			continue
 		}
-		if _, ok := next[id]; ok {
+		dup := false
+		for _, existing := range next[id] {
+			if existing == f[2] {
+				dup = true
+				break
+			}
+		}
+		if dup {
 			continue
 		}
-		next[id] = f[2]
+		next[id] = append(next[id], f[2])
+		total++
 	}
 	if len(next) == 0 {
 		return fmt.Errorf("no proxy_for entries parsed")
@@ -147,11 +169,19 @@ func RefreshDCs() error {
 	dcRuntimeMu.Lock()
 	dcRuntime = next
 	dcRuntimeMu.Unlock()
-	log.Infof("MTProto DC list refreshed: %d entries", len(next))
+	log.Infof("MTProto DC list refreshed: %d DCs, %d addresses", len(next), total)
 	return nil
 }
 
 func ResolveDC(dc int, preferV6 bool, relay string) (string, error) {
+	addrs, err := ResolveDCAll(dc, preferV6, relay)
+	if err != nil {
+		return "", err
+	}
+	return addrs[0], nil
+}
+
+func ResolveDCAll(dc int, preferV6 bool, relay string) ([]string, error) {
 	absDC := dc
 	if absDC < 0 {
 		absDC = -absDC
@@ -160,34 +190,30 @@ func ResolveDC(dc int, preferV6 bool, relay string) (string, error) {
 	if relay != "" {
 		host, portStr, err := net.SplitHostPort(relay)
 		if err != nil {
-			return relay, nil
+			return []string{relay}, nil
 		}
 		basePort, err := strconv.Atoi(portStr)
 		if err != nil {
-			return relay, nil
+			return []string{relay}, nil
 		}
-		return net.JoinHostPort(host, strconv.Itoa(basePort+absDC-1)), nil
+		portDC := absDC
+		if portDC == 203 {
+			portDC = 2
+		}
+		return []string{net.JoinHostPort(host, strconv.Itoa(basePort+portDC-1))}, nil
 	}
 
-	dc = absDC
-
-	dcRuntimeMu.RLock()
-	if addr, ok := dcRuntime[dc]; ok {
-		dcRuntimeMu.RUnlock()
-		return addr, nil
-	}
-	dcRuntimeMu.RUnlock()
-
+	var out []string
 	if preferV6 {
-		if addr, ok := dcAddressesV6[dc]; ok {
-			return addr, nil
+		if addr, ok := dcAddressesV6[absDC]; ok {
+			out = append(out, addr)
 		}
 	}
-
-	addr, ok := dcAddressesV4[dc]
-	if !ok {
-		return "", fmt.Errorf("unknown DC %d", dc)
+	if addr, ok := dcAddressesV4[absDC]; ok {
+		out = append(out, addr)
 	}
-
-	return addr, nil
+	if len(out) == 0 {
+		return nil, fmt.Errorf("unknown DC %d", absDC)
+	}
+	return out, nil
 }

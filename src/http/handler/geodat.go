@@ -150,19 +150,19 @@ func (api *API) handleGeodatDownload(w http.ResponseWriter, r *http.Request) {
 		api.getCfg().System.Geo.GeoIpURL = req.GeoipURL
 	}
 
-	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
-		msg := fmt.Sprintf("Failed to save configuration: %v", err)
-		log.Errorf("geodat download: %s", msg)
-		writeJsonError(w, http.StatusInternalServerError, msg)
-		return
-	}
-
 	api.geodataManager.UpdatePaths(api.getCfg().System.Geo.GeoSitePath, api.getCfg().System.Geo.GeoIpPath)
 	api.geodataManager.ClearCache()
 
 	for _, set := range api.getCfg().Sets {
 		log.Infof("Reloading geo targets for set: %s", set.Name)
 		api.loadTargetsForSetCached(set)
+	}
+
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
+		msg := fmt.Sprintf("Failed to save configuration: %v", err)
+		log.Errorf("geodat download: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
 	}
 
 	parts := []string{}
@@ -318,19 +318,19 @@ func (api *API) handleGeodatUpload(w http.ResponseWriter, r *http.Request) {
 		api.getCfg().System.Geo.GeoIpURL = ""
 	}
 
-	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
-		msg := fmt.Sprintf("Failed to save configuration: %v", err)
-		log.Errorf("geodat upload: %s", msg)
-		writeJsonError(w, http.StatusInternalServerError, msg)
-		return
-	}
-
 	api.geodataManager.UpdatePaths(api.getCfg().System.Geo.GeoSitePath, api.getCfg().System.Geo.GeoIpPath)
 	api.geodataManager.ClearCache()
 
 	for _, set := range api.getCfg().Sets {
 		log.Infof("Reloading geo targets for set: %s", set.Name)
 		api.loadTargetsForSetCached(set)
+	}
+
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
+		msg := fmt.Sprintf("Failed to save configuration: %v", err)
+		log.Errorf("geodat upload: %s", msg)
+		writeJsonError(w, http.StatusInternalServerError, msg)
+		return
 	}
 
 	log.Infof("Uploaded %s.dat (%d bytes) from %s", fileType, size, header.Filename)

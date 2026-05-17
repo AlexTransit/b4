@@ -3,24 +3,29 @@ import { useTranslation } from "react-i18next";
 import {
   Button,
   Box,
+  CircularProgress,
   IconButton,
   InputAdornment,
   Tooltip,
   Typography,
   Chip,
+  Stack,
 } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 import IosShareIcon from "@mui/icons-material/IosShare";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import AutorenewIcon from "@mui/icons-material/Autorenew";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import NetworkPingIcon from "@mui/icons-material/NetworkPing";
 import { MTProtoRelayHelpDialog } from "./MTProtoRelayHelpDialog";
 import { QRCodeSVG } from "qrcode.react";
 import { ConnectionIcon } from "@b4.icons";
 import {
   B4FormGroup,
   B4Section,
+  B4Select,
   B4Switch,
   B4TextField,
   B4Alert,
@@ -29,6 +34,21 @@ import {
 import { copyText } from "@utils";
 import { B4Config } from "@models/config";
 import { SettingsPropHandlerType } from "@models/settings";
+
+type WsProbeResult = {
+  transport: string;
+  ok: boolean;
+  stage?: string;
+  latency_ms?: number;
+  hold_ms?: number;
+  error?: string;
+};
+
+const upstreamDescSuffix = (mode: string) => {
+  if (mode === "tcp") return "Tcp";
+  if (mode === "ws") return "Ws";
+  return "Auto";
+};
 
 interface MTProtoSettingsProps {
   config: B4Config;
@@ -48,6 +68,11 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
   const [shareHost, setShareHost] = useState("");
   const [copied, setCopied] = useState(false);
   const [relayHelpOpen, setRelayHelpOpen] = useState(false);
+  const [wsTesting, setWsTesting] = useState<null | "configured" | "direct">(
+    null,
+  );
+  const [wsResults, setWsResults] = useState<WsProbeResult[] | null>(null);
+  const [wsTestError, setWsTestError] = useState<string | null>(null);
 
   const port = config.system.mtproto?.port ?? 3128;
   const secret = config.system.mtproto?.secret || "";
@@ -128,6 +153,46 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
     }
   };
 
+  const runProbe = async (
+    which: "configured" | "direct",
+    overrides: Record<string, unknown>,
+  ) => {
+    setWsTesting(which);
+    setWsResults(null);
+    setWsTestError(null);
+    try {
+      const res = await fetch("/api/mtproto/test-ws", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          upstream_mode: config.system.mtproto?.upstream_mode || "auto",
+          ws_custom_domain: config.system.mtproto?.ws_custom_domain || "",
+          ws_endpoint_host: config.system.mtproto?.ws_endpoint_host || "",
+          dc: 2,
+          ...overrides,
+        }),
+      });
+      const data = (await res.json()) as {
+        success: boolean;
+        results?: WsProbeResult[];
+        error?: string;
+      };
+      if (data.success && data.results) {
+        setWsResults(data.results);
+      } else {
+        setWsTestError(data.error || "unknown error");
+      }
+    } catch (e) {
+      setWsTestError(String(e));
+    } finally {
+      setWsTesting(null);
+    }
+  };
+
+  const handleTestWS = () => runProbe("configured", {});
+  const handleTestDirectTCP = () =>
+    runProbe("direct", { upstream_mode: "tcp", dc_relay: "" });
+
   const handleGenerateSecret = async () => {
     const sni = config.system.mtproto?.fake_sni || "storage.googleapis.com";
     setGenerating(true);
@@ -193,33 +258,6 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           disabled={!config.system.mtproto?.enabled}
           helperText={t("settings.MTProto.fakeSNIHelp")}
         />
-        <B4TextField
-          label={t("settings.MTProto.dcRelay")}
-          value={config.system.mtproto?.dc_relay || ""}
-          onChange={(e) => onChange("system.mtproto.dc_relay", e.target.value)}
-          placeholder="vps-ip:7007"
-          disabled={!config.system.mtproto?.enabled}
-          helperText={t("settings.MTProto.dcRelayHelp")}
-          slotProps={{
-            input: {
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Tooltip title={t("settings.MTProto.dcRelayHelpButton")}>
-                    <span>
-                      <IconButton
-                        size="small"
-                        onClick={openRelayHelp}
-                        disabled={!config.system.mtproto?.enabled}
-                      >
-                        <HelpOutlineIcon fontSize="small" />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <B4TextField
             label={t("settings.MTProto.secret")}
@@ -273,6 +311,192 @@ export const MTProtoSettings = ({ config, onChange }: MTProtoSettingsProps) => {
           </Button>
         </Box>
       </B4FormGroup>
+      {(() => {
+        const mode = config.system.mtproto?.upstream_mode || "auto";
+        const enabled = !!config.system.mtproto?.enabled;
+        const showDcRelay =
+          !!dcRelay || mode === "tcp" || mode === "auto";
+        return (
+          <B4FormGroup
+            label={t("settings.MTProto.upstreamTitle")}
+            description={t("settings.MTProto.upstreamDesc")}
+            columns={2}
+          >
+            <B4Select
+              label={t("settings.MTProto.upstreamMode")}
+              value={mode}
+              onChange={(e) =>
+                onChange("system.mtproto.upstream_mode", String(e.target.value))
+              }
+              disabled={!enabled}
+              options={[
+                { value: "tcp", label: t("settings.MTProto.upstreamTcp") },
+                { value: "auto", label: t("settings.MTProto.upstreamAuto") },
+                { value: "ws", label: t("settings.MTProto.upstreamWs") },
+              ]}
+              helperText={
+                mode === "auto" && dcRelay
+                  ? t("settings.MTProto.upstreamAutoRelayDesc")
+                  : t(
+                      `settings.MTProto.upstream${upstreamDescSuffix(mode)}Desc`,
+                    )
+              }
+            />
+            {showDcRelay && (
+              <B4TextField
+                label={t("settings.MTProto.dcRelay")}
+                value={config.system.mtproto?.dc_relay || ""}
+                onChange={(e) =>
+                  onChange("system.mtproto.dc_relay", e.target.value)
+                }
+                placeholder="vps-ip:7007"
+                disabled={!enabled}
+                helperText={t("settings.MTProto.dcRelayHelp")}
+                slotProps={{
+                  input: {
+                    endAdornment: (
+                      <InputAdornment position="end" sx={{ mr: -0.5 }}>
+                        <Tooltip
+                          title={t("settings.MTProto.dcRelayHelpButton")}
+                        >
+                          <span style={{ display: "inline-flex" }}>
+                            <IconButton
+                              size="small"
+                              onClick={openRelayHelp}
+                              disabled={!enabled}
+                              sx={{ px: 0 }}
+                            >
+                              <HelpOutlineIcon fontSize="small" />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+            {mode !== "tcp" && (
+              <B4TextField
+                label={t("settings.MTProto.wsCustomDomain")}
+                value={config.system.mtproto?.ws_custom_domain || ""}
+                onChange={(e) =>
+                  onChange("system.mtproto.ws_custom_domain", e.target.value)
+                }
+                placeholder="your-domain.com"
+                disabled={!enabled}
+                helperText={t("settings.MTProto.wsCustomDomainHelp")}
+              />
+            )}
+            {mode !== "tcp" && (
+              <B4TextField
+                label={t("settings.MTProto.wsEndpointHost")}
+                value={config.system.mtproto?.ws_endpoint_host || ""}
+                onChange={(e) =>
+                  onChange("system.mtproto.ws_endpoint_host", e.target.value)
+                }
+                placeholder="149.154.167.220"
+                disabled={!enabled}
+                helperText={t("settings.MTProto.wsEndpointHostHelp")}
+              />
+            )}
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              <Stack direction="row" spacing={1}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={
+                    wsTesting === "configured" ? (
+                      <CircularProgress size={14} />
+                    ) : (
+                      <NetworkPingIcon fontSize="small" />
+                    )
+                  }
+                  onClick={() => void handleTestWS()}
+                  disabled={
+                    !config.system.mtproto?.enabled || wsTesting !== null
+                  }
+                >
+                  {wsTesting === "configured"
+                    ? t("settings.MTProto.testWsRunning")
+                    : t("settings.MTProto.testWs")}
+                </Button>
+                <Tooltip title={t("settings.MTProto.testDirectTcpHelp")}>
+                  <span>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={
+                        wsTesting === "direct" ? (
+                          <CircularProgress size={14} />
+                        ) : undefined
+                      }
+                      onClick={() => void handleTestDirectTCP()}
+                      disabled={
+                        !config.system.mtproto?.enabled || wsTesting !== null
+                      }
+                    >
+                      {wsTesting === "direct"
+                        ? t("settings.MTProto.testWsRunning")
+                        : t("settings.MTProto.testDirectTcp")}
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Stack>
+              {wsTestError && <B4Alert severity="error">{wsTestError}</B4Alert>}
+              {wsResults && (
+                <Stack spacing={0.5}>
+                  {wsResults.map((r) => {
+                    let label: string;
+                    if (r.ok) {
+                      const parts = [`${r.latency_ms} ms`];
+                      if (r.hold_ms != null) {
+                        parts.push(
+                          t("settings.MTProto.testHeldMs", { ms: r.hold_ms }),
+                        );
+                      }
+                      label = `${r.transport} — ${parts.join(", ")}`;
+                    } else {
+                      const stageLabel = r.stage
+                        ? t(`settings.MTProto.testStage_${r.stage}`, {
+                            defaultValue: r.stage,
+                          })
+                        : "";
+                      label = stageLabel
+                        ? `${r.transport} — [${stageLabel}] ${r.error}`
+                        : `${r.transport} — ${r.error}`;
+                    }
+                    return (
+                      <Chip
+                        key={r.transport}
+                        size="small"
+                        icon={
+                          r.ok ? (
+                            <CheckIcon fontSize="small" />
+                          ) : (
+                            <CloseIcon fontSize="small" />
+                          )
+                        }
+                        color={r.ok ? "success" : "default"}
+                        variant={r.ok ? "filled" : "outlined"}
+                        label={label}
+                        sx={{
+                          justifyContent: "flex-start",
+                          maxWidth: "100%",
+                          "& .MuiChip-label": {
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          },
+                        }}
+                      />
+                    );
+                  })}
+                </Stack>
+              )}
+            </Box>
+          </B4FormGroup>
+        );
+      })()}
       <B4Dialog
         open={shareOpen}
         onClose={() => setShareOpen(false)}

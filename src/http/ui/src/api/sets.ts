@@ -14,5 +14,7 @@ export const setsApi = {
     apiPost<B4SetConfig>(`/api/sets/${setId}/add-domain`, { domain }),
   deleteSets: (ids: string[]) =>
     apiPost<void>("/api/sets/batch-delete", { ids }),
+  setEnabledForSets: (ids: string[], enabled: boolean) =>
+    apiPost<void>("/api/sets/batch-set-enabled", { ids, enabled }),
   getTargetedDomains: () => apiFetch<string[]>("/api/sets/targeted-domains"),
 };

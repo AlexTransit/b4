@@ -3,14 +3,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -87,18 +86,27 @@ func runB4(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	if err := ensureSingleInstance(); err != nil {
+	releaseLock, err := ensureSingleInstance()
+	if err != nil {
 		return err
+	}
+	if releaseLock != nil {
+		defer releaseLock()
 	}
 
 	initTimezone()
-	initMemoryLimit()
 
 	cfg.LoadWithMigration(cfg.ConfigPath)
 	cfg.SaveToFile(cfg.ConfigPath)
 
 	if cfg.System.Timezone != "" {
 		config.ApplyTimezone(cfg.System.Timezone)
+	}
+
+	if limit, err := config.ApplyMemoryLimit(cfg.System.MemoryLimit); err != nil {
+		fmt.Fprintf(os.Stderr, "[INIT] invalid system.memory_limit %q: %v\n", cfg.System.MemoryLimit, err)
+	} else if limit > 0 {
+		fmt.Fprintf(os.Stderr, "[INIT] Memory limit set to %d MB\n", limit/(1024*1024))
 	}
 
 	if cmd.Flags().Changed("verbose") {
@@ -277,6 +285,9 @@ func runB4(cmd *cobra.Command, args []string) error {
 		tproxyMgr.SyncConfig(c)
 		tables.RoutingSyncConfig(c)
 		aiManager.Update(c.System.AI)
+		if _, err := config.ApplyMemoryLimit(c.System.MemoryLimit); err != nil {
+			log.Errorf("invalid system.memory_limit %q: %v", c.System.MemoryLimit, err)
+		}
 		return nil
 	})
 	wd.Start()
@@ -450,63 +461,60 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, httpServer *http.Serve
 	return nil
 }
 
-func ensureSingleInstance() error {
-	self := os.Getpid()
-	selfComm, err := os.ReadFile("/proc/self/comm")
-	if err != nil {
-		return nil
+func ensureSingleInstance() (func(), error) {
+	candidates := []string{"/var/run/b4.pid", "/run/b4.pid"}
+	var f *os.File
+	var path string
+	for _, p := range candidates {
+		fp, err := os.OpenFile(p, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
+		if err == nil {
+			f = fp
+			path = p
+			break
+		}
 	}
-	target := strings.TrimSpace(string(selfComm))
-	if target == "" {
-		return nil
+	if f == nil {
+		return nil, nil
 	}
 
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return nil
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+		if !errors.Is(err, syscall.EWOULDBLOCK) && !errors.Is(err, syscall.EAGAIN) {
+			fmt.Fprintf(os.Stderr, "[INIT] single-instance check skipped: flock(%s): %v\n", path, err)
+			f.Close()
+			return nil, nil
+		}
+		data, _ := io.ReadAll(f)
+		pid := strings.TrimSpace(string(data))
+		f.Close()
+		if pid == "" {
+			return nil, fmt.Errorf("another b4 instance is already running (lock: %s)", path)
+		}
+		return nil, fmt.Errorf("another b4 instance is already running (pid %s)", pid)
 	}
 
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		pid, err := strconv.Atoi(e.Name())
-		if err != nil || pid == self {
-			continue
-		}
-		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/comm", pid))
-		if err != nil {
-			continue
-		}
-		if strings.TrimSpace(string(data)) == target {
-			return fmt.Errorf("another b4 instance is already running (pid %d)", pid)
-		}
+	if err := writePidFile(f, os.Getpid()); err != nil {
+		fmt.Fprintf(os.Stderr, "[INIT] could not update pidfile %s: %v\n", path, err)
 	}
-	return nil
+
+	cleanup := func() {
+		syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		f.Close()
+		os.Remove(path)
+	}
+	return cleanup, nil
 }
 
-func initMemoryLimit() {
-	if os.Getenv("GOMEMLIMIT") != "" {
-		return
+func writePidFile(f *os.File, pid int) error {
+	if err := f.Truncate(0); err != nil {
+		return err
 	}
-
-	var info syscall.Sysinfo_t
-	if err := syscall.Sysinfo(&info); err != nil {
-		return
+	if _, err := f.Seek(0, 0); err != nil {
+		return err
 	}
-
-	totalRAM := uint64(info.Totalram) * uint64(info.Unit)
-
-	limit := int64(totalRAM / 2)
-
-	const minLimit = 32 * 1024 * 1024
-	if limit < minLimit {
-		limit = minLimit
+	if _, err := fmt.Fprintf(f, "%d\n", pid); err != nil {
+		return err
 	}
-
-	debug.SetMemoryLimit(limit)
-	fmt.Fprintf(os.Stderr, "[INIT] Memory limit set to %d MB (total RAM: %d MB)\n",
-		limit/(1024*1024), totalRAM/(1024*1024))
+	return f.Sync()
 }
 
 func initTimezone() {

@@ -18,6 +18,7 @@ func (api *API) RegisterSetsApi() {
 	api.mux.HandleFunc("/api/sets/reorder", api.handleReorderSets)
 	api.mux.HandleFunc("/api/sets/{id}/add-domain", api.handleSetDomains)
 	api.mux.HandleFunc("/api/sets/batch-delete", api.handleBatchDeleteSets)
+	api.mux.HandleFunc("/api/sets/batch-set-enabled", api.handleBatchSetEnabled)
 }
 
 // @Summary List all targeted domains from enabled sets
@@ -535,4 +536,68 @@ func (api *API) handleBatchDeleteSets(w http.ResponseWriter, r *http.Request) {
 	log.Infof("Batch deleted %d sets", deleted)
 	setJsonHeader(w)
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "deleted": deleted})
+}
+
+// @Summary Batch enable/disable sets
+// @Tags Sets
+// @Accept json
+// @Produce json
+// @Param body body object true "Set IDs and enabled flag"
+// @Success 200 {object} map[string]interface{}
+// @Security BearerAuth
+// @Router /sets/batch-set-enabled [post]
+func (api *API) handleBatchSetEnabled(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		Ids     []string `json:"ids"`
+		Enabled bool     `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeAPIError(w, ErrInvalidJSON())
+		return
+	}
+
+	if len(req.Ids) == 0 {
+		writeAPIError(w, ErrBadRequest("No set IDs provided"))
+		return
+	}
+
+	oldConfig := api.getCfg().Clone()
+
+	target := make(map[string]bool, len(req.Ids))
+	for _, id := range req.Ids {
+		target[id] = true
+	}
+
+	updated := 0
+	for _, set := range api.getCfg().Sets {
+		if target[set.Id] && set.Enabled != req.Enabled {
+			set.Enabled = req.Enabled
+			updated++
+		}
+	}
+
+	if updated == 0 {
+		setJsonHeader(w)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "updated": 0})
+		return
+	}
+
+	if err := api.saveAndPushConfig(api.getCfg()); err != nil {
+		log.Errorf("Failed to save config after batch toggling sets: %v", err)
+		writeAPIError(w, err)
+		return
+	}
+
+	if api.PerformSoftRestart(api.getCfg(), oldConfig) {
+		log.Infof("Soft restart completed successfully")
+	}
+
+	log.Infof("Batch set enabled=%v for %d sets", req.Enabled, updated)
+	setJsonHeader(w)
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "updated": updated})
 }

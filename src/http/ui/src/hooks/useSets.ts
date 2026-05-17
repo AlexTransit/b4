@@ -66,6 +66,21 @@ export function useSets() {
     []
   );
 
+  const setEnabledForSets = useCallback(
+    async (ids: string[], enabled: boolean): Promise<ApiResponse<void>> => {
+      setLoading(true);
+      try {
+        await setsApi.setEnabledForSets(ids, enabled);
+        return { success: true };
+      } catch (e) {
+        return { success: false, error: e };
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
   const duplicateSet = useCallback(
     async (set: B4SetConfig): Promise<ApiResponse<B4SetConfig>> => {
       const { id: _, ...rest } = structuredClone(set);
@@ -106,6 +121,7 @@ export function useSets() {
     updateSet,
     deleteSet,
     deleteSets,
+    setEnabledForSets,
     duplicateSet,
     reorderSets,
     addDomainToSet,

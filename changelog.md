@@ -1,5 +1,29 @@
 # B4 - Bye Bye Big Bro
 
+## [1.6x.x] - 2026-05-xx
+
+- ADDED: **Quick toggle for all sets** - new switch in the Sets page top bar that turns every set on or off in one click. Useful for temporarily disabling all bypass, or for isolating one set while debugging.
+- ADDED: **"Test direct TCP" button for the MTProto proxy** - new button in Settings → MTProto Proxy next to "Test connection". Probes Telegram directly, bypassing the DC Relay. Use it to tell whether a problem is on your relay/VPS or somewhere between b4 and Telegram.
+- IMPROVED: **MTProto connection test now detects upstream drops** - the existing "Test connection" button used to only check that an IP was reachable. It now also completes the MTProto handshake and watches whether Telegram (or your relay) closes the connection right after - the failure mode users actually hit. Results show which stage broke (connect, handshake, or dropped after handshake).
+- FIXED: **Direct TCP path used internal Telegram backend addresses instead of public ones** - b4 was reading addresses from Telegram's `getProxyConfig` (a topology file for MTProxy operators) and dialling them directly. Those backends silently dropped the connection after the handshake because clients are not allowed there. b4 now uses the well-known public data center IPs for direct dialling, like real Telegram clients do.
+- FIXED: **MTProto proxy ignored the DC Relay in Auto mode** - when the upstream transport was set to "Auto" and a DC Relay was configured, b4 still went straight over WebSocket and never used the relay. The relay is now tried first in Auto mode whenever one is configured; WebSocket stays as the fallback. The mode description updates to reflect this.
+- FIXED: **MTProto media data center (DC 203) did not work through the DC Relay** - DC 203 traffic was sent to a port that does not exist on any relay setup, so loading media through the relay failed. DC 203 now reuses the DC 2 relay port (matching the existing WebSocket behaviour), and has a built-in default IP for direct TCP as well.
+- FIXED: **Geosite/geoip updates didn't take effect until the next set edit** - after downloading or uploading a new geosite or geoip file from the Web UI, b4 kept matching against the old domain and IP lists. The new file is now applied to all sets immediately.
+- IMPROVED: **Watchdog keeps checking while it repairs a broken site** - previously, when b4 detected one site was blocked and started repairing it, the watchdog stopped checking every other site until the repair was done. If a second site broke at the same time, it had to wait its turn. The watchdog now keeps monitoring all sites during a repair, and if several sites break close together they are repaired in one go.
+
+## [1.62.1] - 2026-05-11
+
+- ADDED: **Memory limit setting** - new "Memory Limit" field in Settings → Logging. Caps how much memory b4 may use. Leave empty for auto (half of system RAM, the previous default). Useful on routers with little RAM where other services compete for memory. Accepts values like `128MiB`, `256m`, `1g`, or `off` to disable.
+- ADDED: **MTProto proxy works in censored networks** - the built-in Telegram proxy can now reach Telegram over WebSocket, in addition to direct TCP. New "Upstream Transport" section in Settings → MTProto Proxy with three modes: Auto (WebSocket → TCP, the new default), WebSocket only, and Direct TCP. Existing installs are switched to Auto on upgrade, so networks without filtering see no change.
+- ADDED: **Cloudflare fallback for the MTProto proxy** - optional "Cloudflare custom domain" field. If Telegram's own WebSocket endpoint is ever blocked too, pointing a Cloudflare zone at the Telegram data center IPs lets the proxy tunnel through Cloudflare instead.
+- FIXED: **MTProto proxy was incompatible with some Telegram clients** - clients using transport variants other than padded-intermediate were silently dropped during the handshake. All three Telegram transport variants are now accepted, and the client's choice is forwarded to the data center.
+- FIXED: **Upstream SOCKS5 proxy routing did not work on some OpenWrt setups** — traffic skipped the proxy and went straight to the internet on installs missing two required kernel modules. The modules are now installed and loaded automatically, and a clear error is shown if they are still missing. [#221](https://github.com/DanielLavrushin/b4/issues/221)
+- IMPROVED: **Cleaner Import/Export for sets** - the exported JSON of a set now hides settings for features that are turned off, so you only see what actually matters. Easier to read, share and compare.
+
+## [1.61.4] - 2026-05-10
+
+- FIXED: **False "another b4 instance is already running" error** - b4 could refuse to start after a crash, after restarting from the Web UI, or when running inside containers (for example on MikroTik), even when no other b4 was actually running. The single-instance check is now reliable in those cases.
+
 ## [1.61.3] - 2026-05-09
 
 - ADDED: **Custom payload for UDP fake packets** - new "Fake Packet Payload" picker in the UDP fake settings of each set. Choose a captured `.bin` (uploaded in Settings → Payloads, or auto-captured from live QUIC traffic) to use as the body of fake UDP packets. Empty = zero fill (previous behavior). The Settings → Payloads upload form now has an explicit TLS/QUIC protocol selector.
