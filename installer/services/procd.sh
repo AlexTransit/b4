@@ -5,13 +5,14 @@
 service_procd_install() {
     ensure_dir "$B4_SERVICE_DIR" "Service directory" || return 1
 
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF || return 1
 #!/bin/sh /etc/rc.common
 # B4 DPI Bypass Service (procd)
 
 START=99
 STOP=10
 USE_PROCD=1
+B4_INIT_GEN=2
 
 PROG="${B4_BIN_DIR}/${BINARY_NAME}"
 CONFIG="${B4_CONFIG_FILE}"
@@ -35,12 +36,8 @@ start_service() {
     procd_set_param respawn \${respawn_threshold:-3600} \${respawn_timeout:-5} \${respawn_retry:-5}
     procd_set_param stdout 0
     procd_set_param stderr 0
-    procd_set_param pidfile /var/run/b4.pid
+    procd_set_param term_timeout 20
     procd_close_instance
-}
-
-stop_service() {
-    return 0
 }
 
 service_triggers() {
@@ -48,7 +45,7 @@ service_triggers() {
 }
 EOF
 
-    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" || return 1
     log_ok "Procd init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
 
     # Enable the service to start on boot
@@ -66,19 +63,17 @@ service_procd_remove() {
 }
 
 service_procd_start() {
-    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" restart 2>/dev/null || { log_warn "Could not start service"; return 1; }
-        sleep 2
-        if pidof b4 >/dev/null 2>&1 || pgrep -x b4 >/dev/null 2>&1; then
-            log_ok "Service started"
-            return 0
-        fi
-        log_err "Service crashed immediately after start"
-        service_show_crash_log
+    _init="${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    if [ ! -f "$_init" ]; then
+        log_warn "Could not start service"
         return 1
     fi
-    log_warn "Could not start service"
-    return 1
+    _old=$(b4_pid) || _old=""
+    "$_init" restart 2>/dev/null || {
+        log_warn "Could not start service"
+        return 1
+    }
+    service_verify_started "$_old"
 }
 
 service_procd_stop() {

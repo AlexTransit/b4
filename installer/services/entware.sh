@@ -10,21 +10,22 @@ service_entware_install() {
     rm -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" 2>/dev/null || true
 
     if [ -f "${B4_SERVICE_DIR}/rc.func" ]; then
-        _service_entware_install_rcfunc
+        _service_entware_install_rcfunc || return 1
     else
-        _service_entware_install_standalone
+        _service_write_standalone_init "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" /opt/var/run/b4.pid || return 1
     fi
 
-    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    chmod +x "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" || return 1
     log_ok "Init script created: ${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
     log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} start"
     log_info "  ${B4_SERVICE_DIR}/${B4_SERVICE_NAME} stop"
 }
 
 _service_entware_install_rcfunc() {
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
+    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF || return 1
 #!/bin/sh
-# B4 DPI Bypass Service — Entware
+# B4 DPI Bypass Service - Entware
+B4_INIT_GEN=2
 
 ENABLED=yes
 PROCS=b4
@@ -49,63 +50,6 @@ kernel_mod_load() {
 EOF
 }
 
-_service_entware_install_standalone() {
-    cat >"${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" <<EOF
-#!/bin/sh
-# B4 DPI Bypass Service — Entware standalone
-PROG="${B4_BIN_DIR}/${BINARY_NAME}"
-CONFIG="${B4_CONFIG_FILE}"
-PIDFILE="/opt/var/run/b4.pid"
-PATH=/opt/sbin:/opt/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
-kernel_mod_load() {
-    KERNEL=\$(uname -r)
-    for mod in $B4_KERNEL_MODULES; do
-        modprobe "\$mod" >/dev/null 2>&1 && continue
-        mod_path=\$(find /lib/modules/\$KERNEL -name "\${mod}.ko*" 2>/dev/null | head -1)
-        [ -n "\$mod_path" ] && insmod "\$mod_path" >/dev/null 2>&1 || true
-    done
-}
-
-start() {
-    echo "Starting b4..."
-    [ -f "\$PIDFILE" ] && kill -0 \$(cat "\$PIDFILE") 2>/dev/null && echo "Already running" && return 1
-    kernel_mod_load
-    if which nohup >/dev/null 2>&1; then
-        nohup \$PROG --config \$CONFIG >/dev/null 2>&1 &
-    elif which setsid >/dev/null 2>&1; then
-        setsid \$PROG --config \$CONFIG >/dev/null 2>&1 &
-    else
-        (\$PROG --config \$CONFIG >/dev/null 2>&1 &)
-    fi
-    echo \$! >"\$PIDFILE"
-    sleep 1
-    if kill -0 \$(cat "\$PIDFILE") 2>/dev/null; then
-        echo "b4 started (PID: \$(cat \$PIDFILE))"
-    else
-        echo "b4 failed to start, check /var/log/b4/errors.log"
-        rm -f "\$PIDFILE"
-        return 1
-    fi
-}
-
-stop() {
-    echo "Stopping b4..."
-    [ -f "\$PIDFILE" ] && kill \$(cat "\$PIDFILE") 2>/dev/null
-    rm -f "\$PIDFILE"
-    killall b4 2>/dev/null || true
-    echo "b4 stopped"
-}
-
-case "\$1" in
-    start)   start ;;
-    stop)    stop ;;
-    restart) stop; sleep 1; start ;;
-    *)       echo "Usage: \$0 {start|stop|restart}"; exit 1 ;;
-esac
-EOF
-}
-
 service_entware_remove() {
     if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
         "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" stop 2>/dev/null || true
@@ -115,22 +59,17 @@ service_entware_remove() {
 }
 
 service_entware_start() {
-    if [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
-        "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" start 2>/dev/null || {
-            log_warn "Could not start service"
-            return 1
-        }
-        sleep 2
-        if pidof b4 >/dev/null 2>&1 || pgrep -x b4 >/dev/null 2>&1; then
-            log_ok "Service started"
-            return 0
-        fi
-        log_err "Service crashed immediately after start"
-        service_show_crash_log
+    _init="${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
+    if [ ! -f "$_init" ]; then
+        log_warn "Could not start service"
         return 1
     fi
-    log_warn "Could not start service"
-    return 1
+    _old=$(b4_pid) || _old=""
+    "$_init" restart 2>/dev/null || {
+        log_warn "Could not start service"
+        return 1
+    }
+    service_verify_started "$_old"
 }
 
 service_entware_stop() {

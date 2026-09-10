@@ -20,12 +20,13 @@ action_install() {
             log_err "B4_DATA_DIR must be an absolute path (got: $_user_data_dir)"
             exit 1
         fi
-        platform_auto_detect
-        platform_call info
-        [ -n "$_user_bin_dir" ] && B4_BIN_DIR="$_user_bin_dir"
-        [ -n "$_user_data_dir" ] && B4_DATA_DIR="$_user_data_dir"
-        [ -n "$_user_data_dir" ] && B4_CONFIG_FILE="${_user_data_dir}/b4.json"
-        B4_ARCH="${force_arch:-$(detect_architecture)}"
+        platform_init
+        if [ -n "$force_arch" ]; then
+            B4_ARCH="$force_arch"
+        else
+            B4_ARCH=$(detect_architecture) || B4_ARCH=""
+        fi
+        require_supported_arch "$B4_ARCH"
         detect_pkg_manager
         # Enable all default features in quiet mode
         for f in $REGISTERED_FEATURES; do
@@ -46,6 +47,7 @@ action_install() {
 
         # Override arch if user forced it
         [ -n "$force_arch" ] && B4_ARCH="$force_arch"
+        require_supported_arch "$B4_ARCH"
 
         # Feature selection
         wizard_select_features
@@ -83,24 +85,7 @@ action_install() {
     fi
 
     # Verify checksum
-    sha_url="${download_url}.sha256"
-    _cs_ret=0
-    verify_checksum "$archive_path" "$sha_url" || _cs_ret=$?
-    # exit code 2 = actual SHA256 mismatch (corrupted/tampered download)
-    if [ "$_cs_ret" -ne 0 ]; then
-        if [ "$_cs_ret" -eq 2 ]; then
-            log_err "SHA256 mismatch: the archive is not the published release"
-        else
-            log_err "The archive could not be checked against its published SHA256"
-        fi
-        if [ "$QUIET_MODE" -eq 1 ]; then
-            log_err "Refusing to install an unverified binary unattended"
-            exit 1
-        fi
-        if ! confirm "Install it anyway?" "n"; then
-            exit 1
-        fi
-    fi
+    checksum_gate "$archive_path" "${download_url}.sha256" || exit 1
 
     # Extract
     log_info "Extracting..."
@@ -114,7 +99,12 @@ action_install() {
     fi
 
     # Stop running instance
-    stop_b4
+    B4_WAS_RUNNING=0
+    is_b4_running && B4_WAS_RUNNING=1
+    service_stop_b4 || {
+        log_err "b4 is still running; refusing to replace the binary underneath it"
+        exit 1
+    }
 
     # Remove stale stdout log files from older service scripts
     rm -f /var/log/b4.log /opt/var/log/b4.log /tmp/log/b4.log 2>/dev/null || true
@@ -132,12 +122,20 @@ action_install() {
     }
 
     # Install
-    mv "${BINARY_NAME}" "${B4_BIN_DIR}/" 2>/dev/null || cp "${BINARY_NAME}" "${B4_BIN_DIR}/" || {
+    _newbin="${B4_BIN_DIR}/${BINARY_NAME}.new.$$"
+    rm -f "$_newbin" 2>/dev/null || true
+    _swap_failed=0
+    if ! { mv "${BINARY_NAME}" "$_newbin" 2>/dev/null || cp "${BINARY_NAME}" "$_newbin"; } ||
+        ! chmod +x "$_newbin" ||
+        ! mv -f "$_newbin" "${B4_BIN_DIR}/${BINARY_NAME}"; then
+        _swap_failed=1
+    fi
+    if [ "$_swap_failed" -eq 1 ]; then
+        rm -f "$_newbin" 2>/dev/null || true
         log_err "Failed to install binary to ${B4_BIN_DIR}"
         restore_binary "${B4_BIN_DIR}/${BINARY_NAME}" "$backup_bin" && log_warn "Rolled back to the previous version"
         exit 1
-    }
-    chmod +x "${B4_BIN_DIR}/${BINARY_NAME}"
+    fi
 
     # Verify — detect architecture mismatch (SIGILL on MIPS = wrong float ABI)
     _ver_exit=0
@@ -147,10 +145,10 @@ action_install() {
         installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
         log_ok "Binary installed: ${installed_ver}"
         rm -f "$backup_bin" 2>/dev/null || true
-    elif [ "$_ver_exit" -gt 128 ] && echo "$B4_ARCH" | grep -q "^mips" && ! echo "$B4_ARCH" | grep -q "softfloat"; then
-        # Binary crashed (SIGILL/segfault) on MIPS hardfloat — retry with softfloat
+    elif [ "$_ver_exit" -gt 128 ] && arch_is_supported "${B4_ARCH}_softfloat"; then
+        # Binary crashed (SIGILL/segfault) on MIPS hardfloat, retry with softfloat
         _sf_arch="${B4_ARCH}_softfloat"
-        log_warn "Binary crashed (exit code $_ver_exit) — likely hardfloat/softfloat mismatch"
+        log_warn "Binary crashed (exit code $_ver_exit) - likely hardfloat/softfloat mismatch"
         log_info "Retrying with ${_sf_arch}..."
 
         _sf_file="${BINARY_NAME}-linux-${_sf_arch}.tar.gz"
@@ -158,13 +156,21 @@ action_install() {
         _sf_archive="${TEMP_DIR}/${_sf_file}"
 
         _sf_ok=0
-        if fetch_file "$_sf_url" "$_sf_archive"; then
+        if ! fetch_file "$_sf_url" "$_sf_archive"; then
+            log_err "Could not download softfloat variant"
+            log_info "Try reinstalling with: --arch=${_sf_arch}"
+        elif ! checksum_gate "$_sf_archive" "${_sf_url}.sha256"; then
+            rm -f "$_sf_archive" 2>/dev/null || true
+        else
             cd "$TEMP_DIR"
             rm -f "${BINARY_NAME}" 2>/dev/null
             tar -xzf "$_sf_archive" 2>/dev/null && rm -f "$_sf_archive"
             if [ -f "${BINARY_NAME}" ]; then
-                mv "${BINARY_NAME}" "${B4_BIN_DIR}/" 2>/dev/null || cp "${BINARY_NAME}" "${B4_BIN_DIR}/"
-                chmod +x "${B4_BIN_DIR}/${BINARY_NAME}"
+                _newbin="${B4_BIN_DIR}/${BINARY_NAME}.new.$$"
+                if mv "${BINARY_NAME}" "$_newbin" 2>/dev/null || cp "${BINARY_NAME}" "$_newbin"; then
+                    chmod +x "$_newbin"
+                    mv -f "$_newbin" "${B4_BIN_DIR}/${BINARY_NAME}" || rm -f "$_newbin"
+                fi
                 if "${B4_BIN_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
                     installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
                     log_ok "Softfloat binary works: ${installed_ver}"
@@ -173,15 +179,12 @@ action_install() {
                     _sf_ok=1
                     rm -f "$backup_bin" 2>/dev/null || true
                 else
-                    log_err "Softfloat binary also failed — manual troubleshooting needed"
+                    log_err "Softfloat binary also failed - manual troubleshooting needed"
                     log_info "Run with --sysinfo for diagnostics, or try --arch=<arch> manually"
                 fi
             else
                 log_err "Failed to extract softfloat binary"
             fi
-        else
-            log_err "Could not download softfloat variant"
-            log_info "Try reinstalling with: --arch=${_sf_arch}"
         fi
         if [ "$_sf_ok" -eq 0 ] && restore_binary "${B4_BIN_DIR}/${BINARY_NAME}" "$backup_bin"; then
             log_warn "Rolled back to the previously installed version"
@@ -195,7 +198,11 @@ action_install() {
 
     # --- Install service ---
     log_info "Setting up service..."
-    service_call install
+    _svc_failed=0
+    service_call install || {
+        log_err "Service setup failed - b4 will not start automatically"
+        _svc_failed=1
+    }
 
     # --- Run enabled features ---
     if [ -n "$ENABLED_FEATURES" ]; then
@@ -231,12 +238,15 @@ _install_summary() {
     log_info "To see all options: ${B4_BIN_DIR}/${BINARY_NAME} --help"
     echo ""
 
-    # Offer to start/restart service
-    if [ "$QUIET_MODE" -eq 0 ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
-        if is_b4_running; then
+    if [ "$B4_SERVICE_TYPE" != "none" ]; then
+        if [ "$QUIET_MODE" -eq 1 ]; then
+            service_call start || log_warn "Could not start the b4 service"
+        elif is_b4_running; then
             if confirm "B4 is already running. Restart now?"; then
-                service_call stop || true
-                sleep 1
+                service_call start || true
+            fi
+        elif [ "${B4_WAS_RUNNING:-0}" -eq 1 ]; then
+            if confirm "B4 was running before the update. Start it again?"; then
                 service_call start || true
             fi
         else
@@ -247,6 +257,12 @@ _install_summary() {
     fi
 
     echo ""
+    if [ "${_svc_failed:-0}" -eq 1 ]; then
+        log_err "B4 is installed, but its service was not set up - start it by hand:"
+        log_err "  ${B4_BIN_DIR}/${BINARY_NAME} --config ${B4_CONFIG_FILE}"
+        echo ""
+        return 1
+    fi
     printf "${GREEN}${BOLD}  B4 installation finished!${NC}\n"
     echo ""
 }

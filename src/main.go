@@ -116,7 +116,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 	}
 
 	if limit, err := config.ApplyMemoryLimit(cfg.System.MemoryLimit); err != nil {
-		fmt.Fprintf(os.Stderr, "[INIT] invalid system.memory_limit %q: %v\n", cfg.System.MemoryLimit, err)
+		log.InitWarnf("invalid system.memory_limit %q: %v", cfg.System.MemoryLimit, err)
 	} else if limit > 0 {
 		fmt.Fprintf(os.Stderr, "[INIT] Memory limit set to %d MB\n", limit/(1024*1024))
 	}
@@ -486,8 +486,29 @@ func runB4(cmd *cobra.Command, args []string) error {
 	// Wait for shutdown signal
 	sig := <-sigChan
 
+	go func() {
+		for repeat := range sigChan {
+			log.Infof("Received %v while already shutting down, ignoring it (SIGKILL forces an exit)", repeat)
+		}
+	}()
+
 	log.Infof("Received signal: %v, shutting down gracefully", sig)
 	metrics.RecordEvent("info", fmt.Sprintf("Shutdown initiated by signal: %v", sig))
+
+	hardExit := make(chan struct{})
+	defer close(hardExit)
+	go func() {
+		select {
+		case <-hardExit:
+		case <-time.After(shutdownHardLimit):
+			go func() {
+				log.Errorf("Shutdown exceeded %s, forcing exit", shutdownHardLimit)
+				log.Flush()
+			}()
+			time.Sleep(100 * time.Millisecond)
+			os.Exit(1)
+		}
+	}()
 
 	wd.Stop()
 	if geoScheduler != nil {
@@ -506,6 +527,7 @@ func runB4(cmd *cobra.Command, args []string) error {
 const (
 	shutdownGrace     = 9 * time.Second
 	httpShutdownGrace = 3 * time.Second
+	shutdownHardLimit = 15 * time.Second
 )
 
 func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, tunEngine *b4tun.Engine, httpServer *http.Server, socks5Server *socks5.Server, mtprotoServer *mtproto.Server, metrics *handler.MetricsCollector, discoveryRT *discovery.Runtime) error {
@@ -601,9 +623,13 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, tunEngine *b4tun.Engin
 	// Clean up iptables/nftables rules
 	if tunEngine != nil {
 		if !cfg.System.Tables.SkipSetup {
-			tables.ClearMasqueradeOnly(cfg)
-			tables.ClearMSSClampOnly(cfg)
-			tables.RevertConntrackSysctls()
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				tables.ClearMasqueradeOnly(cfg)
+				tables.ClearMSSClampOnly(cfg)
+				tables.RevertConntrackSysctls()
+			}()
 		}
 		metrics.TablesStatus = "inactive"
 	} else if !cfg.System.Tables.SkipSetup {
@@ -622,7 +648,11 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, tunEngine *b4tun.Engin
 		}()
 	}
 
-	tables.RoutingClearAll()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		tables.RoutingClearAll()
+	}()
 
 	// Wait for all shutdown tasks or timeout
 	shutdownDone := make(chan struct{})
@@ -671,9 +701,10 @@ func gracefulShutdown(cfg *config.Config, pool *nfq.Pool, tunEngine *b4tun.Engin
 }
 
 func ensureSingleInstance() (func(), error) {
-	candidates := []string{"/var/run/b4.pid", "/run/b4.pid"}
+	candidates := []string{"/var/run/b4.pid", "/run/b4.pid", "/tmp/b4.pid"}
 	var f *os.File
 	var path string
+	var lastErr error
 	for _, p := range candidates {
 		fp, err := os.OpenFile(p, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW, 0600)
 		if err == nil {
@@ -681,14 +712,17 @@ func ensureSingleInstance() (func(), error) {
 			path = p
 			break
 		}
+		lastErr = err
 	}
 	if f == nil {
+		log.InitWarnf("WARNING: single-instance guard DISABLED, no lock file could be opened (tried %s; last error: %v)",
+			strings.Join(candidates, ", "), lastErr)
 		return nil, nil
 	}
 
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		if !errors.Is(err, syscall.EWOULDBLOCK) && !errors.Is(err, syscall.EAGAIN) {
-			fmt.Fprintf(os.Stderr, "[INIT] single-instance check skipped: flock(%s): %v\n", path, err)
+			log.InitWarnf("WARNING: single-instance guard DISABLED, flock(%s): %v", path, err)
 			f.Close()
 			return nil, nil
 		}
@@ -702,7 +736,7 @@ func ensureSingleInstance() (func(), error) {
 	}
 
 	if err := writePidFile(f, os.Getpid()); err != nil {
-		fmt.Fprintf(os.Stderr, "[INIT] could not update pidfile %s: %v\n", path, err)
+		log.InitWarnf("could not update pidfile %s: %v", path, err)
 	}
 
 	cleanup := func() {
