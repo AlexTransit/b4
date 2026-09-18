@@ -117,6 +117,70 @@ export interface EntryView {
   superseded_by?: number;
   superseded_at?: string;
   lineage?: LineageView;
+  edited_at?: string;
+  edit_note?: string;
+  original_projection?: Projection;
+  original_title?: string;
+  original_description?: string;
+}
+
+export type TidyKind = "dead_wildcard" | "covered" | "duplicate" | "www_only";
+
+export interface SuggestionView {
+  kind: TidyKind;
+  entry: string;
+  by?: string;
+  replacement?: string;
+}
+
+export interface TidyView {
+  suggestions: SuggestionView[];
+  domains: string[];
+}
+
+export interface WarningView {
+  code: string;
+  params?: Record<string, unknown>;
+}
+
+export interface StrippedView {
+  path: string;
+  reason: string;
+}
+
+export interface DuplicateView {
+  set_id: string;
+  version: number;
+  title: string;
+  status: SetStatus;
+}
+
+export interface EditRequest {
+  title: string;
+  description: string;
+  projection: Projection;
+  note: string;
+  approve: boolean;
+  expect_updated_at?: string;
+}
+
+export interface EditPreview {
+  title: string;
+  description: string;
+  projection: Projection;
+  payloads: BlobRef[];
+  warnings: WarningView[];
+  stripped: StrippedView[];
+  fp: string;
+  fp_changed: boolean;
+  changed: boolean;
+  targets: TargetsView;
+  strategy: string[];
+  flags: string[];
+  family: string;
+  b4_min: string;
+  duplicate?: DuplicateView;
+  tidy?: TidyView;
 }
 
 export interface SetsView {
@@ -218,6 +282,7 @@ export interface CountsView {
 
 export interface OverviewView {
   version: string;
+  source?: string;
   key_id: string;
   public_url?: string;
   now: string;

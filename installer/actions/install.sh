@@ -136,14 +136,17 @@ action_install() {
         restore_binary "${B4_BIN_DIR}/${BINARY_NAME}" "$backup_bin" && log_warn "Rolled back to the previous version"
         exit 1
     fi
+    flush_disk
 
     # Verify — detect architecture mismatch (SIGILL on MIPS = wrong float ABI)
     _ver_exit=0
+    _bin_verified=0
     sh -c "\"${B4_BIN_DIR}/${BINARY_NAME}\" --version" >/dev/null 2>&1 || _ver_exit=$?
 
     if [ "$_ver_exit" -eq 0 ]; then
         installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
         log_ok "Binary installed: ${installed_ver}"
+        _bin_verified=1
         rm -f "$backup_bin" 2>/dev/null || true
     elif [ "$_ver_exit" -gt 128 ] && arch_is_supported "${B4_ARCH}_softfloat"; then
         # Binary crashed (SIGILL/segfault) on MIPS hardfloat, retry with softfloat
@@ -170,6 +173,7 @@ action_install() {
                 if mv "${BINARY_NAME}" "$_newbin" 2>/dev/null || cp "${BINARY_NAME}" "$_newbin"; then
                     chmod +x "$_newbin"
                     mv -f "$_newbin" "${B4_BIN_DIR}/${BINARY_NAME}" || rm -f "$_newbin"
+                    flush_disk
                 fi
                 if "${B4_BIN_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
                     installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
@@ -177,6 +181,7 @@ action_install() {
                     log_info "Tip: use --arch=${_sf_arch} for future installs"
                     B4_ARCH="$_sf_arch"
                     _sf_ok=1
+                    _bin_verified=1
                     rm -f "$backup_bin" 2>/dev/null || true
                 else
                     log_err "Softfloat binary also failed - manual troubleshooting needed"
@@ -203,6 +208,11 @@ action_install() {
         log_err "Service setup failed - b4 will not start automatically"
         _svc_failed=1
     }
+    if [ "$_bin_verified" -eq 1 ]; then
+        platform_call_optional install_hooks || log_warn "Platform hooks could not be installed"
+    else
+        platform_call_optional remove_hooks || true
+    fi
 
     # --- Run enabled features ---
     if [ -n "$ENABLED_FEATURES" ]; then

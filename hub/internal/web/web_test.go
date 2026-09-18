@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/daniellavrushin/b4/config"
 	"github.com/daniellavrushin/b4/hubwire"
 	"github.com/daniellavrushin/b4hub/internal/api"
 	"github.com/daniellavrushin/b4hub/internal/asn"
@@ -702,5 +703,368 @@ func TestTargetFiltersDescribeTargetsNotStrategy(t *testing.T) {
 		if strings.Contains(word, "only") || strings.Contains(word, "domain-only") {
 			t.Errorf("strategy words must not carry a target filter, got %q", word)
 		}
+	}
+}
+
+func projectionCopy(t *testing.T, projection map[string]interface{}) map[string]interface{} {
+	t.Helper()
+	raw, err := json.Marshal(projection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out map[string]interface{}
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func withDomains(t *testing.T, projection map[string]interface{}, domains []string) map[string]interface{} {
+	t.Helper()
+	out := projectionCopy(t, projection)
+	targets, _ := out["targets"].(map[string]interface{})
+	if targets == nil {
+		targets = map[string]interface{}{}
+		out["targets"] = targets
+	}
+	targets["sni_domains"] = domains
+	return out
+}
+
+func withFakeTTL(t *testing.T, projection map[string]interface{}, ttl int) map[string]interface{} {
+	t.Helper()
+	out := projectionCopy(t, projection)
+	faking, _ := out["faking"].(map[string]interface{})
+	if faking == nil {
+		faking = map[string]interface{}{}
+		out["faking"] = faking
+	}
+	faking["ttl"] = ttl
+	return out
+}
+
+func TestEditPendingVersion(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	id, env := f.share("Discord", authorAddress, "cdn.discordapp.com", "discordapp.com", "www.discord.com", "*.discord.com", "*.discord.gg", "discord.gg")
+	before, err := f.store.GetVersion(ctx, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	unchanged := EditRequest{Title: before.Title, Description: before.Description, Projection: before.Projection}
+	resp := f.admin(http.MethodPost, setPath(id, 1, "preview"), unchanged)
+	if resp.status != http.StatusOK {
+		t.Fatalf("preview: %d %s", resp.status, resp.body)
+	}
+	var preview EditPreview
+	resp.decode(t, &preview)
+	if preview.Changed || preview.FPChanged || preview.Duplicate != nil || preview.FP != before.FP || len(preview.Payloads) != 1 {
+		t.Fatalf("an untouched set must preview as unchanged: %+v", preview)
+	}
+	if preview.Tidy == nil || len(preview.Tidy.Suggestions) != 4 {
+		t.Fatalf("tidy suggestions: %+v", preview.Tidy)
+	}
+	if got := strings.Join(preview.Tidy.Domains, ","); got != "discordapp.com,discord.com,discord.gg" {
+		t.Fatalf("tidied domains: %s", got)
+	}
+	if resp = f.admin(http.MethodPost, setPath(id, 1, "edit"), unchanged); resp.status != http.StatusBadRequest || !strings.Contains(resp.body, codeUnchanged) {
+		t.Fatalf("an unchanged edit must be refused: %d %s", resp.status, resp.body)
+	}
+	if resp = f.admin(http.MethodPost, setPath(id, 1, "edit"), map[string]interface{}{"title": "x", "projection": map[string]interface{}{"tcp": "nonsense"}}); resp.status != http.StatusBadRequest || !strings.Contains(resp.body, codeInvalidSet) {
+		t.Fatalf("a set that does not decode must be refused: %d %s", resp.status, resp.body)
+	}
+	if resp = f.admin(http.MethodPost, setPath(id, 1, "edit"), EditRequest{Title: "x", Projection: map[string]interface{}{"faking": map[string]interface{}{"ttl": 3}}}); resp.status != http.StatusBadRequest || !strings.Contains(resp.body, "no targets") {
+		t.Fatalf("a set without targets must be refused: %d %s", resp.status, resp.body)
+	}
+
+	f.clock = f.clock.Add(time.Minute)
+	edited := EditRequest{Title: "Discord (tidy)", Description: "Cleaned by a moderator", Projection: withDomains(t, before.Projection, preview.Tidy.Domains), Note: "dead wildcards removed"}
+	resp = f.admin(http.MethodPost, setPath(id, 1, "edit"), edited)
+	if resp.status != http.StatusOK || !strings.Contains(resp.body, "edited "+id+"/1") {
+		t.Fatalf("edit: %d %s", resp.status, resp.body)
+	}
+	if f.rebuilds != 0 {
+		t.Fatalf("editing a pending version must not rebuild the catalogue, rebuilds %d", f.rebuilds)
+	}
+	after, err := f.store.GetVersion(ctx, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Status != hubwire.SetStatusPending || after.Title != "Discord (tidy)" || after.Description != "Cleaned by a moderator" || after.EditNote != "dead wildcards removed" {
+		t.Fatalf("edited version: %+v", after)
+	}
+	if !after.EditedAt.Equal(f.clock) || !after.UpdatedAt.Equal(f.clock) {
+		t.Fatalf("edit stamps: %v %v, clock %v", after.EditedAt, after.UpdatedAt, f.clock)
+	}
+	if got := strings.Join(store.TargetList(after.Projection, "sni_domains"), ","); got != "discordapp.com,discord.com,discord.gg" {
+		t.Fatalf("domains after edit: %s", got)
+	}
+	if name, _ := after.Projection["name"].(string); name != "Discord (tidy)" {
+		t.Fatalf("the projection must carry the new title: %v", after.Projection["name"])
+	}
+	if after.FP != before.FP || after.TargetsKey == before.TargetsKey {
+		t.Fatalf("a targets-only edit keeps the fingerprint and changes the targets key: %+v", after)
+	}
+	if !sameJSON(after.OriginalProjection, before.Projection) {
+		t.Fatalf("the received projection must be kept: %v", after.OriginalProjection)
+	}
+	if len(after.Payloads) != 1 || after.Payloads[0].SHA256 != env.Payloads[0].SHA256 {
+		t.Fatalf("the attached payload must survive an edit: %+v", after.Payloads)
+	}
+	if file, _ := after.Projection["faking"].(map[string]interface{})["payload_file"].(string); file != hubwire.RefPrefix+env.Payloads[0].SHA256 {
+		t.Fatalf("payload reference: %q", file)
+	}
+
+	var sets SetsView
+	f.admin(http.MethodGet, PathAPI+"/sets", nil).decode(t, &sets)
+	if len(sets.Pending) != 1 {
+		t.Fatalf("one pending set expected: %+v", sets)
+	}
+	p := sets.Pending[0]
+	if p.EditedAt == nil || p.EditNote != "dead wildcards removed" || p.OriginalProjection == nil || p.OriginalTitle != "Discord" || p.Title != "Discord (tidy)" || len(p.Targets.Domains) != 3 {
+		t.Fatalf("queue entry after edit: %+v", p)
+	}
+
+	f.clock = f.clock.Add(time.Minute)
+	strategy := EditRequest{Title: after.Title, Description: after.Description, Projection: withFakeTTL(t, after.Projection, 3)}
+	f.admin(http.MethodPost, setPath(id, 1, "preview"), strategy).decode(t, &preview)
+	if !preview.Changed || !preview.FPChanged || preview.FP == after.FP {
+		t.Fatalf("a strategy edit must change the fingerprint: %+v", preview)
+	}
+	if resp = f.admin(http.MethodPost, setPath(id, 1, "edit"), strategy); resp.status != http.StatusOK {
+		t.Fatalf("strategy edit: %d %s", resp.status, resp.body)
+	}
+	third, _ := f.store.GetVersion(ctx, id, 1)
+	if third.FP != preview.FP || third.FP == after.FP || !sameJSON(third.OriginalProjection, before.Projection) {
+		t.Fatalf("after the strategy edit: %+v", third)
+	}
+	votes, err := f.store.VotesForVersion(ctx, id, 1)
+	if err != nil || len(votes) != 0 {
+		t.Fatalf("votes for a strategy nobody evaluated must be dropped: %v %+v", err, votes)
+	}
+	if third.OriginalTitle != "Discord" || third.OriginalDescription != "" {
+		t.Fatalf("the received title and description must be kept: %+v", third)
+	}
+
+	otherID, _ := f.share("Other", otherAddress, "example.org")
+	other, _ := f.store.GetVersion(ctx, otherID, 1)
+	duplicate := EditRequest{Title: "Other", Projection: withFakeTTL(t, withDomains(t, other.Projection, store.TargetList(third.Projection, "sni_domains")), 3)}
+	f.admin(http.MethodPost, setPath(otherID, 1, "preview"), duplicate).decode(t, &preview)
+	if preview.Duplicate == nil || preview.Duplicate.SetID != id || preview.Duplicate.Version != 1 {
+		t.Fatalf("preview must name the duplicate: %+v", preview.Duplicate)
+	}
+	if resp = f.admin(http.MethodPost, setPath(otherID, 1, "edit"), duplicate); resp.status != http.StatusConflict || !strings.Contains(resp.body, codeDuplicate) {
+		t.Fatalf("an edit that duplicates a set must be refused: %d %s", resp.status, resp.body)
+	}
+
+	approved := EditRequest{Title: "Other (approved)", Projection: withDomains(t, other.Projection, []string{"example.org", "example.com"}), Approve: true}
+	resp = f.admin(http.MethodPost, setPath(otherID, 1, "edit"), approved)
+	if resp.status != http.StatusOK || !strings.Contains(resp.body, "edited and approved "+otherID+"/1") {
+		t.Fatalf("edit and approve: %d %s", resp.status, resp.body)
+	}
+	if f.rebuilds != 1 {
+		t.Fatalf("approving must rebuild the catalogue, rebuilds %d", f.rebuilds)
+	}
+	latest := f.builder.Latest()
+	if latest == nil || latest.ByID[otherID] == nil || latest.ByID[otherID].Title != "Other (approved)" {
+		t.Fatalf("the edited set must be published: %+v", latest)
+	}
+	if got := strings.Join(store.TargetList(latest.ByID[otherID].Set, "sni_domains"), ","); got != "example.org,example.com" {
+		t.Fatalf("published domains: %s", got)
+	}
+	if resp = f.admin(http.MethodPost, setPath(otherID, 1, "edit"), approved); resp.status != http.StatusConflict || !strings.Contains(resp.body, codeNotPending) {
+		t.Fatalf("a listed version must not be editable: %d %s", resp.status, resp.body)
+	}
+	if resp = f.admin(http.MethodPost, setPath(otherID, 1, "preview"), approved); resp.status != http.StatusOK {
+		t.Fatalf("preview of a listed version stays available: %d %s", resp.status, resp.body)
+	}
+	if resp = f.admin(http.MethodPost, setPath(otherID, 9, "edit"), approved); resp.status != http.StatusNotFound {
+		t.Fatalf("unknown version must be 404, got %d", resp.status)
+	}
+}
+
+func TestEditKeepsVotesOnlyWhileStrategyStands(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	id, _ := f.share("Votes", authorAddress, "votes.example")
+	v, err := f.store.GetVersion(ctx, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets := EditRequest{Title: v.Title, Projection: withDomains(t, v.Projection, []string{"votes.example", "more.example"})}
+	if resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), targets); resp.status != http.StatusOK {
+		t.Fatalf("targets edit: %d %s", resp.status, resp.body)
+	}
+	if votes, _ := f.store.VotesForVersion(ctx, id, 1); len(votes) != 1 || votes[0].FP != v.FP {
+		t.Fatalf("a targets-only edit keeps the upload vote: %+v", votes)
+	}
+	edited, _ := f.store.GetVersion(ctx, id, 1)
+	strategy := EditRequest{Title: v.Title, Projection: withFakeTTL(t, edited.Projection, 3)}
+	if resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), strategy); resp.status != http.StatusOK {
+		t.Fatalf("strategy edit: %d %s", resp.status, resp.body)
+	}
+	if votes, _ := f.store.VotesForVersion(ctx, id, 1); len(votes) != 0 {
+		t.Fatalf("a strategy edit drops the votes: %+v", votes)
+	}
+	all, _ := f.store.AllVotes(ctx)
+	if len(all) != 0 {
+		t.Fatalf("no vote may survive with the obsolete fingerprint: %+v", all)
+	}
+}
+
+func TestEditRefusesWhenPayloadUnreadable(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	id, env := f.share("Capture", authorAddress, "capture.example")
+	before, err := f.store.GetVersion(ctx, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := f.web.Blobs.Remove(env.Payloads[0].SHA256); err != nil {
+		t.Fatal(err)
+	}
+	req := EditRequest{Title: "Capture edited", Projection: before.Projection}
+	resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), req)
+	if resp.status != http.StatusInternalServerError || !strings.Contains(resp.body, env.Payloads[0].SHA256) {
+		t.Fatalf("an unreadable payload must refuse the edit: %d %s", resp.status, resp.body)
+	}
+	after, _ := f.store.GetVersion(ctx, id, 1)
+	if after.Title != before.Title || len(after.Payloads) != 1 || !sameJSON(after.Projection, before.Projection) {
+		t.Fatalf("the version must be untouched: %+v", after)
+	}
+}
+
+func TestPreviewReportsStrippedFields(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	id, _ := f.share("Routing", authorAddress, "routing.example")
+	v, err := f.store.GetVersion(ctx, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projection := projectionCopy(t, v.Projection)
+	projection["routing"] = map[string]interface{}{"enabled": true, "mode": "proxy", "upstream": "socks5://10.0.0.1:1080"}
+	projection["targets"].(map[string]interface{})["source_devices"] = []string{"aa:bb:cc:dd:ee:ff"}
+	projection["tcp"] = map[string]interface{}{"seg2delay": 0, "made_up": 1}
+	var preview EditPreview
+	resp := f.admin(http.MethodPost, setPath(id, 1, "preview"), EditRequest{Title: v.Title, Projection: projection})
+	if resp.status != http.StatusOK {
+		t.Fatalf("preview: %d %s", resp.status, resp.body)
+	}
+	resp.decode(t, &preview)
+	got := map[string]string{}
+	for _, s := range preview.Stripped {
+		got[s.Path] = s.Reason
+	}
+	if got["routing.upstream"] != strippedPrivate || got["targets.source_devices"] != strippedPrivate || got["routing.mode"] != strippedNotShareable || got["routing.enabled"] != strippedNotShareable {
+		t.Fatalf("stripped: %+v", preview.Stripped)
+	}
+	if _, ok := got["tcp.seg2delay"]; ok {
+		t.Fatalf("a value equal to the default is not a strip: %+v", preview.Stripped)
+	}
+	if _, ok := got["tcp.made_up"]; ok {
+		t.Fatalf("an unknown field is reported as a warning, not a strip: %+v", preview.Stripped)
+	}
+	if _, ok := preview.Projection["routing"]; ok {
+		t.Fatalf("routing must not survive: %v", preview.Projection["routing"])
+	}
+}
+
+func TestEditRefusesStaleRevision(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	id, _ := f.share("Stale", authorAddress, "stale.example")
+	loaded, err := f.store.GetVersion(ctx, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	opened := loaded.UpdatedAt
+	f.clock = f.clock.Add(time.Minute)
+	first := EditRequest{Title: "First moderator", Projection: loaded.Projection, Expect: &opened}
+	if resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), first); resp.status != http.StatusOK {
+		t.Fatalf("first edit: %d %s", resp.status, resp.body)
+	}
+	second := EditRequest{Title: "Second moderator", Projection: loaded.Projection, Expect: &opened}
+	resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), second)
+	if resp.status != http.StatusConflict || !strings.Contains(resp.body, codeStale) {
+		t.Fatalf("an edit from a stale dialog must be refused: %d %s", resp.status, resp.body)
+	}
+	v, _ := f.store.GetVersion(ctx, id, 1)
+	if v.Title != "First moderator" {
+		t.Fatalf("the first edit must stand: %+v", v)
+	}
+	fresh := EditRequest{Title: "Second moderator", Projection: loaded.Projection, Expect: &v.UpdatedAt}
+	if resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), fresh); resp.status != http.StatusOK {
+		t.Fatalf("an edit with the current revision must pass: %d %s", resp.status, resp.body)
+	}
+}
+
+func withoutCapture(t *testing.T, projection map[string]interface{}) map[string]interface{} {
+	t.Helper()
+	out := projectionCopy(t, projection)
+	faking, _ := out["faking"].(map[string]interface{})
+	delete(faking, "payload_file")
+	faking["sni_type"] = config.FakePayloadDefault1
+	return out
+}
+
+func TestSweepRemovesPayloadsNoEditReferences(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	first, env := f.share("First", authorAddress, "first.example")
+	second, _ := f.share("Second", otherAddress, "second.example")
+	hash := env.Payloads[0].SHA256
+	sweep := func(minAge time.Duration) []string {
+		t.Helper()
+		referenced, err := f.store.ReferencedBlobs(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		removed, err := f.web.Blobs.Sweep(referenced, minAge, time.Now())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return removed
+	}
+	detach := func(id string) {
+		t.Helper()
+		v, err := f.store.GetVersion(ctx, id, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		req := EditRequest{Title: v.Title, Projection: withoutCapture(t, v.Projection)}
+		if resp := f.admin(http.MethodPost, setPath(id, 1, "edit"), req); resp.status != http.StatusOK {
+			t.Fatalf("edit %s: %d %s", id, resp.status, resp.body)
+		}
+	}
+	detach(first)
+	if removed := sweep(0); len(removed) != 0 || !f.web.Blobs.Exists(hash) {
+		t.Fatalf("a blob another version still uses must stay: %v", removed)
+	}
+	detach(second)
+	if removed := sweep(time.Hour); len(removed) != 0 || !f.web.Blobs.Exists(hash) {
+		t.Fatalf("a young unreferenced blob must survive the sweep: %v", removed)
+	}
+	if removed := sweep(0); len(removed) != 1 || removed[0] != hash || f.web.Blobs.Exists(hash) {
+		t.Fatalf("an old unreferenced blob must go: %v", removed)
+	}
+}
+
+func TestEditRefusesDuplicateInsideTransaction(t *testing.T) {
+	f := newFixture(t, password)
+	ctx := context.Background()
+	first, _ := f.share("First", authorAddress, "same.example")
+	second, _ := f.share("Second", otherAddress, "other.example")
+	a, _ := f.store.GetVersion(ctx, first, 1)
+	b, _ := f.store.GetVersion(ctx, second, 1)
+	edit := store.VersionEdit{Title: b.Title, Projection: a.Projection, Payloads: b.Payloads, Flags: b.Flags, FP: a.FP, TargetsKey: a.TargetsKey, B4Min: b.B4Min, Family: b.Family}
+	err := f.store.EditVersion(ctx, second, 1, edit, f.clock)
+	var dup *store.DuplicateError
+	if !errors.As(err, &dup) || dup.SetID != first || dup.Version != 1 {
+		t.Fatalf("the store must refuse a duplicate regardless of the preview: %v", err)
+	}
+	if v, _ := f.store.GetVersion(ctx, second, 1); v.TargetsKey != b.TargetsKey {
+		t.Fatalf("the refused edit must not persist: %+v", v)
 	}
 }

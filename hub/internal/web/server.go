@@ -45,6 +45,7 @@ type Server struct {
 	Secret        []byte
 	AdminPassword string
 	Version       string
+	Source        string
 	KeyID         string
 	PublicURL     string
 	Rebuild       func() error
@@ -149,10 +150,14 @@ func (s *Server) fail(w http.ResponseWriter, err error) {
 const maxBodyBytes = 64 << 10
 
 func readBody(w http.ResponseWriter, r *http.Request, into interface{}) error {
+	return readBodyLimit(w, r, into, maxBodyBytes)
+}
+
+func readBodyLimit(w http.ResponseWriter, r *http.Request, into interface{}, limit int64) error {
 	if r.Body == nil || r.ContentLength == 0 {
 		return nil
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(into); err != nil {

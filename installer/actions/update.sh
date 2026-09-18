@@ -315,6 +315,9 @@ action_update() {
         log_err "Failed to replace binary"
         update_failed=1
     }
+    if [ "$update_failed" -eq 0 ]; then
+        flush_disk
+    fi
 
     # Verify
     if [ "$update_failed" -eq 0 ] && "$existing_bin" --version >/dev/null 2>&1; then
@@ -336,6 +339,11 @@ action_update() {
     fi
 
     refresh_legacy_service_script
+    if [ "$update_failed" -eq 0 ]; then
+        platform_call_optional install_hooks || log_warn "Platform hooks could not be installed"
+    else
+        platform_call_optional remove_hooks || true
+    fi
 
     _update_restart_b4
 

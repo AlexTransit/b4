@@ -180,6 +180,13 @@ restore_binary() {
     rm -f "$_rb_bin" 2>/dev/null || true
     mv "$_rb_backup" "$_rb_bin" 2>/dev/null || return 1
     chmod +x "$_rb_bin" 2>/dev/null || true
+    flush_disk
+    return 0
+}
+
+flush_disk() {
+    command_exists sync || return 0
+    sync 2>/dev/null || true
     return 0
 }
 
@@ -1543,6 +1550,14 @@ platform_call() {
     platform_dispatch "$B4_PLATFORM" "$func" "$@"
 }
 
+platform_call_optional() {
+    func="$1"
+    shift
+    fn="platform_${B4_PLATFORM}_${func}"
+    type "$fn" >/dev/null 2>&1 || return 0
+    "$fn" "$@"
+}
+
 platform_dispatch() {
     pid="$1"
     func="$2"
@@ -1879,6 +1894,38 @@ platform_keenetic_find_storage() {
     log_info "  - Newer models: Enable OPKG in system settings"
     log_info "  - Older models: Plug in a USB drive and install Entware"
     return 1
+}
+
+B4_KEENETIC_HOOK="/opt/etc/ndm/netfilter.d/50-b4.sh"
+
+platform_keenetic_install_hooks() {
+    ensure_dir "$(dirname "$B4_KEENETIC_HOOK")" "NDMS hook directory" || return 1
+    cat >"$B4_KEENETIC_HOOK" <<'EOF' || return 1
+#!/bin/sh
+[ "$type" = "iptables" ] || [ "$type" = "ip6tables" ] || exit 0
+case "$table" in
+mangle | nat | filter) ;;
+*) exit 0 ;;
+esac
+for f in /var/run/b4.pid /run/b4.pid /tmp/b4.pid /opt/var/run/b4.pid; do
+    [ -f "$f" ] || continue
+    pid=$(cat "$f" 2>/dev/null)
+    [ -n "$pid" ] || continue
+    [ "$(cat "/proc/$pid/comm" 2>/dev/null)" = "b4" ] || continue
+    kill -USR1 "$pid" 2>/dev/null && exit 0
+done
+pids=$(pidof b4 2>/dev/null)
+[ -n "$pids" ] && kill -USR1 $pids 2>/dev/null
+exit 0
+EOF
+    chmod +x "$B4_KEENETIC_HOOK" || return 1
+    log_ok "NDMS netfilter hook installed: ${B4_KEENETIC_HOOK}"
+}
+
+platform_keenetic_remove_hooks() {
+    [ -f "$B4_KEENETIC_HOOK" ] || return 0
+    rm -f "$B4_KEENETIC_HOOK" 2>/dev/null || return 1
+    log_info "Removed NDMS netfilter hook: ${B4_KEENETIC_HOOK}"
 }
 
 register_platform "keenetic"
@@ -3403,13 +3450,16 @@ action_install() {
         restore_binary "${B4_BIN_DIR}/${BINARY_NAME}" "$backup_bin" && log_warn "Rolled back to the previous version"
         exit 1
     fi
+    flush_disk
 
     _ver_exit=0
+    _bin_verified=0
     sh -c "\"${B4_BIN_DIR}/${BINARY_NAME}\" --version" >/dev/null 2>&1 || _ver_exit=$?
 
     if [ "$_ver_exit" -eq 0 ]; then
         installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
         log_ok "Binary installed: ${installed_ver}"
+        _bin_verified=1
         rm -f "$backup_bin" 2>/dev/null || true
     elif [ "$_ver_exit" -gt 128 ] && arch_is_supported "${B4_ARCH}_softfloat"; then
         _sf_arch="${B4_ARCH}_softfloat"
@@ -3435,6 +3485,7 @@ action_install() {
                 if mv "${BINARY_NAME}" "$_newbin" 2>/dev/null || cp "${BINARY_NAME}" "$_newbin"; then
                     chmod +x "$_newbin"
                     mv -f "$_newbin" "${B4_BIN_DIR}/${BINARY_NAME}" || rm -f "$_newbin"
+                    flush_disk
                 fi
                 if "${B4_BIN_DIR}/${BINARY_NAME}" --version >/dev/null 2>&1; then
                     installed_ver=$("${B4_BIN_DIR}/${BINARY_NAME}" --version 2>&1 | head -1)
@@ -3442,6 +3493,7 @@ action_install() {
                     log_info "Tip: use --arch=${_sf_arch} for future installs"
                     B4_ARCH="$_sf_arch"
                     _sf_ok=1
+                    _bin_verified=1
                     rm -f "$backup_bin" 2>/dev/null || true
                 else
                     log_err "Softfloat binary also failed - manual troubleshooting needed"
@@ -3467,6 +3519,11 @@ action_install() {
         log_err "Service setup failed - b4 will not start automatically"
         _svc_failed=1
     }
+    if [ "$_bin_verified" -eq 1 ]; then
+        platform_call_optional install_hooks || log_warn "Platform hooks could not be installed"
+    else
+        platform_call_optional remove_hooks || true
+    fi
 
     if [ -n "$ENABLED_FEATURES" ]; then
         features_run
@@ -3565,6 +3622,7 @@ action_remove() {
 
     _removed_any=0
     _remove_netfilter_state
+    platform_call_optional remove_hooks || true
 
     if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
         if [ -n "$B4_SERVICE_DIR" ] && [ -f "${B4_SERVICE_DIR}/${B4_SERVICE_NAME}" ]; then
@@ -3996,6 +4054,9 @@ action_update() {
         log_err "Failed to replace binary"
         update_failed=1
     }
+    if [ "$update_failed" -eq 0 ]; then
+        flush_disk
+    fi
 
     if [ "$update_failed" -eq 0 ] && "$existing_bin" --version >/dev/null 2>&1; then
         new_ver=$("$existing_bin" --version 2>&1 | head -1)
@@ -4016,6 +4077,11 @@ action_update() {
     fi
 
     refresh_legacy_service_script
+    if [ "$update_failed" -eq 0 ]; then
+        platform_call_optional install_hooks || log_warn "Platform hooks could not be installed"
+    else
+        platform_call_optional remove_hooks || true
+    fi
 
     _update_restart_b4
 
