@@ -18,6 +18,11 @@ installed_service_type() {
     fi
 }
 
+installed_init_gen() {
+    _iig=$(sed -n 's/^B4_INIT_GEN=\([0-9][0-9]*\).*/\1/p' "$1" 2>/dev/null | head -1)
+    echo "${_iig:-0}"
+}
+
 _recover_service_paths() {
     _rsp_svc="$1"
     [ -f "$_rsp_svc" ] || return 1
@@ -47,21 +52,24 @@ _recover_service_paths() {
 }
 
 refresh_legacy_service_script() {
+    _svc_refreshed=0
     [ -z "$B4_SERVICE_DIR" ] && return 0
     [ -z "$B4_SERVICE_NAME" ] && return 0
 
     _svc="${B4_SERVICE_DIR}/${B4_SERVICE_NAME}"
     [ -f "$_svc" ] || return 0
 
+    _svc_type=$(installed_service_type "$_svc")
     _legacy_log=0
     grep -q "b4\.log" "$_svc" 2>/dev/null && _legacy_log=1
     _outdated=0
-    if ! grep -q "^B4_INIT_GEN=" "$_svc" 2>/dev/null && grep -q "B4 DPI Bypass Service" "$_svc" 2>/dev/null; then
+    _installed_gen=$(installed_init_gen "$_svc")
+    _wanted_gen=$(service_init_gen "$_svc_type")
+    if grep -q "B4 DPI Bypass Service" "$_svc" 2>/dev/null && [ "$_installed_gen" -lt "$_wanted_gen" ]; then
         _outdated=1
     fi
     [ "$_legacy_log" -eq 1 ] || [ "$_outdated" -eq 1 ] || return 0
 
-    _svc_type=$(installed_service_type "$_svc")
     if [ "$_svc_type" = "systemd" ]; then
         if [ "$_legacy_log" -eq 1 ]; then
             log_warn "Systemd unit ${_svc} sends b4 output to a legacy log file"
@@ -73,12 +81,13 @@ refresh_legacy_service_script() {
     if [ "$_legacy_log" -eq 1 ]; then
         log_warn "Init script logs b4 output to a legacy file that is never rotated"
     else
-        log_info "Installed ${_svc_type} service script needs regenerating"
+        log_info "Installed ${_svc_type} service script is generation ${_installed_gen}, current is ${_wanted_gen}"
     fi
     log_info "Refreshing ${_svc_type} service script: ${_svc}"
 
     if _recover_service_paths "$_svc" && service_dispatch "$_svc_type" install >/dev/null 2>&1; then
         log_ok "Service script refreshed"
+        _svc_refreshed=1
     elif [ "$_legacy_log" -eq 1 ]; then
         log_warn "Could not regenerate the service script safely, patching the redirect in place"
         for _legacy in $LEGACY_SERVICE_LOGS; do
@@ -87,6 +96,7 @@ refresh_legacy_service_script() {
             sed -i "s#\"${_esc}\"#\"/dev/null\"#g" "$_svc" 2>/dev/null || true
             sed -i "s#${_esc}#/var/log/b4/errors.log#g" "$_svc" 2>/dev/null || true
         done
+        _svc_refreshed=1
     else
         log_warn "Could not regenerate the service script safely, keeping the installed one"
     fi
@@ -98,6 +108,24 @@ refresh_legacy_service_script() {
             rm -f "$_legacy" 2>/dev/null || true
         fi
     done
+}
+
+_refresh_installed_service() {
+    refresh_legacy_service_script
+    [ "$_svc_refreshed" -eq 1 ] || return 0
+    if ! is_b4_running; then
+        log_info "b4 is not running, the refreshed service script applies at its next start"
+        return 0
+    fi
+    saved_cmdline=$(b4_running_cmdline 2>/dev/null || true)
+    if [ -n "$B4_SERVICE_TYPE" ] && [ "$B4_SERVICE_TYPE" != "none" ]; then
+        log_info "Stopping service (${B4_SERVICE_TYPE}) so it comes back under the refreshed script..."
+    fi
+    service_stop_b4 || {
+        log_warn "Could not stop the running b4 process, restart it by hand to apply the refreshed script"
+        return 0
+    }
+    _update_restart_b4
 }
 
 _update_restart_b4() {
@@ -205,8 +233,10 @@ action_update() {
     fi
 
     if [ -z "$B4_LOCAL_ARCHIVE" ]; then
-        if [ "$current_ver" = "$latest_ver" ] || echo "$current_ver" | grep -Fq "$latest_ver"; then
+        _cur_num=$(version_number "$current_ver")
+        if [ -n "$_cur_num" ] && [ "$_cur_num" = "$(version_number "$latest_ver")" ]; then
             log_ok "Already up to date"
+            _refresh_installed_service
             return 0
         fi
     fi
