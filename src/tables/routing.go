@@ -62,6 +62,7 @@ type routeState struct {
 	chainOut    string
 	chainSNAT   string
 	chainQUIC   string
+	set         *config.SetConfig
 }
 
 type routeBackend interface {
@@ -111,6 +112,14 @@ type routeStaticEntries struct {
 
 var (
 	routeMu             sync.Mutex
+	routePhaseMu        sync.Mutex
+	routeSyncedCfg      *config.Config
+	routeSyncRetry      *config.Config
+	routeSyncRetryTimer *time.Timer
+	routeSyncRetryDelay time.Duration
+	routeSyncRetryOwn   bool
+	routeSyncRetryBase  = 10 * time.Second
+	routeSyncRetryMax   = 10 * time.Minute
 	routeRuleCache      = make(map[string]routeState)
 	routeIfaceAuto      = make(map[string]routeState)
 	routeEngine         routeBackend
@@ -182,6 +191,7 @@ func RoutingHandleDNS(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
 	}
 
 	cur := buildRouteState(cfg, set)
+	cur.set = set
 	sources := routeNormalizedSources(set.Routing.SourceInterfaces)
 
 	retireOld := func() {}
@@ -341,19 +351,43 @@ func RoutingLearnHost(cfg *config.Config, set *config.SetConfig, host string) {
 
 	cfgSnapshot := *cfg
 	go func(c *config.Config, s *config.SetConfig, h string) {
-		if ips := routeResolveHost(c, h); len(ips) > 0 {
-			log.Tracef("Routing: learned host %s -> %d IPs (set: %s)", h, len(ips), s.Name)
-			routeAddResolvedIPs(c, s, ips)
+		ips := routeResolveHost(c, h)
+		if len(ips) == 0 {
+			return
+		}
+		log.Tracef("Routing: learned host %s -> %d IPs (set: %s)", h, len(ips), s.Name)
+		if !routeAddResolvedIPs(c, s, ips) {
+			routeMu.Lock()
+			delete(routeHostResolvedAt, s.Id+"|"+h)
+			routeMu.Unlock()
 		}
 	}(&cfgSnapshot, set, host)
 }
 
-func routeAddResolvedIPs(cfg *config.Config, set *config.SetConfig, ips []net.IP) {
-	if cfg == nil || set == nil || len(ips) == 0 {
-		return
+func routeSameResolveTargets(a, b *config.SetConfig) bool {
+	if a == nil || b == nil {
+		return a == b
 	}
-	if config.RoutingIsBlock(set.Routing.Mode) || set.Targets.DomainOnly {
-		return
+	if a.Targets.DomainOnly != b.Targets.DomainOnly || len(a.Targets.SNIDomains) != len(b.Targets.SNIDomains) {
+		return false
+	}
+	counts := make(map[string]int, len(a.Targets.SNIDomains))
+	for _, domain := range a.Targets.SNIDomains {
+		counts[strings.ToLower(strings.TrimSpace(domain))]++
+	}
+	for _, domain := range b.Targets.SNIDomains {
+		key := strings.ToLower(strings.TrimSpace(domain))
+		if counts[key] == 0 {
+			return false
+		}
+		counts[key]--
+	}
+	return true
+}
+
+func routeAddResolvedIPs(cfg *config.Config, set *config.SetConfig, ips []net.IP) bool {
+	if cfg == nil || set == nil || len(ips) == 0 {
+		return true
 	}
 
 	routeMu.Lock()
@@ -361,11 +395,21 @@ func routeAddResolvedIPs(cfg *config.Config, set *config.SetConfig, ips []net.IP
 
 	st, ok := routeRuleCache[set.Id]
 	if !ok {
-		return
+		return false
+	}
+	if st.set != nil && st.set != set {
+		if !routeSameResolveTargets(st.set, set) {
+			log.Tracef("Routing: dropping %d resolved IPs for set %s, its targets changed while they were being resolved", len(ips), set.Name)
+			return false
+		}
+		set = st.set
+	}
+	if config.RoutingIsBlock(st.mode) || set.Targets.DomainOnly {
+		return true
 	}
 	be := routeEngine
 	if be == nil {
-		return
+		return true
 	}
 
 	ttl := set.Routing.IPTTLSeconds
@@ -373,6 +417,7 @@ func routeAddResolvedIPs(cfg *config.Config, set *config.SetConfig, ips []net.IP
 		ttl = 3600
 	}
 	routeAddIPsToSets(be, st, ttl, ips, st.ipv4, st.ipv6)
+	return true
 }
 
 func routeResolveHost(cfg *config.Config, host string) []net.IP {
@@ -626,6 +671,8 @@ func routeCollectEntries(set *config.SetConfig) (v4, v6 []string) {
 }
 
 func RoutingClearAll() {
+	routePhaseMu.Lock()
+	defer routePhaseMu.Unlock()
 	routeMu.Lock()
 	defer routeMu.Unlock()
 
@@ -652,6 +699,8 @@ func RoutingClearAll() {
 	routeRuleCache = make(map[string]routeState)
 	routeIfaceAuto = make(map[string]routeState)
 	routeEngine = nil
+	routeSyncedCfg = nil
+	routeClearSyncRetry()
 	proxyTableForget()
 	routeForgetRtTableNames()
 	routeForgetRPFilterState()
@@ -906,6 +955,12 @@ func routeIptRulesPresent(be *routeIptBackend, cfg *config.Config) bool {
 }
 
 func RoutingForceResync(cfg *config.Config) {
+	routePhaseMu.Lock()
+	defer routePhaseMu.Unlock()
+	routingForceResync(cfg)
+}
+
+func routingForceResync(cfg *config.Config) {
 	if cfg == nil {
 		return
 	}
@@ -918,10 +973,78 @@ func RoutingForceResync(cfg *config.Config) {
 	routeHostResolvedAt = make(map[string]time.Time)
 	routeMu.Unlock()
 
-	RoutingSyncConfig(cfg)
+	routingSyncConfig(cfg)
+}
+
+func routingSyncedConfig() *config.Config {
+	routeMu.Lock()
+	defer routeMu.Unlock()
+	return routeSyncedCfg
+}
+
+func routingSyncRetryConfig() *config.Config {
+	routeMu.Lock()
+	defer routeMu.Unlock()
+	return routeSyncRetry
+}
+
+func routeQueueSyncRetry(cfg *config.Config) {
+	if routeSyncRetry == cfg && routeSyncRetryOwn && routeSyncRetryDelay > 0 {
+		next := routeSyncRetryDelay * 2
+		if next >= routeSyncRetryMax {
+			if routeSyncRetryDelay < routeSyncRetryMax {
+				log.Warnf("Routing: the routing sync keeps failing, it will be retried every %v until it succeeds", routeSyncRetryMax)
+			}
+			next = routeSyncRetryMax
+		}
+		routeSyncRetryDelay = next
+	} else if routeSyncRetry != cfg || routeSyncRetryDelay == 0 {
+		routeSyncRetryDelay = routeSyncRetryBase
+	}
+	routeSyncRetryOwn = false
+	routeSyncRetry = cfg
+	if routeSyncRetryTimer != nil {
+		routeSyncRetryTimer.Stop()
+	}
+	delay := routeSyncRetryDelay
+	routeSyncRetryTimer = time.AfterFunc(delay, func() { routeRetrySync(cfg) })
+	log.Tracef("Routing: the routing sync will be retried in %v", delay)
+}
+
+func routeClearSyncRetry() {
+	if routeSyncRetryTimer != nil {
+		routeSyncRetryTimer.Stop()
+		routeSyncRetryTimer = nil
+	}
+	routeSyncRetry = nil
+	routeSyncRetryDelay = 0
+	routeSyncRetryOwn = false
+}
+
+func routeRetrySync(cfg *config.Config) {
+	routePhaseMu.Lock()
+	defer routePhaseMu.Unlock()
+	routeMu.Lock()
+	pending := routeSyncRetry == cfg
+	routeSyncRetryOwn = pending
+	routeMu.Unlock()
+	if !pending {
+		return
+	}
+	log.Tracef("Routing: retrying the routing sync that failed")
+	routingSyncConfig(cfg)
+	if routingSyncRetryConfig() == nil {
+		log.Infof("Routing: the routing sync that failed has been retried successfully")
+	}
 }
 
 func RoutingSyncConfig(cfg *config.Config) {
+	routePhaseMu.Lock()
+	defer routePhaseMu.Unlock()
+	routingSyncConfig(cfg)
+}
+
+func routingSyncConfig(cfg *config.Config) {
 	if cfg == nil {
 		return
 	}
@@ -939,6 +1062,8 @@ func RoutingSyncConfig(cfg *config.Config) {
 		log.Tracef("Routing: no firewall backend available, skipping sync")
 		routeRuleCache = make(map[string]routeState)
 		routeIfaceAuto = make(map[string]routeState)
+		routeSyncedCfg = cfg
+		routeClearSyncRetry()
 		return
 	}
 
@@ -946,13 +1071,22 @@ func RoutingSyncConfig(cfg *config.Config) {
 		log.Tracef("Routing: ip binary is missing, skipping sync")
 		routeRuleCache = make(map[string]routeState)
 		routeIfaceAuto = make(map[string]routeState)
+		routeSyncedCfg = cfg
+		routeClearSyncRetry()
 		return
 	}
 
 	if err := be.ensureBase(); err != nil {
-		log.Errorf("Routing: failed to ensure base during sync (%s): %v", be.name(), err)
+		if routeSyncRetry == cfg {
+			log.Tracef("Routing: base still cannot be ensured during the retried sync (%s): %v", be.name(), err)
+		} else {
+			log.Errorf("Routing: failed to ensure base during sync (%s): %v, it will be retried", be.name(), err)
+		}
+		routeQueueSyncRetry(cfg)
 		return
 	}
+	retrying := routeSyncRetry == cfg
+	failed := false
 
 	if be.name() == backendNFTables {
 		routeNftSweepBaseOutputBypasses()
@@ -998,6 +1132,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 	}
 
 	var newRoutingSets []*config.SetConfig
+	var retargetedSets []*config.SetConfig
 	for _, set := range cfg.Sets {
 		if set == nil {
 			continue
@@ -1007,6 +1142,7 @@ func RoutingSyncConfig(cfg *config.Config) {
 		}
 
 		cur := buildRouteState(cfg, set)
+		cur.set = set
 		if !config.RoutingIsBlock(cur.mode) && (cur.mark == 0 || cur.table <= 0) {
 			routeWarnIncomplete(set, "b4 could not take a routing table of its own for it")
 			continue
@@ -1022,6 +1158,12 @@ func RoutingSyncConfig(cfg *config.Config) {
 				retireOld = routeCleanupForRebuild(be, old, cur)
 				delete(routeRuleCache, set.Id)
 				routeForgetSetLearnState(set.Id)
+			} else {
+				if old.set != set && !routeSameResolveTargets(old.set, set) {
+					retargetedSets = append(retargetedSets, set)
+				}
+				old.set = set
+				routeRuleCache[set.Id] = old
 			}
 		}
 
@@ -1038,7 +1180,12 @@ func RoutingSyncConfig(cfg *config.Config) {
 				if hadPrevious {
 					routeRuleCache[set.Id] = previous
 				}
-				log.Errorf("Routing: failed to ensure rule for set '%s' during sync: %v", set.Name, err)
+				failed = true
+				if retrying {
+					log.Tracef("Routing: set '%s' still cannot be installed during the retried sync: %v", set.Name, err)
+				} else {
+					log.Errorf("Routing: failed to ensure rule for set '%s' during sync: %v, it will be retried", set.Name, err)
+				}
 				continue
 			}
 			routeRuleCache[set.Id] = cur
@@ -1065,9 +1212,17 @@ func RoutingSyncConfig(cfg *config.Config) {
 	routeReestablishJumpOrder(be, cfg, len(newRoutingSets) > 0)
 	routeEnsurePreJumpPrecedence(be, cfg)
 
-	if len(newRoutingSets) > 0 {
+	routeSyncedCfg = cfg
+	if failed {
+		routeQueueSyncRetry(cfg)
+	} else {
+		routeClearSyncRetry()
+	}
+
+	toResolve := append(newRoutingSets, retargetedSets...)
+	if len(toResolve) > 0 {
 		cfgSnapshot := *cfg
-		go routePreResolveDomains(&cfgSnapshot, newRoutingSets)
+		go routePreResolveDomains(&cfgSnapshot, toResolve)
 	}
 }
 
@@ -1151,10 +1306,16 @@ func routePreResolveDomains(cfg *config.Config, sets []*config.SetConfig) {
 		}
 		for _, domain := range routeResolveTargets(set) {
 			resolved := routeResolveHost(cfg, domain)
-			if len(resolved) > 0 {
-				routeAddResolvedIPs(cfg, set, resolved)
-				log.Tracef("Routing: pre-resolved %s -> %d IPs", domain, len(resolved))
+			if len(resolved) == 0 {
+				continue
 			}
+			if !routeAddResolvedIPs(cfg, set, resolved) {
+				routeMu.Lock()
+				delete(routeLastReResolve, set.Id)
+				routeMu.Unlock()
+				break
+			}
+			log.Tracef("Routing: pre-resolved %s -> %d IPs", domain, len(resolved))
 		}
 	}
 }

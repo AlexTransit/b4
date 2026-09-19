@@ -25,9 +25,37 @@ const (
 	backendIP6TablesLegacy = "ip6tables-legacy"
 )
 
-var modulesLoaded sync.Once
+var (
+	modulesLoaded   sync.Once
+	rulesMu         sync.Mutex
+	rulesAppliedCfg *config.Config
+	addRulesFn      = addRules
+	clearRulesFn    = clearRules
+)
 
 func AddRules(cfg *config.Config) error {
+	rulesMu.Lock()
+	defer rulesMu.Unlock()
+	return addRulesFn(cfg)
+}
+
+func ClearRules(cfg *config.Config) error {
+	rulesMu.Lock()
+	defer rulesMu.Unlock()
+	return clearRulesFn(cfg)
+}
+
+func RefreshRules(cfg *config.Config) error {
+	rulesMu.Lock()
+	defer rulesMu.Unlock()
+	if err := clearRulesFn(cfg); err != nil {
+		return err
+	}
+	return addRulesFn(cfg)
+}
+
+func addRules(cfg *config.Config) error {
+	rulesAppliedCfg = cfg
 	if cfg.System.Tables.SkipSetup {
 		return nil
 	}
@@ -49,7 +77,7 @@ func AddRules(cfg *config.Config) error {
 	return err
 }
 
-func ClearRules(cfg *config.Config) error {
+func clearRules(cfg *config.Config) error {
 	if cfg.System.Tables.SkipSetup {
 		return nil
 	}

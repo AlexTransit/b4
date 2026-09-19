@@ -18,11 +18,12 @@ type Monitor struct {
 	interval time.Duration
 	backend  string
 
-	started    bool
-	kick       chan struct{}
-	kickSettle time.Duration
-	startDelay time.Duration
-	tickFn     func(cfg *config.Config) bool
+	started      bool
+	pendingApply *config.Config
+	kick         chan struct{}
+	kickSettle   time.Duration
+	startDelay   time.Duration
+	tickFn       func(requested bool) bool
 
 	ifaceStateMu sync.Mutex
 	ifaceState   map[string]ifaceSnapshot
@@ -42,7 +43,7 @@ var (
 )
 
 const (
-	monitorKickSettle = 1500 * time.Millisecond
+	monitorKickSettle = 3 * time.Second
 	monitorStartDelay = 5 * time.Second
 )
 
@@ -133,12 +134,12 @@ func (m *Monitor) monitorLoop() {
 		case <-m.stop:
 			return
 		case <-ticker.C:
-			m.tickFn(m.cfgPtr.Load())
+			m.tickFn(false)
 		case <-m.kick:
 			if !m.settleKicks() {
 				return
 			}
-			if !m.tickFn(m.cfgPtr.Load()) {
+			if !m.tickFn(true) {
 				log.Infof("Tables rules re-checked on request, all present")
 			}
 		}
@@ -163,36 +164,46 @@ func (m *Monitor) settleKicks() bool {
 	}
 }
 
-func (m *Monitor) tick(cfg *config.Config) bool {
-	restored := false
-	if !m.checkRules(cfg) {
-		restored = true
-		log.Warnf("Tables rules missing, restoring...")
-		if err := m.restoreRules(cfg); err != nil {
-			log.Errorf("Failed to restore tables rules: %v", err)
-		} else {
-			log.Infof("Tables rules restored successfully")
-		}
-		m.snapshotRoutingIfaces(cfg)
+func (m *Monitor) tick(requested bool) bool {
+	rulesMu.Lock()
+	defer rulesMu.Unlock()
+	_, restored := m.ensureRulesLocked(requested)
+	return m.reconcileRouting(restored)
+}
+
+func (m *Monitor) reconcileRouting(restored bool) bool {
+	routePhaseMu.Lock()
+	if pending := routingSyncRetryConfig(); pending != nil && pending != routingSyncedConfig() {
+		log.Tracef("Monitor: a newer routing configuration is waiting to be retried, leaving routing alone this tick")
+		routePhaseMu.Unlock()
+		return restored
+	}
+	cfg := routingSyncedConfig()
+	if cfg == nil {
+		cfg = m.cfgPtr.Load()
 	}
 
 	if m.routingIfacesChanged(cfg) {
-		restored = true
 		log.Warnf("Routing interface change detected, resyncing routing rules...")
-		RoutingForceResync(cfg)
+		routingForceResync(cfg)
 		m.snapshotRoutingIfaces(cfg)
+		routePhaseMu.Unlock()
 		log.Tracef("Routing rules resynced after interface change")
-	} else if !RoutingRulesPresent(cfg) {
-		restored = true
-		log.Warnf("Routing rules missing, restoring...")
-		RoutingForceResync(cfg)
-		m.snapshotRoutingIfaces(cfg)
-		log.Infof("Routing rules restored successfully")
-	} else {
-		RoutingReconcilePolicyRules(cfg)
-		RoutingEnsureJumpPrecedence(cfg)
-		RoutingPeriodicReResolve(cfg)
+		return true
 	}
+	if !RoutingRulesPresent(cfg) {
+		log.Warnf("Routing rules missing, restoring...")
+		routingForceResync(cfg)
+		m.snapshotRoutingIfaces(cfg)
+		routePhaseMu.Unlock()
+		log.Infof("Routing rules restored successfully")
+		return true
+	}
+	RoutingReconcilePolicyRules(cfg)
+	RoutingEnsureJumpPrecedence(cfg)
+	routePhaseMu.Unlock()
+
+	RoutingPeriodicReResolve(cfg)
 	return restored
 }
 
@@ -419,13 +430,47 @@ func (m *Monitor) checkNFTablesRules(cfg *config.Config) bool {
 	return true
 }
 
+func (m *Monitor) ensureRules(requested bool) (*config.Config, bool) {
+	rulesMu.Lock()
+	defer rulesMu.Unlock()
+	return m.ensureRulesLocked(requested)
+}
+
+func (m *Monitor) ensureRulesLocked(requested bool) (*config.Config, bool) {
+	cfg := m.cfgPtr.Load()
+	if m.checkRules(cfg) {
+		m.pendingApply = nil
+		return cfg, false
+	}
+	if applied := rulesAppliedCfg; applied != nil && applied != cfg && m.pendingApply != cfg && config.FirewallRefreshNeeded(applied, cfg) && m.checkRules(applied) {
+		m.pendingApply = cfg
+		log.Infof("Tables rules still match the previous configuration while a newer one is being applied, leaving the rebuild to that apply")
+		return cfg, true
+	}
+	m.pendingApply = nil
+	if requested {
+		log.Infof("Tables rules missing after a firewall rewrite, restoring...")
+	} else {
+		log.Warnf("Tables rules missing, restoring...")
+	}
+	if err := m.restoreRules(cfg); err != nil {
+		log.Errorf("Failed to restore tables rules: %v", err)
+	} else {
+		log.Infof("Tables rules restored successfully")
+	}
+	m.snapshotRoutingIfaces(cfg)
+	return cfg, true
+}
+
 func (m *Monitor) restoreRules(cfg *config.Config) error {
 	ReloadKernelModules()
-	return AddRules(cfg)
+	return addRulesFn(cfg)
 }
 
 func (m *Monitor) ForceRestore() error {
 	log.Infof("Manual rule restoration triggered")
+	rulesMu.Lock()
+	defer rulesMu.Unlock()
 	return m.restoreRules(m.cfgPtr.Load())
 }
 
