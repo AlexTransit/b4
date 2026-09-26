@@ -35,6 +35,7 @@ interface B4DeviceTableProps {
   onToggle: (mac: string) => void;
   onSelectAll: (checked: boolean) => void;
   renderNameCell?: (device: DeviceInfo) => ReactNode;
+  getSearchableName?: (device: DeviceInfo) => string;
   extraColumns?: B4DeviceTableColumn[];
   showOfflineChip?: boolean;
   maxHeight?: number;
@@ -47,6 +48,7 @@ export const B4DeviceTable = ({
   onToggle,
   onSelectAll,
   renderNameCell,
+  getSearchableName,
   extraColumns = [],
   showOfflineChip = false,
   maxHeight = 350,
@@ -59,14 +61,16 @@ export const B4DeviceTable = ({
   const filteredDevices = useMemo(() => {
     if (!normalizedFilter) return devices;
     return devices.filter((d) => {
-      const name = d.alias || d.vendor || d.hostname || "";
+      const name = getSearchableName
+        ? getSearchableName(d)
+        : d.alias || d.vendor || d.hostname || "";
       return (
         d.mac?.toLowerCase().includes(normalizedFilter) ||
         d.ip?.toLowerCase().includes(normalizedFilter) ||
         name.toLowerCase().includes(normalizedFilter)
       );
     });
-  }, [devices, normalizedFilter]);
+  }, [devices, normalizedFilter, getSearchableName]);
 
   const selectedCount = filteredDevices.filter((d) => isSelected(d.mac)).length;
   const allSelected = filteredDevices.length > 0 && selectedCount === filteredDevices.length;
