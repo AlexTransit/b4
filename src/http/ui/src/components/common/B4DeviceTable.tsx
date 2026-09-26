@@ -34,6 +34,7 @@ interface B4DeviceTableProps {
   isSelected: (mac: string) => boolean;
   onToggle: (mac: string) => void;
   onSelectAll: (checked: boolean) => void;
+  onBulkToggle?: (macs: string[], checked: boolean) => void;
   renderNameCell?: (device: DeviceInfo) => ReactNode;
   getSearchableName?: (device: DeviceInfo) => string;
   extraColumns?: B4DeviceTableColumn[];
@@ -47,6 +48,7 @@ export const B4DeviceTable = ({
   isSelected,
   onToggle,
   onSelectAll,
+  onBulkToggle,
   renderNameCell,
   getSearchableName,
   extraColumns = [],
@@ -81,10 +83,15 @@ export const B4DeviceTable = ({
       onSelectAll(checked);
       return;
     }
-    filteredDevices.forEach((d) => {
-      const currentlySelected = isSelected(d.mac);
-      if (checked && !currentlySelected) onToggle(d.mac);
-      if (!checked && currentlySelected) onToggle(d.mac);
+    const macs = filteredDevices.map((d) => d.mac);
+    if (onBulkToggle) {
+      onBulkToggle(macs, checked);
+      return;
+    }
+    // Fallback only: safe merely if onToggle's caller uses a functional
+    // state update. Prefer passing onBulkToggle to avoid dropped updates.
+    macs.forEach((mac) => {
+      if (checked !== isSelected(mac)) onToggle(mac);
     });
   };
 
@@ -115,8 +122,8 @@ export const B4DeviceTable = ({
               <InputAdornment position="end">
                 <IconButton
                   size="small"
-                  aria-label="clear filter"
                   onClick={() => setFilterText("")}
+                  aria-label={t("core.devices.clearFilter")}
                 >
                   <ClearIcon fontSize="small" />
                 </IconButton>
